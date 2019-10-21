@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="C2RIONetLib">
+      <UniqueIdentifier>{f1f03037-378e-499a-98ec-964555c82b0f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\C2RIONetLib\CircularBuffer.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\ClientSession.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\Exception.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\FastSpinlock.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\RioContext.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\SessionManager.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\RingBuffer.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
