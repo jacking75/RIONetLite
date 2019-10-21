@@ -29,7 +29,7 @@ namespace C2RIONetLib
 			//CRASH_ASSERT(LIoThreadId == MAIN_THREAD_ID);
 			int client_index = 0;
 
-			for (int i = 1; i <= MAX_RIO_THREAD; ++i)
+			for (int i = 1; i <= MAX_RIO_THREAD; ++i) //TODO: 모든 상수 모두 설정변수로 바꾸기
 			{
 				for (int j = 0; j < MAX_CLIENT_PER_RIO_THREAD; ++j)
 				{

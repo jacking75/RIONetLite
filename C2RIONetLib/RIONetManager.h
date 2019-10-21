@@ -3,6 +3,7 @@
 #include <vector>
 #include <thread>
 
+#include "CommonDef.h"
 #include "SessionManager.h"
 
 
@@ -18,6 +19,7 @@ namespace C2RIONetLib
 			WSACleanup();
 		}
 
+		//TODO 실패 반환이 2개 이상인 것은 반환값 타입을 error 타입으로 바꾸기
 		bool Initialize(unsigned short port)
 		{
 			/// winsock initializing			
@@ -41,6 +43,9 @@ namespace C2RIONetLib
 
 			if (RIOAPI::SetFunction(mListenSocket) == false) { return false; }
 			
+			if (mSessionManager.PrepareSessionPool() == false) { return false; }
+
+			LogFuncPtr((int)LogLevel::Info, "RIONetManager::Initialize() - Success!");
 			return true;
 		}
 

@@ -2,10 +2,33 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <mmsystem.h>
 
 namespace C2RIONetLib
 {
-	//TODO 크리티컬섹션으로 하는 스핀란 정의하기
+	class CustomSpinLockCriticalSection
+	{
+		const int SPINLOCK_COUNT = 1000;
+
+	public:
+		CustomSpinLockCriticalSection() = default;
+		~CustomSpinLockCriticalSection() = default;
+		
+		void EnterLock()
+		{
+			(void)InitializeCriticalSectionAndSpinCount(&m_CS, SPINLOCK_COUNT);
+		}
+
+		void LeaveLock()
+		{
+			DeleteCriticalSection(&m_CS);
+		}
+				
+
+	private:
+		CRITICAL_SECTION m_CS;
+	};
+
 
 	class FastSpinlock
 	{

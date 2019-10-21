@@ -3,11 +3,17 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib,"mswsock.lib")
 #pragma comment(lib,"DbgHelp.lib")
+#pragma comment(lib, "winmm.lib")
 
 #include "../../C2RIONetLib/RIONetManager.h"
 
 int main()
 {
+	C2RIONetLib::LogFuncPtr = [](const int eLogInfoType, const char* szLogMsg) {
+		UNREFERENCED_PARAMETER(eLogInfoType);
+		printf("%s\r\n", szLogMsg);
+	};
+
 	unsigned short port = 11021;
 	//LIoThreadId = MAIN_THREAD_ID;
 
@@ -20,17 +26,14 @@ int main()
 	
 	if (GRioManager.Initialize(port) == false)
 		return -1;
-
-	/*if (false == GSessionManager->PrepareSessionPool())
-		return -1;
-
-	if (false == GRioManager->StartIoThreads())
+		
+	if (GRioManager.StartIoThreads() == false)
 		return -1;
 
 	printf_s("Start Server\n");
 
-	if (false == GRioManager->StartAcceptLoop())
-		return -1;*/
+	if (GRioManager.StartAcceptLoop() == false)
+		return -1;
 
 	printf_s("End Server\n");
 		

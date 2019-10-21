@@ -33,5 +33,8 @@
     <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\CommonDef.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

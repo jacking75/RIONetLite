@@ -1,6 +1,6 @@
 #pragma once
 
-#include <winsock2.h>
+//#include <winsock2.h>
 
 #include "CircularBuffer.h"
 #include "FastSpinlock.h"
@@ -16,7 +16,7 @@ namespace C2RIONetLib
 		~ClientSession()
 		{
 			//TODO: 구현하기
-			//RIO.RIODeregisterBuffer(mRioBufferId);
+			RIO.RIODeregisterBuffer(mRioBufferId);
 			VirtualFreeEx(GetCurrentProcess(), mRioBufferPointer, 0, MEM_RELEASE);			
 		}
 
