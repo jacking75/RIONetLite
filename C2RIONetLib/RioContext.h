@@ -39,8 +39,12 @@ namespace C2RIONetLib
 	
 	struct RioIoContext : public RIO_BUF
 	{
-		RioIoContext(const int _session_index, IOType _ioType) : session_index_(_session_index), io_type_(_ioType)
+		RioIoContext() {}
+
+		void Init(const int _session_index, IOType _ioType) 
 		{
+			session_index_ = _session_index;
+			io_type_ = _ioType;
 		}
 
 		int session_index_;

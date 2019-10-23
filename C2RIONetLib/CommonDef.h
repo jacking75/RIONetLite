@@ -5,30 +5,29 @@
 
 namespace C2RIONetLib
 {
+	struct ConnectionNetConfig
+	{
+		INT32 MaxRecvPacketSize = 0;
+		UINT32 MaxTry1RecvBufferSize = 0;		
+		INT32 MAXRecvPacketCountPer1Sec = 0;
+		INT32 MaxRecvBufferSize = 0;
+
+		INT32 MaxSendPacketSize = 0;
+		INT32 MAXSendCountPer1Sec = 0;
+		INT32 MaxSendBufferSize = 0;
+		
+	};
+
 	struct NetConfig
 	{
 		UINT16 PortNumber = 0;
-		INT32 WorkThreadCount = 0;
-		INT32 MaxRecvOverlappedBufferSize = 0; // 한번에 받을 수 있는 최대 크기
-		INT32 MaxSendOverlappedBufferSize = 0; // 한번에 보낼 수 있는 최대 크기
-		INT32 ConnectionMaxRecvBufferSize = 0; // 받기용 버퍼의 최대 크기(데이터를 받으면 여기에 저장되고, 데이터의 위치가 애플리케이션에 전달되므로 넉넉하게 커야 한다)
-		INT32 ConnectionMaxSendBufferSize = 0; // 보내기용 버퍼의 최대 크기
-		INT32 MaxPacketSize = 0;
+		INT32 IoWorkThreadCount = 0;
+
 		INT32 MaxConnectionCount = 0;
-		INT32 MaxMessagePoolCount = 0;
-		INT32 ExtraMessagePoolCount = 0;
-		INT32 PerformancePacketMillisecondsTime = 0;
+		ConnectionNetConfig Conn;
 	};
 
-	struct ConnectionNetConfig
-	{
-		INT32 MaxRecvBufferSize;
-		INT32 MaxSendBufferSize;
-		INT32 MaxRecvOverlappedBufferSize;
-		INT32 MaxSendOverlappedBufferSize;
-	};
-
-
+		
 	enum class MessageType : INT8
 	{
 		None = 0,
@@ -103,6 +102,25 @@ namespace C2RIONetLib
 			SYSTEM_INFO		SysInfo;
 			GetSystemInfo(&SysInfo);
 			return (INT32)SysInfo.dwNumberOfProcessors;
+		}
+
+		const std::wstring s2ws(const std::string& s)
+		{
+			int slength = (int)s.length();
+			int len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
+			std::wstring r(len, L'\0');
+			MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, &r[0], len);
+			return r;
+		}
+
+
+		const std::string ws2s(const std::wstring& s)
+		{
+			int slength = (int)s.length();
+			int len = WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, 0, 0, 0, 0);
+			std::string r(len, '\0');
+			WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, &r[0], len, 0, 0);
+			return r;
 		}
 	};
 

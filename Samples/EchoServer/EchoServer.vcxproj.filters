@@ -9,12 +9,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\C2RIONetLib\CircularBuffer.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\ClientSession.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\Exception.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
@@ -27,13 +21,28 @@
     <ClInclude Include="..\..\C2RIONetLib\SessionManager.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\RingBuffer.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\CommonDef.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\NetSenderCollect.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\NetSenderAtOnce.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\RingBufferVA2.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\NetEventManager.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\Session.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
   </ItemGroup>

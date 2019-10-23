@@ -6,7 +6,7 @@
 
 #include "Exception.h"
 #include "FastSpinlock.h"
-#include "ClientSession.h"
+#include "Session.h"
 
 
 namespace C2RIONetLib
@@ -24,7 +24,7 @@ namespace C2RIONetLib
 			}			
 		}
 
-		bool PrepareSessionPool()
+		bool PrepareSessionPool(ConnectionNetConfig netConfig)
 		{
 			//CRASH_ASSERT(LIoThreadId == MAIN_THREAD_ID);
 			int client_index = 0;
@@ -33,9 +33,9 @@ namespace C2RIONetLib
 			{
 				for (int j = 0; j < MAX_CLIENT_PER_RIO_THREAD; ++j)
 				{
-					auto client = new ClientSession;
+					auto client = new Session;
 					client->Init(client_index, i);
-					if (false == client->RioInitialize()) { return false; }
+					if (false == client->RioInitialize(netConfig)) { return false; }
 
 					mSessionList.push_back(client);
 					mFreeSessionList[i].push_back(client_index);
@@ -47,12 +47,12 @@ namespace C2RIONetLib
 			return true;
 		}
 
-		ClientSession* GetSessionObj(const unsigned int session_index)
+		Session* GetSessionObj(const unsigned int session_index)
 		{
 			if (session_index >= max_session_count_) { return nullptr; }
 			return mSessionList[session_index];
 		}
-		ClientSession* IssueClientSession()
+		Session* IssueClientSession()
 		{
 			FastSpinlockGuard guard(mLock);
 
@@ -73,11 +73,11 @@ namespace C2RIONetLib
 		}
 
 		//TODO: ClientSession* °¡ ¾Æ´Ñ index
-		void ReturnClientSession(ClientSession* client)
+		void ReturnClientSession(Session* client)
 		{
 			FastSpinlockGuard guard(mLock);
 
-			CRASH_ASSERT(client->mSocket == NULL && client->mConnected == false && client->mRefCount == 0);
+			//CRASH_ASSERT(client->mSocket == NULL && client->mConnected == false && client->mRefCount == 0);
 
 			uint64_t threadId = (mCurrentReturnCount++ % MAX_RIO_THREAD) + 1;
 			CRASH_ASSERT(threadId > 0);
@@ -90,7 +90,7 @@ namespace C2RIONetLib
 		unsigned int max_session_count_ = 0;
 		//typedef std::vector<ClientSession*> ClientList;
 		std::deque<int>	mFreeSessionList[MAX_RIO_THREAD + 1];
-		std::vector<ClientSession*> mSessionList;
+		std::vector<Session*> mSessionList;
 		//ClientList	mOccupiedSessionList;
 
 		FastSpinlock mLock;

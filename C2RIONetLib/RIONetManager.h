@@ -3,12 +3,13 @@
 #include <vector>
 #include <thread>
 
-#include "CommonDef.h"
+#include "NetEventManager.h"
 #include "SessionManager.h"
-
+#include "CommonDef.h"
 
 namespace C2RIONetLib
 {	
+	template<class TNetEventManager = NetEventManager>
 	class RIONetManager
 	{
 	public:
@@ -20,7 +21,7 @@ namespace C2RIONetLib
 		}
 
 		//TODO 실패 반환이 2개 이상인 것은 반환값 타입을 error 타입으로 바꾸기
-		bool Initialize(unsigned short port)
+		bool Initialize(NetConfig netConfig)
 		{
 			/// winsock initializing			
 			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return false; }
@@ -36,63 +37,28 @@ namespace C2RIONetLib
 			SOCKADDR_IN serveraddr;
 			ZeroMemory(&serveraddr, sizeof(serveraddr));
 			serveraddr.sin_family = AF_INET;
-			serveraddr.sin_port = htons(port);
+			serveraddr.sin_port = htons(netConfig.PortNumber);
 			serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 			if (SOCKET_ERROR == bind(mListenSocket, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return false; }
 
 			if (RIOAPI::SetFunction(mListenSocket) == false) { return false; }
 			
-			if (mSessionManager.PrepareSessionPool() == false) { return false; }
+			if (mSessionManager.PrepareSessionPool(netConfig.Conn) == false) { return false; }
+
+			/// listen
+			if (SOCKET_ERROR == listen(mListenSocket, SOMAXCONN)) { return false; }
+
+			StartIoThreads();
 
 			LogFuncPtr((int)LogLevel::Info, "RIONetManager::Initialize() - Success!");
 			return true;
 		}
 
-		bool StartIoThreads()
-		{
-			/// I/O Thread
-			for (int i = 0; i < MAX_RIO_THREAD; ++i)
-			{
-				m_WorkThreads.emplace_back([&]() { IoWorkerThread(i+1); });
-			}
-						
-			return true;
-		}
-
-		bool StartAcceptLoop()
-		{
-			/// listen
-			if (SOCKET_ERROR == listen(mListenSocket, SOMAXCONN))
-				return false;
-
-
-			/// accept loop
-			while (true)
-			{
-				SOCKET acceptedSock = accept(mListenSocket, NULL, NULL);
-				if (acceptedSock == INVALID_SOCKET)
-				{
-					//printf_s("[DEBUG] accept: invalid socket\n");
-					continue;
-				}
-
-				SOCKADDR_IN clientaddr;
-				int addrlen = sizeof(clientaddr);
-				getpeername(acceptedSock, (SOCKADDR*)&clientaddr, &addrlen);
-
-				/// new client session (should not be under any session locks)
-				ClientSession* client = mSessionManager.IssueClientSession();
-
-				/// connection establishing and then issuing recv
-				if (false == client->OnConnect(acceptedSock, &clientaddr))
-				{
-					client->Disconnect(DR_ONCONNECT_ERROR);
-				}
-			}
-
-			return true;
-		}
+		void StartAndBlocking()
+		{			
+			StartAcceptLoop();
+		}						
 
 		void End()
 		{
@@ -134,30 +100,62 @@ namespace C2RIONetLib
 
 		const RIO_CQ& GetCompletionQueue(int threadId) { return mRioCompletionQueue[threadId]; }
 
-	public:
-		//static RIO_EXTENSION_FUNCTION_TABLE mRioFunctionTable;
 
-	private:
-		void IoWorkerThread(const int _thread_index)
+	private:		
+		void StartAcceptLoop()
 		{
-			auto LIoThreadId = _thread_index;
+			while (true)
+			{
+				SOCKET acceptedSock = accept(mListenSocket, NULL, NULL);
+				if (acceptedSock == INVALID_SOCKET)
+				{
+					//printf_s("[DEBUG] accept: invalid socket\n");
+					continue;
+				}
 
+				/// new client session (should not be under any session locks)
+				Session* client = mSessionManager.IssueClientSession();
+				auto clientThreadId = client->GetRioThreadId();
 
-			mRioCompletionQueue[LIoThreadId] = RIO.RIOCreateCompletionQueue(MAX_CQ_SIZE_PER_RIO_THREAD, 0);
-			if (mRioCompletionQueue[LIoThreadId] == RIO_INVALID_CQ)
+				/// connection establishing and then issuing recv
+				if (false == client->OnConnect(acceptedSock, GetCompletionQueue(clientThreadId)))
+				{
+					client->Disconnect(DR_ONCONNECT_ERROR);
+				}
+			}
+		}
+
+		void CreateRioCompletionQueue(const int _thread_index)
+		{
+			mRioCompletionQueue[_thread_index] = RIO.RIOCreateCompletionQueue(MAX_CQ_SIZE_PER_RIO_THREAD, 0);
+			if (mRioCompletionQueue[_thread_index] == RIO_INVALID_CQ)
 			{
 				CRASH_ASSERT(false);
 				return;
 			}
+		}
 
+		void StartIoThreads()
+		{
+			/// I/O Thread
+			for (int i = 0; i < MAX_RIO_THREAD; ++i)
+			{
+				CreateRioCompletionQueue(i + 1);
+				m_WorkThreads.emplace_back([&]() { IoWorkerThread(i + 1); });
+			}
+		}
 
+		void IoWorkerThread(const int _thread_index)
+		{
+			auto threadId = _thread_index;						
 			RIORESULT results[MAX_RIO_RESULT];
 
+			//TODO: 스레드 종료 처리 수정하기
 			while (true)
 			{
 				memset(results, 0, sizeof(results));
 
-				ULONG numResults = RIO.RIODequeueCompletion(mRioCompletionQueue[LIoThreadId], results, MAX_RIO_RESULT);
+				ULONG numResults = RIO.RIODequeueCompletion(mRioCompletionQueue[threadId], results, MAX_RIO_RESULT);
 
 				if (0 == numResults)
 				{
@@ -173,7 +171,7 @@ namespace C2RIONetLib
 				for (ULONG i = 0; i < numResults; ++i)
 				{
 					RioIoContext* context = reinterpret_cast<RioIoContext*>(results[i].RequestContext);
-					ClientSession* client = mSessionManager.GetSessionObj(context->session_index_);
+					Session* client = mSessionManager.GetSessionObj(context->session_index_);
 					ULONG transferred = results[i].BytesTransferred;
 
 					CRASH_ASSERT(context && client);
@@ -181,7 +179,7 @@ namespace C2RIONetLib
 
 					if (transferred == 0)
 					{
-						CRASH_ASSERT(client->GetRioThreadId() == LIoThreadId);
+						CRASH_ASSERT(client->GetRioThreadId() == threadId);
 
 						client->Disconnect(DR_ZERO_COMPLETION);
 						//ReleaseContext(context);
@@ -191,11 +189,11 @@ namespace C2RIONetLib
 					{
 						client->RecvCompletion(transferred);
 
-						/// echo back
+						/*/// echo back
 						if (false == client->PostSend())
 						{
 							client->Disconnect(DR_IO_REQUEST_SEND_ERROR);
-						}
+						}*/
 
 					}
 					else if (IO_SEND == context->io_type_)
@@ -240,19 +238,16 @@ namespace C2RIONetLib
 		//}
 
 	private:
+		TNetEventManager mNetEventManager;
+
 		std::vector<std::thread> m_WorkThreads;
 
-		/*static*/ RIO_CQ mRioCompletionQueue[MAX_RIO_THREAD + 1];
+		RIO_CQ mRioCompletionQueue[MAX_RIO_THREAD + 1];
 
 		SOCKET	mListenSocket = INVALID_SOCKET;
 
 		SessionManager mSessionManager;
 
 	};
-		
-
-	//extern RIONetManager* GRioManager;
-
-	//#define RIO	RIONetManager::mRioFunctionTable
 
 }

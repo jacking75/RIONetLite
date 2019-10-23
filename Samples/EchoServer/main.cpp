@@ -7,35 +7,63 @@
 
 #include "../../C2RIONetLib/RIONetManager.h"
 
+#include "../thirdparty/flags.h"
+
+C2RIONetLib::NetConfig GetConfig();
+
 int main()
 {
+	auto netConfig = GetConfig();
+
 	C2RIONetLib::LogFuncPtr = [](const int eLogInfoType, const char* szLogMsg) {
 		UNREFERENCED_PARAMETER(eLogInfoType);
 		printf("%s\r\n", szLogMsg);
 	};
 
-	unsigned short port = 11021;
-	//LIoThreadId = MAIN_THREAD_ID;
-
 	/// for dump on crash
 	SetUnhandledExceptionFilter(C2RIONetLib::ExceptionFilter);
 
-	/// Global Managers
-	//GSessionManager = new SessionManager;
-	C2RIONetLib::RIONetManager GRioManager;
+	C2RIONetLib::RIONetManager netManager;
 	
-	if (GRioManager.Initialize(port) == false)
-		return -1;
-		
-	if (GRioManager.StartIoThreads() == false)
-		return -1;
+	if (netManager.Initialize(netConfig) == false) { return -1; }
+			
+	std::thread logicThread([&]() 
+		{
+			netManager.StartAndBlocking();
+		}
+	);
+	
 
-	printf_s("Start Server\n");
+	std::cout << "Server quits when you press (quit) !!!" << std::endl;	
+	while (true)
+	{
+		std::string inputCmd;
+		std::getline(std::cin, inputCmd);
 
-	if (GRioManager.StartAcceptLoop() == false)
-		return -1;
+		if (inputCmd == "quit")
+		{
+			break;
+		}
+	}
 
-	printf_s("End Server\n");
-		
+	printf_s("End Server\n");			
 	return 0;
+}
+
+C2RIONetLib::NetConfig GetConfig()
+{
+	C2RIONetLib::NetConfig config;
+	config.PortNumber = 11021;
+	config.IoWorkThreadCount = 4;
+	config.MaxConnectionCount = 256;
+	
+	config.Conn.MaxRecvPacketSize = 1024;
+	config.Conn.MaxTry1RecvBufferSize = 2048;
+	config.Conn.MAXRecvPacketCountPer1Sec = 5;
+	config.Conn.MaxRecvBufferSize = 4012 * 2;
+	config.Conn.MaxSendPacketSize = 1024;
+	config.Conn.MAXSendCountPer1Sec = 5;
+	config.Conn.MaxSendBufferSize = 4012 * 2;
+
+	return config;
 }

@@ -11,17 +11,24 @@ namespace C2RIONetLib
 		const int SPINLOCK_COUNT = 1000;
 
 	public:
-		CustomSpinLockCriticalSection() = default;
-		~CustomSpinLockCriticalSection() = default;
-		
-		void EnterLock()
+		CustomSpinLockCriticalSection()
 		{
 			(void)InitializeCriticalSectionAndSpinCount(&m_CS, SPINLOCK_COUNT);
 		}
 
-		void LeaveLock()
+		~CustomSpinLockCriticalSection()
 		{
 			DeleteCriticalSection(&m_CS);
+		}
+		
+		void EnterLock()
+		{
+			EnterCriticalSection(&m_CS);
+		}
+
+		void LeaveLock()
+		{
+			LeaveCriticalSection(&m_CS);
 		}
 				
 
@@ -62,6 +69,7 @@ namespace C2RIONetLib
 		volatile long mLockFlag = 0;
 	};
 
+
 	class FastSpinlockGuard
 	{
 	public:
@@ -77,6 +85,24 @@ namespace C2RIONetLib
 
 	private:
 		FastSpinlock& mLock;
+	};
+
+	template<class LockType>  
+	class SpinlockGuard
+	{
+	public:
+		SpinlockGuard(LockType& lock) : mLock(lock)
+		{
+			mLock.EnterLock();
+		}
+
+		~SpinlockGuard()
+		{
+			mLock.LeaveLock();
+		}
+
+	private:
+		LockType& mLock;
 	};
 }
 //template <class TargetClass>
