@@ -5,6 +5,8 @@
 #pragma comment(lib,"DbgHelp.lib")
 #pragma comment(lib, "winmm.lib")
 
+#include "SimpleNetEventManager.h"
+
 #include "../../C2RIONetLib/RIONetManager.h"
 
 #include "../thirdparty/flags.h"
@@ -23,9 +25,10 @@ int main()
 	/// for dump on crash
 	SetUnhandledExceptionFilter(C2RIONetLib::ExceptionFilter);
 
-	C2RIONetLib::RIONetManager netManager;
+	SimpleNetEventManager netEventMgr;
+	C2RIONetLib::RIONetManager<SimpleNetEventManager> netManager;
 	
-	if (netManager.Initialize(netConfig) == false) { return -1; }
+	if (netManager.Initialize(netConfig, &netEventMgr) == false) { return -1; }
 			
 	std::thread logicThread([&]() 
 		{

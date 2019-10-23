@@ -27,32 +27,14 @@ namespace C2RIONetLib
 		ConnectionNetConfig Conn;
 	};
 
-		
-	enum class MessageType : INT8
+	
+	enum class CloseReason
 	{
-		None = 0,
-		Connection,
-		Close,
-		OnRecv
+		Client = 0,
+		ServerRecvError = 1,
 	};
 
-	struct Message
-	{
-		MessageType Type = MessageType::None;
-		char* pContents = nullptr;
-
-		void Clear()
-		{
-			Type = MessageType::None;
-			pContents = nullptr;
-		}
-
-		void SetMessage(MessageType msgType, char* pSetContents)
-		{
-			Type = msgType;
-			pContents = pSetContents;
-		}
-	};
+	
 
 
 	enum class LogLevel

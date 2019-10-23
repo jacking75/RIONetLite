@@ -3,13 +3,12 @@
 #include <vector>
 #include <thread>
 
-#include "NetEventManager.h"
 #include "SessionManager.h"
 #include "CommonDef.h"
 
 namespace C2RIONetLib
 {	
-	template<class TNetEventManager = NetEventManager>
+	template<class TNetEventManager>
 	class RIONetManager
 	{
 	public:
@@ -21,8 +20,10 @@ namespace C2RIONetLib
 		}
 
 		//TODO 실패 반환이 2개 이상인 것은 반환값 타입을 error 타입으로 바꾸기
-		bool Initialize(NetConfig netConfig)
+		bool Initialize(NetConfig netConfig, TNetEventManager* tNetEventManager)
 		{
+			mNetEventManager = tNetEventManager;
+
 			/// winsock initializing			
 			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return false; }
 
@@ -122,6 +123,8 @@ namespace C2RIONetLib
 				{
 					client->Disconnect(DR_ONCONNECT_ERROR);
 				}
+
+				mNetEventManager->OnConnect();
 			}
 		}
 
@@ -238,7 +241,7 @@ namespace C2RIONetLib
 		//}
 
 	private:
-		TNetEventManager mNetEventManager;
+		TNetEventManager* mNetEventManager;
 
 		std::vector<std::thread> m_WorkThreads;
 

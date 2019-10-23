@@ -7,6 +7,9 @@
     <Filter Include="C2RIONetLib">
       <UniqueIdentifier>{f1f03037-378e-499a-98ec-964555c82b0f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ServerCommon">
+      <UniqueIdentifier>{e7dd0815-fdb4-4d9d-a849-2f0f5a465c6f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\C2RIONetLib\Exception.h">
@@ -39,11 +42,12 @@
     <ClInclude Include="..\..\C2RIONetLib\RingBufferVA2.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\NetEventManager.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\Session.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
+    <ClInclude Include="..\ServerCommon\MessageNetEventManager.h">
+      <Filter>ServerCommon</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleNetEventManager.h" />
   </ItemGroup>
 </Project>

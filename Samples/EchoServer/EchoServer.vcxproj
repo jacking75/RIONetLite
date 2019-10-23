@@ -137,7 +137,6 @@
     <ClInclude Include="..\..\C2RIONetLib\CommonDef.h" />
     <ClInclude Include="..\..\C2RIONetLib\Exception.h" />
     <ClInclude Include="..\..\C2RIONetLib\FastSpinlock.h" />
-    <ClInclude Include="..\..\C2RIONetLib\NetEventManager.h" />
     <ClInclude Include="..\..\C2RIONetLib\NetSenderAtOnce.h" />
     <ClInclude Include="..\..\C2RIONetLib\NetSenderCollect.h" />
     <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h" />
@@ -146,6 +145,8 @@
     <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h" />
     <ClInclude Include="..\..\C2RIONetLib\Session.h" />
     <ClInclude Include="..\..\C2RIONetLib\SessionManager.h" />
+    <ClInclude Include="..\ServerCommon\MessageNetEventManager.h" />
+    <ClInclude Include="SimpleNetEventManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
