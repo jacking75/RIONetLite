@@ -15,30 +15,23 @@ namespace C2RIONetLib
 	{
 	public:
 		SessionManager() = default;
-
-		~SessionManager()
+		~SessionManager() = default;
+		
+		bool PrepareSessionPool(unsigned int sessionCountPerRioThread, NetConfig netConfig)
 		{
-			for (auto pSession : mSessionList)
-			{
-				delete pSession;
-			}			
-		}
+			unsigned int client_index = 0;
+			auto rioThreadCount = netConfig.IoWorkThreadCount;
 
-		bool PrepareSessionPool(ConnectionNetConfig netConfig)
-		{
-			//CRASH_ASSERT(LIoThreadId == MAIN_THREAD_ID);
-			int client_index = 0;
-
-			for (int i = 1; i <= MAX_RIO_THREAD; ++i) //TODO: 모든 상수 모두 설정변수로 바꾸기
+			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i)
 			{
-				for (int j = 0; j < MAX_CLIENT_PER_RIO_THREAD; ++j)
+				for (decltype(sessionCountPerRioThread) j = 0; j < sessionCountPerRioThread; ++j)
 				{
 					auto client = new Session;
 					client->Init(client_index, i);
-					if (false == client->RioInitialize(netConfig)) { return false; }
+					if (false == client->RioInitialize(netConfig.Conn)) { return false; }
 
 					mSessionList.push_back(client);
-					mFreeSessionList[i].push_back(client_index);
+					mFreeSessionList.push_back(client_index);
 					++client_index;
 				}
 			}
@@ -47,56 +40,59 @@ namespace C2RIONetLib
 			return true;
 		}
 
+		void Dispose()
+		{
+			LogFuncPtr((int)LogLevel::Info, "SessionManager::Dispose - Start");
+
+			for (auto pSession : mSessionList)
+			{
+				if (pSession->IsConnected())
+				{
+					pSession->Disconnect();
+				}
+
+				delete pSession;
+			}
+
+			LogFuncPtr((int)LogLevel::Info, "SessionManager::Dispose - Complete");
+		}
+
 		Session* GetSessionObj(const unsigned int session_index)
 		{
 			if (session_index >= max_session_count_) { return nullptr; }
 			return mSessionList[session_index];
 		}
+
 		Session* IssueClientSession()
 		{
 			FastSpinlockGuard guard(mLock);
+						
+			if (mFreeSessionList.empty()) { return false; }
 
-			uint64_t threadId = (mCurrentIssueCount++ % MAX_RIO_THREAD) + 1;
-			CRASH_ASSERT(threadId > 0);
-
-			CRASH_ASSERT((mCurrentIssueCount - mCurrentReturnCount) <= (MAX_RIO_THREAD * MAX_CLIENT_PER_RIO_THREAD));
-
-			if (mFreeSessionList[threadId].empty()) { return false; }
-
-			auto index = mFreeSessionList[threadId].front();
-			mFreeSessionList[threadId].pop_front();
-			auto newSession = GetSessionObj((unsigned int)index);
-
-			if (newSession == nullptr) { return nullptr; }
+			auto index = mFreeSessionList.front();
+			auto newSession = GetSessionObj(index);
+						
+			mFreeSessionList.pop_front();
 			
+			//newSessions는 절대 null 객체가 아니다!!!
 			return newSession;
 		}
 
-		//TODO: ClientSession* 가 아닌 index
-		void ReturnClientSession(Session* client)
+		void ReturnSession(const int sessionIndex)
 		{
-			FastSpinlockGuard guard(mLock);
-
-			//CRASH_ASSERT(client->mSocket == NULL && client->mConnected == false && client->mRefCount == 0);
-
-			uint64_t threadId = (mCurrentReturnCount++ % MAX_RIO_THREAD) + 1;
-			CRASH_ASSERT(threadId > 0);
-
-			mFreeSessionList[threadId].push_back(client->GetIndex());
+			FastSpinlockGuard guard(mLock);						
+			mFreeSessionList.push_back(sessionIndex);
 		}
 
 
 	private:
-		unsigned int max_session_count_ = 0;
-		//typedef std::vector<ClientSession*> ClientList;
-		std::deque<int>	mFreeSessionList[MAX_RIO_THREAD + 1];
-		std::vector<Session*> mSessionList;
-		//ClientList	mOccupiedSessionList;
-
 		FastSpinlock mLock;
 
+		unsigned int max_session_count_ = 0;
 		uint64_t mCurrentIssueCount = 0;
 		uint64_t mCurrentReturnCount = 0;
 
+		std::deque<unsigned int> mFreeSessionList;
+		std::vector<Session*> mSessionList;
 	};
 }

@@ -2,200 +2,222 @@
 
 #include "../../C2RIONetLib/CommonDef.h"
 
+#include <vector>
 #include <concurrent_queue.h>
 
 
-enum class MessageType : INT8
+namespace ServerCommon
 {
-	None = 0,
-	Connection,
-	Close,
-	OnRecv
-};
-
-struct Message
-{
-	MessageType Type = MessageType::None;
-	char* pContents = nullptr;
-
-	void Clear()
+	enum class NetEventType : INT8
 	{
-		Type = MessageType::None;
-		pContents = nullptr;
-	}
+		None = 0,
+		Connection,
+		Close,
+		OnRecv
+	};
 
-	void SetMessage(MessageType msgType, char* pSetContents)
-	{
-		Type = msgType;
-		pContents = pSetContents;
-	}
-};
-
-class MessageNetEventManager
-{
-public:
-	MessageNetEventManager() = default;
-	~MessageNetEventManager() = default;
-
-	void OnConnect(const int index)
-	{
-	}
-
-	void OnClose(const int index, const C2RIONetLib::CloseReason reason)
-	{
-	}
-
-	void OnReceive()
-	{
-	}
-
-	
-	int Init(const unsigned int threadCount)
-	{
-		mLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, threadCount);
-		if (mLogicIOCP == INVALID_HANDLE_VALUE)
+	struct NetEvent
+	{		
+		int SessionIndex = -1;
+		NetEventType EventType = NetEventType::None;
+		unsigned int DataSize = 0;
+		char* pData = nullptr;
+		
+		void Set(const int sessionIndex, const NetEventType type, const unsigned int dataSize, char* data)
 		{
-			return -1;
+			SessionIndex = sessionIndex;
+			EventType = type;
+			DataSize = dataSize;
+			pData = data;
 		}
 
-		return 0;
-	}
+		void SetReceive(const unsigned int dataSize, char* data)
+		{
+			DataSize = dataSize;
+			pData = data;
+		}		
+	};
 
-	void Dispose()
+	class NetEventRecvRingBuffer
 	{
-		if (mLogicIOCP != INVALID_HANDLE_VALUE){ CloseHandle(mLogicIOCP); }
-	}
-	/*
-	bool ProcessNetworkMessage(OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const INT32 waitTimeMillisec)
-	{
-		Message* pMsg = nullptr;
-		Connection* pConnection = nullptr;
-		DWORD ioSize = 0;
-		auto waitTime = waitTimeMillisec;
+	public:
+		NetEventRecvRingBuffer() = default;
+		~NetEventRecvRingBuffer() = default;
 
-		if (waitTime == 0)
+		void Init(const int sessionIndex, const unsigned int maxCount)
 		{
-			waitTime = INFINITE;
-		}
+			mMaxCount = maxCount;
 
-		if (auto result = GetQueuedCompletionStatus(
-			m_hLogicIOCP,
-			&ioSize,
-			reinterpret_cast<PULONG_PTR>(&pConnection),
-			reinterpret_cast<LPOVERLAPPED*>(&pMsg),
-			waitTime); result == false)
-		{
-			return false;
-		}
-
-		switch (pMsg->Type)
-		{
-		case MessageType::Connection:
-		{
-			msgOperationType = (INT8)pMsg->Type;
-			connectionIndex = pConnection->GetIndex();
-		}
-		break;
-		case MessageType::Close:
-		{
-			msgOperationType = (INT8)pMsg->Type;
-			connectionIndex = pConnection->GetIndex();
-
-			pConnection->ResetConnection();
-		}
-		break;
-		case MessageType::OnRecv:
-		{
-			ForwardingNetOnRecvMsgToAppLayer(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
-			m_pMsgPool->DeallocMsg(pMsg);
-		}
-		break;
-		}
-
-		return true;
-	}*/
-
-	/*
-	int PostNetMessage(Connection* pConnection, Message* pMsg, const DWORD packetSize = 0)
-	{
-		if (m_hLogicIOCP == INVALID_HANDLE_VALUE || pMsg == nullptr)
-		{
-			return NetResult::fail_message_null;
-		}
-
-		// Boost.Asio의 경우 다른 식으로 오류에 대해 방어하고 있다. 참고하자
-		//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
-		auto result = PostQueuedCompletionStatus(
-			m_hLogicIOCP,
-			packetSize,
-			reinterpret_cast<ULONG_PTR>(pConnection),
-			reinterpret_cast<LPOVERLAPPED>(pMsg));
-
-		if (!result)
-		{
-			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "IOCPServer::PostLogicMsg - PostQueuedCompletionStatus(). error:%d, MsgType:%d", WSAGetLastError(), pMsg->Type);
-			LogFuncPtr((int)LogLevel::Error, logmsg);
-			return NetResult::fail_pqcs;
-		}
-		return NetResult::Success;
-	}
-	*/
-
-	Message* AllocMsg()
-	{
-		Message* pMsg = nullptr;
-		if (!m_MessagePool.try_pop(pMsg))
-		{
-			return nullptr;
-		}
-
-		return pMsg;
-	}
-
-	bool DeallocMsg(Message* pMsg)
-	{
-		if (pMsg == nullptr)
-		{
-			return false;
-		}
-
-		pMsg->Clear();
-
-		m_MessagePool.push(pMsg);
-		return true;
-	}
-private:
-	//TODO 세션 별로 connect, close, recv(초당 최대 수 * 2)만큼 메시지 풀 가지기
-	bool CreateMessagePool()
-	{
-		Message* pMsg = nullptr;
-		for (int i = 0; i < 10; ++i)
-		{
-			pMsg = new Message;
-			pMsg->Clear();
-
-			m_MessagePool.push(pMsg);
-		}
-
-		return true;
-	}
-
-	void DestroyMessagePool()
-	{
-		while (auto pData = AllocMsg())
-		{
-			if (pData == nullptr)
+			for (int i = 0; i < maxCount; ++i)
 			{
-				break;
+				Objects.emplace_back({ sessionIndex,  NetEventType::OnRecv, 0, nullptr });
+			}
+		}
+
+		void Clear()
+		{
+			mCurPos = 0;
+		}		
+
+		NetEvent* GetData()
+		{
+			if (mCurPos >= mMaxCount) { mMaxCount = 0; }
+
+			return &Objects[mCurPos];
+		}
+
+	private:
+		std::vector<NetEvent> Objects;
+		unsigned int mMaxCount;
+		unsigned int mCurPos;
+	};
+
+	class SessionNetEvent
+	{
+	public:
+		SessionNetEvent() = default;
+		~SessionNetEvent() = default;
+
+		void Init(const int sessionIndex, const unsigned int maxRecvEvnetCount)
+		{
+			mConnect.Set(sessionIndex, NetEventType::Connection, 0, nullptr);
+			mConnect.Set(sessionIndex, NetEventType::Close, 0, nullptr);
+			mRecvs.Init(sessionIndex, maxRecvEvnetCount);
+		}
+
+		NetEvent* GetConnect() { return &mConnect; }
+		NetEvent* GetClose() { return &mClose; }
+		NetEvent* GetRecv() { return mRecvs.GetData(); }
+		
+	private:
+		NetEvent mConnect;
+		NetEvent mClose;
+		NetEventRecvRingBuffer mRecvs;
+	};
+
+	class MessageNetEventManager
+	{
+	public:
+		MessageNetEventManager() = default;
+		~MessageNetEventManager() = default;
+
+		void OnConnect(const int index)
+		{
+		}
+
+		void OnClose(const int index, const C2RIONetLib::DisconnectReason reason)
+		{
+		}
+
+		void OnReceive()
+		{
+		}
+
+
+		int Init(const unsigned int threadCount, const unsigned int sessionCount, const unsigned int maxRecvEvnetCount)
+		{
+			mLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, threadCount);
+			if (mLogicIOCP == INVALID_HANDLE_VALUE)
+			{
+				return -1;
 			}
 
-			delete pData;
+			for (auto i = decltype(sessionCount); i < sessionCount; ++i)
+			{
+				SessionNetEvent session;
+				session.Init(i, maxRecvEvnetCount);
+				mSessionNetEventList.push_back(session);
+			}
+
+			return 0;
 		}
-	}
 
+		void Dispose()
+		{
+			if (mLogicIOCP != INVALID_HANDLE_VALUE) { CloseHandle(mLogicIOCP); }
+		}
 
-	concurrency::concurrent_queue<Message*> m_MessagePool;
+		void PostConnectEventMsg()
+		{
 
-	HANDLE mLogicIOCP = INVALID_HANDLE_VALUE;
-};
+		}
+
+		void PostCloseEventMsg()
+		{
+
+		}
+
+		void PostRecvEventMsg(const int dataSize, const char* pData)
+		{
+
+		}
+		/*
+		bool ProcessNetworkMessage(OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const INT32 waitTimeMillisec)
+		{
+			Message* pMsg = nullptr;
+			Connection* pConnection = nullptr;
+			DWORD ioSize = 0;
+			auto waitTime = waitTimeMillisec;
+
+			if (waitTime == 0)
+			{
+				waitTime = INFINITE;
+			}
+
+			if (auto result = GetQueuedCompletionStatus(
+				m_hLogicIOCP,
+				&ioSize,
+				reinterpret_cast<PULONG_PTR>(&pConnection),
+				reinterpret_cast<LPOVERLAPPED*>(&pMsg),
+				waitTime); result == false)
+			{
+				return false;
+			}
+
+			switch (pMsg->Type)
+			{
+			case MessageType::Connection:
+			{
+				msgOperationType = (INT8)pMsg->Type;
+				connectionIndex = pConnection->GetIndex();
+			}
+			break;
+			case MessageType::Close:
+			{
+				msgOperationType = (INT8)pMsg->Type;
+				connectionIndex = pConnection->GetIndex();
+
+				pConnection->ResetConnection();
+			}
+			break;
+			case MessageType::OnRecv:
+			{
+				ForwardingNetOnRecvMsgToAppLayer(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
+				m_pMsgPool->DeallocMsg(pMsg);
+			}
+			break;
+			}
+
+			return true;
+		}*/
+
+		BOOL PostNetMessage(NetEventType* pEvnet)
+		{
+			// Boost.Asio의 경우 다른 식으로 오류에 대해 방어하고 있다. 참고하자
+			//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
+			
+			return PostQueuedCompletionStatus(
+							mLogicIOCP,
+							0,
+							NULL,
+							reinterpret_cast<LPOVERLAPPED>(pEvnet));
+		}
+		
+
+		
+	private:		
+		std::vector<SessionNetEvent> mSessionNetEventList;
+
+		HANDLE mLogicIOCP = INVALID_HANDLE_VALUE;
+	};
+}

@@ -9,11 +9,11 @@ namespace C2RIONetLib
 	{
 		INT32 MaxRecvPacketSize = 0;
 		UINT32 MaxTry1RecvBufferSize = 0;		
-		INT32 MAXRecvPacketCountPer1Sec = 0;
+		INT32 MAXRecvCountPer1Sec = 0; // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
 		INT32 MaxRecvBufferSize = 0;
 
 		INT32 MaxSendPacketSize = 0;
-		INT32 MAXSendCountPer1Sec = 0;
+		INT32 MAXSendCountPer1Sec = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
 		INT32 MaxSendBufferSize = 0;
 		
 	};
@@ -27,16 +27,18 @@ namespace C2RIONetLib
 		ConnectionNetConfig Conn;
 	};
 
-	
-	enum class CloseReason
-	{
-		Client = 0,
-		ServerRecvError = 1,
+	enum class DisconnectReason
+	{		
+		None,
+		Active,
+		OnConnect_Request_Queue_Error,
+		OnConnect_Error,
+		Zero_Completion,
+		IO_Request_Recv_Error,
+		Partial_Send_Completion,
 	};
 
 	
-
-
 	enum class LogLevel
 	{
 		Trace = 0,
@@ -56,37 +58,38 @@ namespace C2RIONetLib
 
 	class Helper
 	{
+	public:
 		Helper() = default;
 		~Helper() = default;
 
-		INT32 GetAllocationGranularity()
+		static INT32 GetAllocationGranularity()
 		{
 			SYSTEM_INFO systemInfo;
 			GetSystemInfo(&systemInfo);
 			return systemInfo.dwAllocationGranularity; ///< maybe 64K
 		}
 
-		INT32 SystemCoreCount()
+		static INT32 SystemCoreCount()
 		{
 			SYSTEM_INFO systemInfo;
 			GetSystemInfo(&systemInfo);
 			return (INT32)systemInfo.dwNumberOfProcessors;
 		}
 
-		INT32 GetBestIOBufferSize(UINT32 Buffer)
+		static INT32 GetBestIOBufferSize(UINT32 Buffer)
 		{
 			auto AllocationGranularity = GetAllocationGranularity();
 			return (INT32)((Buffer / AllocationGranularity + 1) * AllocationGranularity);
 		}
 
-		INT32 GetNumberOfProcessors()
+		static INT32 GetNumberOfProcessors()
 		{
 			SYSTEM_INFO		SysInfo;
 			GetSystemInfo(&SysInfo);
 			return (INT32)SysInfo.dwNumberOfProcessors;
 		}
 
-		const std::wstring s2ws(const std::string& s)
+		static const std::wstring s2ws(const std::string& s)
 		{
 			int slength = (int)s.length();
 			int len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
@@ -96,7 +99,7 @@ namespace C2RIONetLib
 		}
 
 
-		const std::string ws2s(const std::wstring& s)
+		static const std::string ws2s(const std::wstring& s)
 		{
 			int slength = (int)s.length();
 			int len = WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, 0, 0, 0, 0);

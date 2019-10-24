@@ -15,11 +15,12 @@ C2RIONetLib::NetConfig GetConfig();
 
 int main()
 {
+	std::cout << "Start EchoServer" << std::endl;
+
 	auto netConfig = GetConfig();
 
 	C2RIONetLib::LogFuncPtr = [](const int eLogInfoType, const char* szLogMsg) {
-		UNREFERENCED_PARAMETER(eLogInfoType);
-		printf("%s\r\n", szLogMsg);
+		printf("[LogLevel:%d] %s\r\n", eLogInfoType, szLogMsg);
 	};
 
 	/// for dump on crash
@@ -49,7 +50,15 @@ int main()
 		}
 	}
 
-	printf_s("End Server\n");			
+	// Á¾·á
+	netManager.End();
+
+	if (logicThread.joinable())
+	{
+		logicThread.join();
+	}
+
+	C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::Info, "End Server");
 	return 0;
 }
 
@@ -62,7 +71,7 @@ C2RIONetLib::NetConfig GetConfig()
 	
 	config.Conn.MaxRecvPacketSize = 1024;
 	config.Conn.MaxTry1RecvBufferSize = 2048;
-	config.Conn.MAXRecvPacketCountPer1Sec = 5;
+	config.Conn.MAXRecvCountPer1Sec = 5;
 	config.Conn.MaxRecvBufferSize = 4012 * 2;
 	config.Conn.MaxSendPacketSize = 1024;
 	config.Conn.MAXSendCountPer1Sec = 5;

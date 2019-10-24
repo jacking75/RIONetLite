@@ -22,6 +22,8 @@ namespace C2RIONetLib
 
 		int GetIndex() { return mIndex; }
 
+		UINT64 GetUniqueId() { return mUnqiueId; }
+
 		void Init(int index, int threadId)
 		{
 			mRioThreadId = threadId;
@@ -29,7 +31,6 @@ namespace C2RIONetLib
 			memset(&mClientAddr, 0, sizeof(SOCKADDR_IN));
 		}
 
-		//TODO 환경 설정값 사용하기, 반환 값 타입을 enum으로
 		bool RioInitialize(ConnectionNetConfig netConfig)
 		{
 			mMaxTry1RecvBufferSize = netConfig.MaxTry1RecvBufferSize;
@@ -39,7 +40,10 @@ namespace C2RIONetLib
 			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer_.GetBuffer(), netConfig.MaxRecvBufferSize);
 			if (mRecvRioBufferId == RIO_INVALID_BUFFERID)
 			{
-				printf_s("[DEBUG] RIORegisterBuffer Error: %d\n", GetLastError());
+				char logmsg[256] = { 0, };
+				sprintf_s(logmsg, "Session::RioInitialize() - RIORegisterBuffer Error: %d", GetLastError());
+				LogFuncPtr((int)LogLevel::Error, logmsg);
+
 				return false;
 			}
 
@@ -47,13 +51,14 @@ namespace C2RIONetLib
 			return true;
 		}
 
-		bool	OnConnect(SOCKET socket, const RIO_CQ& rioCompletionQueue)
+		bool OnConnect(UINT64 uniqueId, SOCKET socket, RIO_RQ rioRequestQueue)
 		{
 			SetAddress(socket);
-			
+
 			FastSpinlockGuard criticalSection(mSessionLock);
 
 			mSocket = socket;
+			mUnqiueId = uniqueId;
 
 			/// make socket non-blocking
 			u_long arg = 1;
@@ -62,29 +67,14 @@ namespace C2RIONetLib
 			/// turn off nagle
 			int opt = 1;
 			setsockopt(mSocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int));
-
-			/// create socket RQ
-			/// SEND and RECV within one CQ (you can do with two CQs, seperately)
-			mRequestQueue = RIO.RIOCreateRequestQueue(mSocket,
-				MAX_RECV_RQ_SIZE_PER_SOCKET, 1,
-				MAX_SEND_RQ_SIZE_PER_SOCKET, 1,
-				rioCompletionQueue,
-				rioCompletionQueue,
-				NULL);
-			if (mRequestQueue == RIO_INVALID_RQ)
-			{
-				//printf_s("[DEBUG] RIOCreateRequestQueue Error: %d\n", GetLastError());
-				return false;
-			}
-
 			
 			mConnected = true;
+			mRequestQueue = rioRequestQueue;
 			mIOSender_.OnConnect(mRequestQueue);
-			//printf_s("[DEBUG] Client Connected: IP=%s, PORT=%d\n", inet_ntoa(mClientAddr.sin_addr), ntohs(mClientAddr.sin_port));
-
+			
 			return PostRecv();
 		}
-
+		
 		bool IsConnected() const { return mConnected; }
 
 		int	GetRioThreadId() const { return mRioThreadId; }
@@ -98,70 +88,36 @@ namespace C2RIONetLib
 		{
 			if (!IsConnected()) { return false; }
 
-			//TODO 버퍼 공간 남았는지 확인하기
+			//TODO PostRecv() 버퍼 공간 남았는지 확인하기
 
-			//TODO 동적 할당 안하도록 하기
 			mRecvContext.BufferId = mRecvRioBufferId;
 			mRecvContext.Length = mMaxTry1RecvBufferSize;
 			mRecvContext.Offset = mRecvBuffer_.GetWriteableOffSet();
-
-			DWORD recvbytes = 0;
-			DWORD flags = 0;
-
+						
 			/// start async recv
+			DWORD flags = 0;
 			if (!RIO.RIOReceive(mRequestQueue, (PRIO_BUF)&mRecvContext, 1, flags, &mRecvContext))
 			{
-				//TODO 구현하기
-				//printf_s("[DEBUG] RIOReceive error: %d\n", GetLastError());
-				//ReleaseContext(recvContext);
+				char logmsg[256] = { 0, };
+				sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
+				LogFuncPtr((int)LogLevel::Error, logmsg);
+
 				return false;
 			}
 
 			return true;
 		}
-
-		void	RecvCompletion(DWORD transferred)
+						
+		void SendCompletion(RioIoContext* pSendContext)
 		{
-			//TODO 구현하기
+			mIOSender_.Completed(pSendContext);
 		}
 
-		//bool	PostSend()
-		//{
-		//	if (!IsConnected())
-		//		return false;
-
-		//	if (0 == mCircularBuffer.GetContiguiousBytes())
-		//		return true;
-
-		//	RioIoContext* sendContext = new RioIoContext(mIndex, IO_SEND);
-
-		//	sendContext->BufferId = mRioBufferId;
-		//	sendContext->Length = static_cast<ULONG>(mCircularBuffer.GetContiguiousBytes());
-		//	sendContext->Offset = mCircularBuffer.GetReadableOffset();
-
-		//	DWORD sendbytes = 0;
-		//	DWORD flags = 0;
-
-		//	/// start async send
-		//	if (!RIO.RIOSend(mRequestQueue, (PRIO_BUF)sendContext, 1, flags, sendContext))
-		//	{
-		//		printf_s("[DEBUG] RIOSend error: %d\n", GetLastError());
-		//		//ReleaseContext(sendContext);
-		//		return false;
-		//	}
-
-		//	return true;
-		//}
-
-		void SendCompletion(DWORD transferred)
-		{
-		}
-
-		void Disconnect(DisconnectReason dr)
+		bool Disconnect()
 		{
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			if (!IsConnected()) { return; }
+			if (!IsConnected()) { return false; }
 
 			LINGER lingerOption;
 			lingerOption.l_onoff = 1;
@@ -169,33 +125,14 @@ namespace C2RIONetLib
 
 			/// no TCP TIME_WAIT
 			setsockopt(mSocket, SOL_SOCKET, SO_LINGER, (char*)&lingerOption, sizeof(LINGER));
-
-			//printf_s("[DEBUG] Client Disconnected: Reason=%d IP=%s, PORT=%d \n", dr, inet_ntoa(mClientAddr.sin_addr), ntohs(mClientAddr.sin_port));
-
+						
 			closesocket(mSocket);
 
 			mConnected = false;
-			mSocket = NULL;
-
-			ReleaseRef();
+			mSocket = NULL;			
+			return true;
 		}
-
-		void AddRef()
-		{
-			InterlockedIncrement(&mRefCount);
-		}
-
-		//TODO: ReleaseRef 사용 안하기
-		void ReleaseRef()
-		{
-			long ret = InterlockedDecrement(&mRefCount);			
-			if (ret == 0)
-			{				
-				//GSessionManager->ReturnClientSession(this);
-			}
-		}
-
-
+				
 
 	private:
 		void Destory()
@@ -211,27 +148,27 @@ namespace C2RIONetLib
 		}
 
 		
-		UINT32 mMaxTry1RecvBufferSize = 0;
-
+		int				mIndex = -1;
+		UINT64			mUnqiueId = 0;
+		
 		bool			mConnected = false;
-		int				mIndex= -1;
-		int				mRioThreadId = -1;
+		FastSpinlock	mSessionLock;
 
 		SOCKET			mSocket = INVALID_SOCKET;
 		SOCKADDR_IN		mClientAddr;
 
-		RIO_BUFFERID	mRecvRioBufferId = NULL;
+		UINT32 mMaxTry1RecvBufferSize = 0;
+
 		
+		
+		int				mRioThreadId = -1;
+		RIO_BUFFERID	mRecvRioBufferId = NULL;		
 		RIO_RQ			mRequestQueue;
-
-		FastSpinlock	mSessionLock;
-
 		RioIoContext mRecvContext;
+				
 		NetSenderImmediately mIOSender_;
 
 		RingBufferVA2 mRecvBuffer_;
-
-		volatile long	mRefCount = 0;
 	};
 
 }

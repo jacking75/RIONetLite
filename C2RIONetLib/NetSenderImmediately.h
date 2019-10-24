@@ -10,6 +10,7 @@
 
 namespace C2RIONetLib
 {
+	// 스레드 세이프 하지 않다
 	class NetSenderImmediately
 	{
 	public:
@@ -32,7 +33,7 @@ namespace C2RIONetLib
 			if (auto isResult = mSendBuffer_.Create(mMaxSendRingBufferSize_); 
 				isResult != 0)
 			{
-				char logmsg[256] = { 0, };
+				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - Error: %d", isResult);
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 				return false;
@@ -49,7 +50,9 @@ namespace C2RIONetLib
 			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer_.GetBuffer(), netConfig.MaxSendBufferSize);
 			if (mSendRioBufferId == RIO_INVALID_BUFFERID)
 			{
-				printf_s("[DEBUG] RIORegisterBuffer Error: %d\n", GetLastError());
+				char logmsg[512] = { 0, };
+				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - RIORegisterBuffer Error: %d", GetLastError());
+				LogFuncPtr((int)LogLevel::Error, logmsg);
 				return false;
 			}
 
@@ -85,29 +88,29 @@ namespace C2RIONetLib
 		{
 			mRequestQueue = requestQueue;
 		}
-
-		// 스레드 세이프 하지 않다
+				
 		bool PostSend(const UINT32 dataSize, const char* pData)
 		{
 			RioIoContext* pSendContext = nullptr;
 			if (mSendContextQueue_.try_pop(pSendContext) == false) { return false; }
 
 			auto writeAblePos = mSendBuffer_.GetWriteableOffSet();
-			auto pBufferPos = mSendBuffer_.Write(dataSize, pData);
+			 mSendBuffer_.Write(dataSize, pData);
 			
 			pSendContext->BufferId = mSendRioBufferId;
 			pSendContext->Length = dataSize;
 			pSendContext->Offset = writeAblePos;
-
+					
 			
-			DWORD sendbytes = 0;
-			DWORD flags = 0;
-
 			/// start async send
+			DWORD flags = 0;
 			if (!RIO.RIOSend(mRequestQueue, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
 			{
-				printf_s("[DEBUG] RIOSend error: %d\n", GetLastError());
-				//ReleaseContext(sendContext);
+				char logmsg[256] = { 0, };
+				sprintf_s(logmsg, "NetSenderImmediately::PostSend() - RIOSend Error: %d", GetLastError());
+				LogFuncPtr((int)LogLevel::Error, logmsg);
+
+				Completed(pSendContext);
 				return false;
 			}
 
@@ -117,6 +120,7 @@ namespace C2RIONetLib
 		// 스레드 세이프 하지 않다
 		void Completed(RioIoContext* pSendContext)
 		{
+			mSendContextQueue_.push(pSendContext);
 		}
 
 
@@ -129,7 +133,7 @@ namespace C2RIONetLib
 		RIO_RQ			mRequestQueue;
 
 		std::vector<RioIoContext*> mSendContexts_;
-		concurrency::concurrent_queue<RioIoContext*> mSendContextQueue_;
+		concurrency::concurrent_queue<RioIoContext*> mSendContextQueue_; //TODO 2차 작업. 호출하는 곳에서 lock을 걸 것 같다
 		
 		RIO_BUFFERID	mSendRioBufferId = NULL;
 		RingBufferVA2 mSendBuffer_;
