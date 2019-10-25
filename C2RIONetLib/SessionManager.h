@@ -30,8 +30,8 @@ namespace C2RIONetLib
 					client->Init(client_index, i);
 					if (false == client->RioInitialize(netConfig.Conn)) { return false; }
 
-					mSessionList.push_back(client);
-					mFreeSessionList.push_back(client_index);
+					mSessions.push_back(client);
+					mFreeSessionindexs.push_back(client_index);
 					++client_index;
 				}
 			}
@@ -44,13 +44,15 @@ namespace C2RIONetLib
 		{
 			LogFuncPtr((int)LogLevel::Info, "SessionManager::Dispose - Start");
 
-			for (auto pSession : mSessionList)
+			for (auto pSession : mSessions)
 			{
 				if (pSession->IsConnected())
 				{
-					pSession->Disconnect();
+					auto uniqueId = pSession->GetUniqueId();
+					pSession->Disconnect(uniqueId); // 네트워크 라이브러리 종료 시에 호출
 				}
 
+				pSession->Dispose();
 				delete pSession;
 			}
 
@@ -60,19 +62,27 @@ namespace C2RIONetLib
 		Session* GetSessionObj(const unsigned int session_index)
 		{
 			if (session_index >= max_session_count_) { return nullptr; }
-			return mSessionList[session_index];
+			return mSessions[session_index];
+		}
+
+		Session* GetSessionObj(const unsigned int session_index, const UINT64 sessionUniqueId)
+		{
+			if (session_index >= max_session_count_) { return nullptr; }
+			if (mSessions[session_index]->GetUniqueId() != sessionUniqueId) { return nullptr; }
+
+			return mSessions[session_index];
 		}
 
 		Session* IssueClientSession()
 		{
 			FastSpinlockGuard guard(mLock);
 						
-			if (mFreeSessionList.empty()) { return false; }
+			if (mFreeSessionindexs.empty()) { return false; }
 
-			auto index = mFreeSessionList.front();
+			auto index = mFreeSessionindexs.front();
 			auto newSession = GetSessionObj(index);
 						
-			mFreeSessionList.pop_front();
+			mFreeSessionindexs.pop_front();
 			
 			//newSessions는 절대 null 객체가 아니다!!!
 			return newSession;
@@ -81,9 +91,10 @@ namespace C2RIONetLib
 		void ReturnSession(const int sessionIndex)
 		{
 			FastSpinlockGuard guard(mLock);						
-			mFreeSessionList.push_back(sessionIndex);
+			mFreeSessionindexs.push_back(sessionIndex);
 		}
 
+		
 
 	private:
 		FastSpinlock mLock;
@@ -92,7 +103,7 @@ namespace C2RIONetLib
 		uint64_t mCurrentIssueCount = 0;
 		uint64_t mCurrentReturnCount = 0;
 
-		std::deque<unsigned int> mFreeSessionList;
-		std::vector<Session*> mSessionList;
+		std::deque<unsigned int> mFreeSessionindexs;
+		std::vector<Session*> mSessions;
 	};
 }

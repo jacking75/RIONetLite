@@ -13,6 +13,8 @@
 
 C2RIONetLib::NetConfig GetConfig();
 
+using netErrorCode = C2RIONetLib::NetErrorCode;
+
 int main()
 {
 	std::cout << "Start EchoServer" << std::endl;
@@ -29,7 +31,14 @@ int main()
 	SimpleNetEventManager netEventMgr;
 	C2RIONetLib::RIONetManager<SimpleNetEventManager> netManager;
 	
-	if (netManager.Initialize(netConfig, &netEventMgr) == false) { return -1; }
+	if (auto result = netManager.Initialize(netConfig, &netEventMgr); 
+		result != netErrorCode::none)
+	{ 
+		char logmsg[256] = { 0, };
+		sprintf_s(logmsg, "main() - netManager.Initialize() Error: %d", result);
+		C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::Error, logmsg);
+		return -1; 
+	}
 			
 	std::thread logicThread([&]() 
 		{

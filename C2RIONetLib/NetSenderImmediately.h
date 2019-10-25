@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <concurrent_queue.h>
+#include <queue>
 
 #include "RingBufferVA2.h"
 #include "FastSpinlock.h"
@@ -10,17 +10,14 @@
 
 namespace C2RIONetLib
 {
-	// 스레드 세이프 하지 않다
+	// 스레드 세이프 하지 않다 !!!
 	class NetSenderImmediately
 	{
 	public:
 		NetSenderImmediately() = default;
 
-		~NetSenderImmediately()
-		{
-
-		}
-
+		~NetSenderImmediately() = default;
+		
 		char* GetBuffer() { return mSendBuffer_.GetBuffer(); }
 
 		bool Init(const INT32 sessionIndex, ConnectionNetConfig netConfig)
@@ -47,8 +44,8 @@ namespace C2RIONetLib
 				mSendContexts_.push_back(context);
 			}
 
-			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer_.GetBuffer(), netConfig.MaxSendBufferSize);
-			if (mSendRioBufferId == RIO_INVALID_BUFFERID)
+			mSendRioBufferId_ = RIO.RIORegisterBuffer(mSendBuffer_.GetBuffer(), netConfig.MaxSendBufferSize);
+			if (mSendRioBufferId_ == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - RIORegisterBuffer Error: %d", GetLastError());
@@ -63,7 +60,7 @@ namespace C2RIONetLib
 
 		void Dispose()
 		{
-			RIO.RIODeregisterBuffer(mSendRioBufferId);
+			RIO.RIODeregisterBuffer(mSendRioBufferId_);
 
 			for (int i = 0; i < mMAXSendCountPer1Sec_; ++i)
 			{
@@ -71,40 +68,35 @@ namespace C2RIONetLib
 			}
 		}
 
-		// 스레드 세이프 하지 않다
-		void Clear()
-		{
-			mSendContextQueue_.clear();
-
-			for (auto pContext : mSendContexts_)
-			{
-				mSendContextQueue_.push(pContext);
-			}
-
-			mSendBuffer_.Clear();
-		}
-
 		void OnConnect(RIO_RQ requestQueue)
 		{
-			mRequestQueue = requestQueue;
+			mRequestQueue_ = requestQueue;
+			Clear();
 		}
 				
-		bool PostSend(const UINT32 dataSize, const char* pData)
+		bool PostSend(const UINT64 sessionUniqueId, const UINT32 dataSize, const char* pData)
 		{
-			RioIoContext* pSendContext = nullptr;
-			if (mSendContextQueue_.try_pop(pSendContext) == false) { return false; }
+			auto curPos = mSendSequence_ % mMAXSendCountPer1Sec_;
+			RioIoContext* pSendContext = mSendContexts_[curPos];
+			
+			if (pSendContext->Length != 0) 
+			{ 
+				LogFuncPtr((int)LogLevel::Error, "NetSenderImmediately::PostSend() - empty Context");
+				return false; 
+			}
 
 			auto writeAblePos = mSendBuffer_.GetWriteableOffSet();
 			 mSendBuffer_.Write(dataSize, pData);
 			
-			pSendContext->BufferId = mSendRioBufferId;
+			pSendContext->SessionUnique = sessionUniqueId;
+			pSendContext->BufferId = mSendRioBufferId_;
 			pSendContext->Length = dataSize;
 			pSendContext->Offset = writeAblePos;
 					
 			
 			/// start async send
 			DWORD flags = 0;
-			if (!RIO.RIOSend(mRequestQueue, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
+			if (!RIO.RIOSend(mRequestQueue_, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
 			{
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::PostSend() - RIOSend Error: %d", GetLastError());
@@ -116,26 +108,36 @@ namespace C2RIONetLib
 
 			return true;
 		}
-
-		// 스레드 세이프 하지 않다
+				
 		void Completed(RioIoContext* pSendContext)
 		{
-			mSendContextQueue_.push(pSendContext);
+			pSendContext->Length = 0;
 		}
 
 
 	private:
+		void Clear()
+		{
+			for (auto pContext : mSendContexts_)
+			{
+				pContext->Length = 0;
+			}
+
+			mSendBuffer_.Clear();
+		}
+
+
 		INT32 mSessionIndex_ = 0;
 		INT32 mMaxSendPacketSize_ = 0;
-		INT32 mMAXSendCountPer1Sec_ = 0;
+		UINT64 mMAXSendCountPer1Sec_ = 0;
 		INT32 mMaxSendRingBufferSize_ = 0;
 			
-		RIO_RQ			mRequestQueue;
-
+		UINT64 mSendSequence_ = 0;
 		std::vector<RioIoContext*> mSendContexts_;
-		concurrency::concurrent_queue<RioIoContext*> mSendContextQueue_; //TODO 2차 작업. 호출하는 곳에서 lock을 걸 것 같다
 		
-		RIO_BUFFERID	mSendRioBufferId = NULL;
+		RIO_RQ			mRequestQueue_ = NULL;		
+		RIO_BUFFERID	mSendRioBufferId_ = NULL;
+		
 		RingBufferVA2 mSendBuffer_;
 	};
 }

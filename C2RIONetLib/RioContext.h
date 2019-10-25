@@ -31,12 +31,16 @@ namespace C2RIONetLib
 	{
 		void Init(const int _session_index, IOType _ioType) 
 		{
+			Length = 0;
+
 			session_index_ = _session_index;
 			io_type_ = _ioType;
 		}
 
-		int session_index_;
+		int session_index_;		
 		IOType	io_type_;
+
+		UINT64 SessionUnique; // io 완료 시에 요청 때의 세션과 동일한지 체크하기 위해
 	};
 
 	struct RIOAPI

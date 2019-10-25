@@ -33,12 +33,6 @@
     <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\NetSenderCollect.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\NetSenderAtOnce.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\RingBufferVA2.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>

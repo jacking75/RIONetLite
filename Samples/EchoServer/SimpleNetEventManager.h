@@ -12,7 +12,7 @@ public:
 
 	void OnConnect(const INT32 index, const UINT64 uniqueId)
 	{
-		printf("[OnConnect] - SessionIndex(%d)\n", index);
+		printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uniqueId);
 	}
 
 	void OnClose(const int index, const C2RIONetLib::DisconnectReason reason)

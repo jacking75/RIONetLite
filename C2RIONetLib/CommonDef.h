@@ -3,6 +3,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <chrono>
+
+
 namespace C2RIONetLib
 {
 	struct ConnectionNetConfig
@@ -31,11 +34,12 @@ namespace C2RIONetLib
 	{		
 		None,
 		Active,
-		OnConnect_Request_Queue_Error,
-		OnConnect_Error,
+		accept_loop_Request_Queue_Error,
+		accept_loop_on_connect_rrror,
 		Zero_Completion,
 		IO_Request_Recv_Error,
 		Partial_Send_Completion,
+		Send_Error,
 	};
 
 	
@@ -50,10 +54,18 @@ namespace C2RIONetLib
 	};
 
 
-	enum class NetResult : INT16
+	enum class NetErrorCode : INT16
 	{
-		Success = 0,
-				
+		none = 0,
+		session_count_per_thread_incorrect = 1,
+		WSAStartUp_fail = 2,
+		listen_socket_create_fail = 3,
+		listen_socket_bind_fail = 5,
+		rio_function_init_fail = 6,
+		prepare_session_pool_fail = 7,
+		listen_socket_listen_fail = 8,
+		send_invalid_session = 9,
+		send_io_fail = 10,
 	};
 
 	class Helper
@@ -106,6 +118,18 @@ namespace C2RIONetLib
 			std::string r(len, '\0');
 			WideCharToMultiByte(CP_ACP, 0, s.c_str(), slength, &r[0], len, 0, 0);
 			return r;
+		}
+
+		static INT64 CurrentMilliSecond()
+		{
+			auto curTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
+			return curTime.count();
+		}
+
+		static INT64 CurrentSecond()
+		{
+			auto curTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch());
+			return curTime.count();
 		}
 	};
 

@@ -7,8 +7,9 @@
 #include "CommonDef.h"
 
 //TODO 라이브러리에서 락을 잘 걸고 있나?, 또는 불필요한 락을 걸지는 않나?
+//TODO DisConnect 잘 호출 하고 있나?
+//TODO IOWorker 스레드 이외에서 소켓을 종료할 때는 queue에 담아서 세션의 해당 IOWorker 스레드에서 처리한다
 
-//TODO 테스트 하기. accept 이후 일부러 sleep을 걸고 이 사이에 클라이언트는 접속 종료, 그리고 PostRecv를 하면 어떤 상황이 발생하나? 비동기 요청 에러 or 비동기 요청 후 결과에서 접속 종료
 namespace C2RIONetLib
 {	
 	template<class TNetEventManager>
@@ -18,10 +19,9 @@ namespace C2RIONetLib
 		RIONetManager() = default;
 		~RIONetManager() = default;
 		
-		//TODO 실패 반환이 2개 이상인 것은 반환값 타입을 error 타입으로 바꾸기
-		bool Initialize(NetConfig netConfig, TNetEventManager* tNetEventManager)
+		NetErrorCode Initialize(NetConfig netConfig, TNetEventManager* tNetEventManager)
 		{
-			if ((netConfig.MaxConnectionCount % netConfig.IoWorkThreadCount) != 0) { return false; }
+			if ((netConfig.MaxConnectionCount % netConfig.IoWorkThreadCount) != 0) { return NetErrorCode::session_count_per_thread_incorrect; }
 
 			auto sessionCountPerRioThread = netConfig.MaxConnectionCount / netConfig.IoWorkThreadCount;
 			mNetConfig = netConfig;
@@ -29,11 +29,11 @@ namespace C2RIONetLib
 			mNetEventManager = tNetEventManager;
 
 			/// winsock initializing			
-			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return false; }
+			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return NetErrorCode::WSAStartUp_fail; }
 
 			/// create TCP socket with RIO mode
 			mListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_REGISTERED_IO);
-			if (mListenSocket == INVALID_SOCKET) { return false; }
+			if (mListenSocket == INVALID_SOCKET) { return NetErrorCode::listen_socket_create_fail; }
 
 			int opt = 1;
 			setsockopt(mListenSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(int));
@@ -45,20 +45,20 @@ namespace C2RIONetLib
 			serveraddr.sin_port = htons(netConfig.PortNumber);
 			serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-			if (SOCKET_ERROR == bind(mListenSocket, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return false; }
+			if (SOCKET_ERROR == bind(mListenSocket, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return NetErrorCode::listen_socket_bind_fail; }
 
-			if (RIOAPI::SetFunction(mListenSocket) == false) { return false; }
+			if (RIOAPI::SetFunction(mListenSocket) == false) { return NetErrorCode::rio_function_init_fail; }
 			
-			if (mSessionManager.PrepareSessionPool(sessionCountPerRioThread, netConfig) == false) { return false; }
+			if (mSessionManager.PrepareSessionPool(sessionCountPerRioThread, netConfig) == false) { return NetErrorCode::prepare_session_pool_fail; }
 
 			/// listen
-			if (SOCKET_ERROR == listen(mListenSocket, SOMAXCONN)) { return false; }
+			if (SOCKET_ERROR == listen(mListenSocket, SOMAXCONN)) { return NetErrorCode::listen_socket_listen_fail; }
 
 			const unsigned int maxCQSizePerRIOThread = (netConfig.Conn.MAXRecvCountPer1Sec + netConfig.Conn.MAXSendCountPer1Sec) * sessionCountPerRioThread;
 			StartIoThreads(rioThreadCount, maxCQSizePerRIOThread);
 
 			LogFuncPtr((int)LogLevel::Info, "RIONetManager::Initialize() - Success!");
-			return true;
+			return NetErrorCode::none;
 		}
 
 		void StartAndBlocking()
@@ -94,9 +94,22 @@ namespace C2RIONetLib
 
 		const RIO_CQ& GetCompletionQueue(int threadId) { return mRioCompletionQueues[threadId]; }
 
-		bool Send(const INT32 sessionIndex, const UINT64 uniqueId, const UINT32 dataSize, const char* pData)
+		NetErrorCode Send(const INT32 sessionIndex, const UINT64 uniqueId, const UINT32 dataSize, const char* pData)
 		{
-			//TODO send 구현하기
+			auto session = mSessionManager.GetSessionObj(sessionIndex, uniqueId);
+			if (session == nullptr)
+			{
+				return NetErrorCode::send_invalid_session;
+			}
+
+			if (session->PostSend(dataSize, pData) == false)
+			{
+				//TODO 강제 접속 종료에서 호출하게 해야 한다.
+				//Disconnect(session, DisconnectReason::Send_Error);
+				return NetErrorCode::send_io_fail;
+			}
+
+			return NetErrorCode::none;
 		}
 
 	private:		
@@ -132,14 +145,14 @@ namespace C2RIONetLib
 					sprintf_s(logmsg, "RIONetManager::StartAcceptLoop() - RIOCreateRequestQueue Error: %d", GetLastError());
 					LogFuncPtr((int)LogLevel::Error, logmsg);
 
-					Disconnect(pSession, DisconnectReason::OnConnect_Request_Queue_Error);
+					Disconnect(pSession, 0, DisconnectReason::accept_loop_Request_Queue_Error);
 					continue;
 				}
 
 				++mConnectSequenceId;
 				if (pSession->OnConnect(mConnectSequenceId, acceptedSock, rioRequestQueue) == false)
 				{
-					Disconnect(pSession, DisconnectReason::OnConnect_Error);
+					Disconnect(pSession, 0, DisconnectReason::accept_loop_on_connect_rrror);
 					continue;
 				}
 
@@ -192,20 +205,19 @@ namespace C2RIONetLib
 				for (ULONG i = 0; i < numResults; ++i)
 				{
 					auto context = reinterpret_cast<RioIoContext*>(results[i].RequestContext);
+					auto sessionUniqueIdByRioConext = context->SessionUnique;
 					auto pSession = mSessionManager.GetSessionObj(context->session_index_);
 					auto transferred = results[i].BytesTransferred;
 										
 					if (transferred == 0)
 					{
-						CRASH_ASSERT(pSession->GetRioThreadId() == threadId);
-
-						Disconnect(pSession, DisconnectReason::Zero_Completion);
+						Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::Zero_Completion);
 					}
 					else if (IO_RECV == context->io_type_)
 					{
 						if (false == pSession->PostRecv())
 						{
-							Disconnect(pSession, DisconnectReason::IO_Request_Recv_Error);
+							Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::IO_Request_Recv_Error);
 						}
 					}
 					else if (IO_SEND == context->io_type_)
@@ -214,7 +226,7 @@ namespace C2RIONetLib
 
 						if (context->Length != transferred)
 						{
-							Disconnect(pSession, DisconnectReason::Partial_Send_Completion);
+							Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::Partial_Send_Completion);
 						}						
 					}
 					else
@@ -231,15 +243,24 @@ namespace C2RIONetLib
 			return;
 		}
 
-		//TODO 이 함수는 꼭 pSession 세션의 IO 스레드에서 호출되어야 한다. 
-		// 그래서 강제로 접속 종료, 혹은 Send에 의해서 접속 종료할 때 queue 등을 통해서 해당 IO스레드에 넘긴 후 종료 처리하도록 한다. 이후 send도 모아서 보내게 되면 rio 동작에 lock이 필요 없게 된다.
-		void Disconnect(Session* pSession, const DisconnectReason reason)
+		
+		void Disconnect(Session* pSession, const UINT64 sessionUniqueIdByContext, const DisconnectReason reason)
 		{
-			if (pSession->Disconnect())
-			{
-				mNetEventManager->OnClose(pSession->GetIndex(), reason);
+			auto sessionIndex = pSession->GetIndex();
 
-				mSessionManager.ReturnSession(pSession->GetIndex());
+			if (reason == DisconnectReason::accept_loop_Request_Queue_Error ||
+				reason == DisconnectReason::accept_loop_on_connect_rrror)
+			{
+				pSession->DisConnectByAcceptFail();
+				mSessionManager.ReturnSession(sessionIndex);
+				return;
+			}
+
+			if (pSession->Disconnect(sessionUniqueIdByContext))
+			{
+				mNetEventManager->OnClose(sessionIndex, reason);
+
+				mSessionManager.ReturnSession(sessionIndex);
 			}
 		}
 	
