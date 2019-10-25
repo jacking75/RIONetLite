@@ -12,6 +12,7 @@ namespace C2RIONetLib
 	class Session
 	{
 		const INT64 CONNECTED = 1;
+		const INT64 ENABLE_VALUE = 1;
 
 	public:
 		Session() = default;
@@ -21,6 +22,9 @@ namespace C2RIONetLib
 
 		UINT64 GetUniqueId() { return mUnqiueId; }
 
+		bool IsEnableNetwork() { return mEnableNetwork == ENABLE_VALUE; }
+		void SetDisableNetwork() { mEnableNetwork = 0; }
+		
 		void Init(int index, int threadId)
 		{
 			mRioThreadId = threadId;
@@ -54,29 +58,30 @@ namespace C2RIONetLib
 			mIOSender_.Dispose();
 		}
 
-		//TODO 멤버들 초기화 잊어 먹지 않고 잘 하고 있나?
 		bool OnConnect(UINT64 uniqueId, SOCKET socket, RIO_RQ rioRequestQueue)
 		{
 			SetAddress(socket);
 
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			mSocket = socket;
-			mUnqiueId = uniqueId;
-
+			//TODO 테스트 하면서 논블러링으로 해야 하는지 확인하기
 			/// make socket non-blocking
-			u_long arg = 1;
-			ioctlsocket(mSocket, FIONBIO, &arg);
+			//u_long arg = 1;
+			//ioctlsocket(mSocket, FIONBIO, &arg);
 
 			/// turn off nagle
 			int opt = 1;
 			setsockopt(mSocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int));
 			
+			mSocket = socket;
+			mUnqiueId = uniqueId;
 			mConnected = CONNECTED;
+			mEnableNetwork = ENABLE_VALUE;
 			mRequestQueue = rioRequestQueue;
 			mIOSender_.OnConnect(mRequestQueue);
-			
-			return PostRecv();
+			mRecvBuffer_.Clear();
+
+			return PostRecv() == NetErrorCode::none;
 		}
 		
 		bool IsConnected() const { return mConnected == CONNECTED; }
@@ -91,11 +96,13 @@ namespace C2RIONetLib
 			return result;
 		}
 
-		bool PostRecv()
+		NetErrorCode PostRecv()
 		{
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			if (!IsConnected()) { return false; }
+			if (IsConnected() == false) { return NetErrorCode::recv_closed_status; }
+
+			if (IsEnableNetwork() == false) { return NetErrorCode::recv_disable_network_status; }
 
 			mRecvContext.SessionUnique = GetUniqueId();
 			mRecvContext.BufferId = mRecvRioBufferId;
@@ -110,10 +117,10 @@ namespace C2RIONetLib
 				sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 
-				return false;
+				return NetErrorCode::recv_rio_fail;
 			}
 
-			return true;
+			return NetErrorCode::none;
 		}
 						
 		void SendCompletion(RioIoContext* pSendContext)
@@ -124,9 +131,9 @@ namespace C2RIONetLib
 
 		bool Disconnect(const UINT64 sessionUniqueIdByContext)
 		{
-			FastSpinlockGuard criticalSection(mSessionLock);
-
 			if (IsConnected() == false) { return false; }
+
+			FastSpinlockGuard criticalSection(mSessionLock);
 
 			if (GetUniqueId() != sessionUniqueIdByContext) { return false; }
 
@@ -140,6 +147,7 @@ namespace C2RIONetLib
 			closesocket(mSocket);
 			mSocket = NULL;
 			mConnected = 0;
+			SetDisableNetwork();
 			mUnqiueId = 0;
 					
 			return true;
@@ -150,6 +158,7 @@ namespace C2RIONetLib
 			closesocket(mSocket);
 			mSocket = NULL;
 			mConnected = 0;
+			SetDisableNetwork();
 			mUnqiueId = 0;
 		}
 				
@@ -164,26 +173,24 @@ namespace C2RIONetLib
 		}
 
 		
+		FastSpinlock mSessionLock;
+
 		int				mIndex = -1;
+		UINT32 mMaxTry1RecvBufferSize = 0;
+		int				mRioThreadId = -1;
+		RIO_BUFFERID	mRecvRioBufferId = NULL;
+
 		UINT64			mUnqiueId = 0;
 		
 		// 64비트에서 INT64는 아토믹하게 읽기,쓰기 가능. ++i 가 아닌 i = 1 등이 아토믹하다는 것이다.
 		// https://docs.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access
 		INT64			mConnected = 0;
 		
-		//INT64			mDisConnectedSec = 0;
-
-		FastSpinlock	mSessionLock;
-
+		INT64			mEnableNetwork = 0;
+		
 		SOCKET			mSocket = INVALID_SOCKET;
 		SOCKADDR_IN		mClientAddr;
-
-		UINT32 mMaxTry1RecvBufferSize = 0;
-
 		
-		
-		int				mRioThreadId = -1;
-		RIO_BUFFERID	mRecvRioBufferId = NULL;		
 		RIO_RQ			mRequestQueue = NULL;
 		RioIoContext mRecvContext;
 				

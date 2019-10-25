@@ -30,6 +30,8 @@ namespace C2RIONetLib
 		ConnectionNetConfig Conn;
 	};
 
+	
+
 	enum class DisconnectReason
 	{		
 		None,
@@ -40,6 +42,8 @@ namespace C2RIONetLib
 		IO_Request_Recv_Error,
 		Partial_Send_Completion,
 		Send_Error,
+		forces_close_server,
+		forces_close_send_error,
 	};
 
 	
@@ -66,7 +70,20 @@ namespace C2RIONetLib
 		listen_socket_listen_fail = 8,
 		send_invalid_session = 9,
 		send_io_fail = 10,
+		send_session_network_disable = 11,
+		recv_closed_status = 16,
+		recv_disable_network_status = 17,
+		recv_rio_fail = 18,
 	};
+
+	struct LazyedDisConnectSession
+	{
+		INT32 SessionIndex;
+		UINT64 UniqueId;
+		DisconnectReason reason;
+	};
+
+
 
 	class Helper
 	{

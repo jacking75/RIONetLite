@@ -2,13 +2,12 @@
 
 #include <vector>
 #include <thread>
+#include <concurrent_queue.h>
 
 #include "SessionManager.h"
 #include "CommonDef.h"
 
-//TODO 라이브러리에서 락을 잘 걸고 있나?, 또는 불필요한 락을 걸지는 않나?
-//TODO DisConnect 잘 호출 하고 있나?
-//TODO IOWorker 스레드 이외에서 소켓을 종료할 때는 queue에 담아서 세션의 해당 IOWorker 스레드에서 처리한다
+//TODO 코딩 룰 만들고, 이 룰에 코드 정리하기
 
 namespace C2RIONetLib
 {	
@@ -94,25 +93,54 @@ namespace C2RIONetLib
 
 		const RIO_CQ& GetCompletionQueue(int threadId) { return mRioCompletionQueues[threadId]; }
 
-		NetErrorCode Send(const INT32 sessionIndex, const UINT64 uniqueId, const UINT32 dataSize, const char* pData)
+		NetErrorCode SendData(const INT32 sessionIndex, const UINT64 sessionUniqueId, const UINT32 dataSize, const char* pData)
 		{
-			auto session = mSessionManager.GetSessionObj(sessionIndex, uniqueId);
+			auto session = mSessionManager.GetSessionObj(sessionIndex, sessionUniqueId);
 			if (session == nullptr)
 			{
 				return NetErrorCode::send_invalid_session;
 			}
 
-			if (session->PostSend(dataSize, pData) == false)
+			if (session->IsEnableNetwork() == false)
 			{
-				//TODO 강제 접속 종료에서 호출하게 해야 한다.
-				//Disconnect(session, DisconnectReason::Send_Error);
+				return NetErrorCode::send_session_network_disable;
+			}
+
+			if (session->PostSend(dataSize, pData) == false)
+			{				
+				ForcedClose(session, DisconnectReason::Send_Error);
 				return NetErrorCode::send_io_fail;
 			}
 
 			return NetErrorCode::none;
 		}
 
-	private:		
+		void ForcedClose(const INT32 sessionIndex, const UINT64 sessionUniqueId)
+		{
+			auto session = mSessionManager.GetSessionObj(sessionIndex, sessionUniqueId);
+			if (session == nullptr)
+			{
+				return;
+			}
+
+			session->SetDisableNetwork();
+
+			auto threadIndex = session->GetRioThreadId();
+			LazyedDisConnectSessions[threadIndex].push({ sessionIndex, sessionUniqueId, DisconnectReason::forces_close_server });
+		}
+
+	private:	
+		void ForcedClose(Session* pSession, DisconnectReason reason)
+		{
+			pSession->SetDisableNetwork();
+
+			auto threadIndex = pSession->GetRioThreadId();
+			auto sessionIndex = pSession->GetIndex();
+			auto sessionUniqueId = pSession->GetUniqueId();
+
+			LazyedDisConnectSessions[threadIndex].push({ sessionIndex, sessionUniqueId, reason });
+		}
+
 		void StartAcceptLoop(ConnectionNetConfig netConfig)
 		{
 			mIsRunAcceptThread = true;
@@ -179,9 +207,10 @@ namespace C2RIONetLib
 			}
 		}
 
+		//TODO 함수 쪼개기
 		void IoWorkerThread(const int _thread_index)
 		{
-			auto threadId = _thread_index;						
+			auto threadIndex = _thread_index;						
 
 			auto coreCount = Helper::GetNumberOfProcessors();
 			auto results = new RIORESULT[coreCount];
@@ -189,14 +218,9 @@ namespace C2RIONetLib
 			while (mIsRunIOWorkThread)
 			{
 				memset(results, 0, sizeof(results));
-				ULONG numResults = RIO.RIODequeueCompletion(mRioCompletionQueues[threadId], results, coreCount);
+				ULONG numResults = RIO.RIODequeueCompletion(mRioCompletionQueues[threadIndex], results, coreCount);
 
-				if (0 == numResults)
-				{
-					Sleep(1); ///< for low cpu-usage
-					continue;
-				}
-				else if (RIO_CORRUPT_CQ == numResults)
+				if (RIO_CORRUPT_CQ == numResults)
 				{
 					LogFuncPtr((int)LogLevel::Fetal, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
 					continue;
@@ -215,9 +239,12 @@ namespace C2RIONetLib
 					}
 					else if (IO_RECV == context->io_type_)
 					{
-						if (false == pSession->PostRecv())
+						if (auto result = pSession->PostRecv(); result != NetErrorCode::none)
 						{
-							Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::IO_Request_Recv_Error);
+							if (result == NetErrorCode::recv_rio_fail)
+							{
+								Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::IO_Request_Recv_Error);
+							}
 						}
 					}
 					else if (IO_SEND == context->io_type_)
@@ -237,6 +264,20 @@ namespace C2RIONetLib
 					}					
 				} /// for
 
+				while (LazyedDisConnectSessions[threadIndex].empty() == false)
+				{
+					LazyedDisConnectSession disConnectInfo;
+					if (LazyedDisConnectSessions[threadIndex].try_pop(disConnectInfo) == false) { break; }
+					auto pSession = mSessionManager.GetSessionObj(disConnectInfo.SessionIndex, disConnectInfo.UniqueId);
+					if (pSession == nullptr) { break; }
+
+					Disconnect(pSession, disConnectInfo.UniqueId, disConnectInfo.reason);
+				}
+
+				if (0 == numResults)
+				{
+					Sleep(1); ///< for low cpu-usage
+				}
 			} /// while
 
 			delete results;
@@ -282,6 +323,8 @@ namespace C2RIONetLib
 		SessionManager mSessionManager;
 
 		UINT64 mConnectSequenceId = 0;
+
+		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> LazyedDisConnectSessions;
 	};
 
 }
