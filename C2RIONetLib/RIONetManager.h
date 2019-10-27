@@ -7,7 +7,7 @@
 #include "SessionManager.h"
 #include "CommonDef.h"
 
-//TODO ÄÚµù ·ê ¸¸µé°í, ÀÌ ·ê¿¡ ÄÚµå Á¤¸®ÇÏ±â
+//TODO ì½”ë”© ë£° ë§Œë“¤ê³ , ì´ ë£°ì— ì½”ë“œ ì •ë¦¬í•˜ê¸°
 
 namespace C2RIONetLib
 {	
@@ -162,7 +162,7 @@ namespace C2RIONetLib
 				/// create socket RQ
 				/// SEND and RECV within one CQ (you can do with two CQs, seperately)
 				auto rioRequestQueue = RIO.RIOCreateRequestQueue(acceptedSock,
-					netConfig.MAXRecvCountPer1Sec, 1,
+					1, 1, // ë°›ê¸°ëŠ” ì—°ì†ìœ¼ë¡œ ìš”ì²­í•˜ì§€ ì•Šìœ¼ë¯€ë¡œ 1
 					netConfig.MAXSendCountPer1Sec, 1,
 					GetCompletionQueue(clientThreadId),
 					GetCompletionQueue(clientThreadId),
@@ -207,7 +207,7 @@ namespace C2RIONetLib
 			}
 		}
 
-		//TODO ÇÔ¼ö ÂÉ°³±â
+		//TODO í•¨ìˆ˜ ìª¼ê°œê¸°
 		void IoWorkerThread(const int _thread_index)
 		{
 			auto threadIndex = _thread_index;						
