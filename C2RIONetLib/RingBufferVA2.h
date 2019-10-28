@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +7,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-// MS Docs¿¡´Â Kernel32.lib ÀÌ ÇÊ¼ö libÀÎµ¥ ¾Æ·¡ libÀÌ ÇÊ¼ö libÀÓ -_-;;
+// MS Docsì—ëŠ” Kernel32.lib ì´ í•„ìˆ˜ libì¸ë° ì•„ë˜ libì´ í•„ìˆ˜ libì„ -_-;;
 #pragma comment(lib,"mincore.lib")
 
 //https://docs.microsoft.com/ko-kr/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc2
@@ -77,6 +77,7 @@ namespace C2RIONetLib
 		}
 
 		char* GetBuffer() {	return m_pRingBuffer; }
+		//char* GetBufferOffet(const UINT32 offset_) { return m_pRingBuffer[offset_]; }
 
 		char* Read(const int reqReadSize)
 		{
@@ -106,7 +107,18 @@ namespace C2RIONetLib
 			return &m_pRingBuffer[oldPos];
 		}
 
-		UINT32 GetWriteableOffSet() { return m_WritePos; }
+		void Write(const UINT32 size)
+		{
+			m_WritePos += size;
+
+			if (m_WritePos >= m_RingBufferSize)
+			{
+				m_WritePos -= m_RingBufferSize;
+			}
+		}
+
+		void MoveWriteablePos(const UINT32 pos_) { m_WritePos = pos_; }
+		UINT32 GetWriteablePos() { return m_WritePos; }
 
 		void UnitTest_SetWritePos(UINT32 pos) { m_WritePos = pos; }
 		void UnitTest_SetReadPos(UINT32 pos) { m_ReadPos = pos; }
@@ -123,13 +135,14 @@ namespace C2RIONetLib
 			void* placeholder2 = nullptr;
 			void* view1 = nullptr;
 			void* view2 = nullptr;
+			*secondaryView = NULL;
 
 			GetSystemInfo(&sysInfo);
 			
-			//bufferSizeÀÇ Å©±â´Â ÆäÀÌÁö Å©±âÀÇ ¹è¼ö ÀÌ¾î¾ß ÇÑ´Ù.
-			// ¾Æ·¡ ÁÖ¼®Àº dwAllocationGranularity(¸Ş¸ğ¸® ÇÒ´ç ´ÜÀ§.ÇÁ·Î¼¼½º ÁÖ¼Ò °ø°£¿¡¼­ Æ¯Á¤ ¿µ¿ªÀ» ¿¹¾àÇÒ ¶§ »ç¿ëÇÏ´Â ´ÜÀ§ Å©±â. 65,536 °ª)ÀÇ ¹è¼ö°¡ ¾Æ´Ï¸é ½ÇÆĞ·Î µÇ¾î ÀÖ´Ù.
-			// ÀÌ°ÍÀº ¾Æ¸¶ MapViewOfFile ¶§¹®ÀÎ °Í °°Àºµ¥ MapViewOfFile¿¡´Â Å©±â°¡ dwAllocationGranularityÀÇ ¹è¼öÀÌ¾î¾ß ÇÑ´Ù.
-			// ±×·±µ¥ ÀÌ ÄÚµå¿¡¼­´Â MapViewOfFile3 ¹öÀüÀ» »ç¿ëÇÏ±â ¶§¹®¿¡ dwAllocationGranularity Å©±â°¡ ¾Æ´Ñ ÆäÀÌÁö Å©±âÀÇ ¹è¼öÀÌ¸é µÈ´Ù.				
+			//bufferSizeì˜ í¬ê¸°ëŠ” í˜ì´ì§€ í¬ê¸°ì˜ ë°°ìˆ˜ ì´ì–´ì•¼ í•œë‹¤.
+			// ì•„ë˜ ì£¼ì„ì€ dwAllocationGranularity(ë©”ëª¨ë¦¬ í• ë‹¹ ë‹¨ìœ„.í”„ë¡œì„¸ìŠ¤ ì£¼ì†Œ ê³µê°„ì—ì„œ íŠ¹ì • ì˜ì—­ì„ ì˜ˆì•½í•  ë•Œ ì‚¬ìš©í•˜ëŠ” ë‹¨ìœ„ í¬ê¸°. 65,536 ê°’)ì˜ ë°°ìˆ˜ê°€ ì•„ë‹ˆë©´ ì‹¤íŒ¨ë¡œ ë˜ì–´ ìˆë‹¤.
+			// ì´ê²ƒì€ ì•„ë§ˆ MapViewOfFile ë•Œë¬¸ì¸ ê²ƒ ê°™ì€ë° MapViewOfFileì—ëŠ” í¬ê¸°ê°€ dwAllocationGranularityì˜ ë°°ìˆ˜ì´ì–´ì•¼ í•œë‹¤.
+			// ê·¸ëŸ°ë° ì´ ì½”ë“œì—ì„œëŠ” MapViewOfFile3 ë²„ì „ì„ ì‚¬ìš©í•˜ê¸° ë•Œë¬¸ì— dwAllocationGranularity í¬ê¸°ê°€ ì•„ë‹Œ í˜ì´ì§€ í¬ê¸°ì˜ ë°°ìˆ˜ì´ë©´ ëœë‹¤.				
 			/*if ((bufferSize % sysInfo.dwAllocationGranularity) != 0) {
 				return nullptr;
 			}*/
@@ -138,7 +151,7 @@ namespace C2RIONetLib
 			// Reserve a placeholder region where the buffer will be mapped.
 			//
 
-			// bufferSizeÀÇ Å©±â´Â 4096ÀÇ ¹è¼öÀÌ¾î¾ß ÇÑ´Ù!!!
+			// bufferSizeì˜ í¬ê¸°ëŠ” 4096ì˜ ë°°ìˆ˜ì´ì–´ì•¼ í•œë‹¤!!!
 			placeholder1 = (PCHAR)VirtualAlloc2(
 				nullptr,
 				nullptr,
@@ -157,7 +170,6 @@ namespace C2RIONetLib
 			//
 			// Split the placeholder region into two regions of equal size.
 			//
-
 			result = VirtualFree(
 				placeholder1,
 				bufferSize,
@@ -212,7 +224,7 @@ namespace C2RIONetLib
 			}
 
 			//
-			// Ownership transferred, don¡¯t free this now.
+			// Ownership transferred, donâ€™t free this now.
 			//
 
 			placeholder1 = nullptr;

@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 
 #include <DbgHelp.h>
 
@@ -10,7 +10,7 @@ namespace C2RIONetLib
 			return EXCEPTION_CONTINUE_SEARCH;
 
 
-		/// dump file ≥≤±‚¿⁄.
+		/// dump file ÎÇ®Í∏∞Ïûê.
 
 		HANDLE hFile = CreateFileA("EasyServer_minidump.dmp", GENERIC_READ | GENERIC_WRITE,
 			0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -24,7 +24,7 @@ namespace C2RIONetLib
 			mdei.ClientPointers = FALSE;
 
 
-			MINIDUMP_TYPE mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
+			auto mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
 				MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
 				MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
@@ -43,11 +43,11 @@ namespace C2RIONetLib
 
 	}
 
-	inline void CRASH_ASSERT(bool isOk)
+	/*inline void CRASH_ASSERT(bool isOk)
 	{
 		if (isOk) { return; }
 
 		int* crashVal = 0;
 		*crashVal = 0xDEADBEEF;
-	}
+	}*/
 }

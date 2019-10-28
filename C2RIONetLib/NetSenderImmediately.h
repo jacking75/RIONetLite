@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <vector>
 #include <queue>
@@ -10,7 +10,7 @@
 
 namespace C2RIONetLib
 {
-	// ½º·¹µå ¼¼ÀÌÇÁ ÇÏÁö ¾Ê´Ù !!!
+	// ìŠ¤ë ˆë“œ ì„¸ì´í”„ í•˜ì§€ ì•Šë‹¤ !!!
 	class NetSenderImmediately
 	{
 	public:
@@ -32,14 +32,14 @@ namespace C2RIONetLib
 			{
 				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - Error: %d", isResult);
-				LogFuncPtr((int)LogLevel::Error, logmsg);
+				LogFuncPtr((int)LogLevel::error, logmsg);
 				return false;
 			}
 
 			for (int i = 0; i < mMAXSendCountPer1Sec_; ++i)
 			{
 				auto context = new RioIoContext;
-				context->Init(mSessionIndex_, IOType::IO_SEND);
+				context->Init(mSessionIndex_, IOType::send);
 
 				mSendContexts_.push_back(context);
 			}
@@ -49,7 +49,7 @@ namespace C2RIONetLib
 			{
 				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - RIORegisterBuffer Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::Error, logmsg);
+				LogFuncPtr((int)LogLevel::error, logmsg);
 				return false;
 			}
 
@@ -81,11 +81,11 @@ namespace C2RIONetLib
 			
 			if (pSendContext->Length != 0) 
 			{ 
-				LogFuncPtr((int)LogLevel::Error, "NetSenderImmediately::PostSend() - empty Context");
+				LogFuncPtr((int)LogLevel::error, "NetSenderImmediately::PostSend() - empty Context");
 				return false; 
 			}
 
-			auto writeAblePos = mSendBuffer_.GetWriteableOffSet();
+			auto writeAblePos = mSendBuffer_.GetWriteablePos();
 			 mSendBuffer_.Write(dataSize, pData);
 			
 			pSendContext->SessionUnique = sessionUniqueId;
@@ -100,7 +100,7 @@ namespace C2RIONetLib
 			{
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::PostSend() - RIOSend Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::Error, logmsg);
+				LogFuncPtr((int)LogLevel::error, logmsg);
 
 				Completed(pSendContext);
 				return false;

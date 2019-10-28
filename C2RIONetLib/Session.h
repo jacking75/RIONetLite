@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <vector>
 
@@ -43,12 +43,12 @@ namespace C2RIONetLib
 			{
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "Session::RioInitialize() - RIORegisterBuffer Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::Error, logmsg);
+				LogFuncPtr((int)LogLevel::error, logmsg);
 
 				return false;
 			}
 
-			mRecvContext.Init(mIndex, IOType::IO_RECV);
+			mRecvContext.Init(mIndex, IOType::recv);
 			return true;
 		}
 
@@ -64,7 +64,7 @@ namespace C2RIONetLib
 
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			//TODO Å×½ºÆ® ÇÏ¸é¼­ ³íºí·¯¸µÀ¸·Î ÇØ¾ß ÇÏ´ÂÁö È®ÀÎÇÏ±â
+			//TODO í…ŒìŠ¤íŠ¸ í•˜ë©´ì„œ ë…¼ë¸”ëŸ¬ë§ìœ¼ë¡œ í•´ì•¼ í•˜ëŠ”ì§€ í™•ì¸í•˜ê¸°
 			/// make socket non-blocking
 			//u_long arg = 1;
 			//ioctlsocket(mSocket, FIONBIO, &arg);
@@ -96,6 +96,12 @@ namespace C2RIONetLib
 			return result;
 		}
 
+		void SendCompletion(RioIoContext* pSendContext)
+		{
+			FastSpinlockGuard criticalSection(mSessionLock);
+			mIOSender_.Completed(pSendContext);
+		}
+
 		NetErrorCode PostRecv()
 		{
 			FastSpinlockGuard criticalSection(mSessionLock);
@@ -107,7 +113,7 @@ namespace C2RIONetLib
 			mRecvContext.SessionUnique = GetUniqueId();
 			mRecvContext.BufferId = mRecvRioBufferId;
 			mRecvContext.Length = mMaxTry1RecvBufferSize;
-			mRecvContext.Offset = mRecvBuffer_.GetWriteableOffSet();
+			mRecvContext.Offset = mRecvBuffer_.GetWriteablePos();
 						
 			/// start async recv
 			DWORD flags = 0;
@@ -115,7 +121,7 @@ namespace C2RIONetLib
 			{
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::Error, logmsg);
+				LogFuncPtr((int)LogLevel::error, logmsg);
 
 				return NetErrorCode::recv_rio_fail;
 			}
@@ -123,10 +129,12 @@ namespace C2RIONetLib
 			return NetErrorCode::none;
 		}
 						
-		void SendCompletion(RioIoContext* pSendContext)
-		{
-			FastSpinlockGuard criticalSection(mSessionLock);
-			mIOSender_.Completed(pSendContext);
+		char* RecvCompletion(UINT32 readRecvSize_)
+		{ 
+			mRecvBuffer_.Write(readRecvSize_);
+			
+			// lockì„ ê±¸ì§€ ì•Šì•„ë„ ë¬¸ì œ ë˜ì§€ ì•Šì„ ê²ƒ ê°™ë‹¤.
+			return mRecvBuffer_.Read(readRecvSize_);
 		}
 
 		bool Disconnect(const UINT64 sessionUniqueIdByContext)
@@ -182,7 +190,7 @@ namespace C2RIONetLib
 
 		UINT64			mUnqiueId = 0;
 		
-		// 64ºñÆ®¿¡¼­ INT64´Â ¾ÆÅä¹ÍÇÏ°Ô ÀĞ±â,¾²±â °¡´É. ++i °¡ ¾Æ´Ñ i = 1 µîÀÌ ¾ÆÅä¹ÍÇÏ´Ù´Â °ÍÀÌ´Ù.
+		// 64ë¹„íŠ¸ì—ì„œ INT64ëŠ” ì•„í† ë¯¹í•˜ê²Œ ì½ê¸°,ì“°ê¸° ê°€ëŠ¥. ++i ê°€ ì•„ë‹Œ i = 1 ë“±ì´ ì•„í† ë¯¹í•˜ë‹¤ëŠ” ê²ƒì´ë‹¤.
 		// https://docs.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access
 		INT64			mConnected = 0;
 		

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <vector>
 #include <deque>
 
@@ -11,6 +11,14 @@
 
 namespace C2RIONetLib
 {
+	const UINT64 RE_USE_SESSION_WAITE_TIMESEC = 3;
+
+	struct SessionIndexContext
+	{
+		UINT32 Index = 0;
+		UINT64 ReUseAbleTimeSec = 0;
+	};
+
 	class SessionManager
 	{
 	public:
@@ -31,7 +39,7 @@ namespace C2RIONetLib
 					if (false == client->RioInitialize(netConfig.Conn)) { return false; }
 
 					mSessions.push_back(client);
-					mFreeSessionindexs.push_back(client_index);
+					mFreeSessionindexs_.emplace_back(SessionIndexContext{ client_index, 0 });
 					++client_index;
 				}
 			}
@@ -42,21 +50,21 @@ namespace C2RIONetLib
 
 		void Dispose()
 		{
-			LogFuncPtr((int)LogLevel::Info, "SessionManager::Dispose - Start");
+			LogFuncPtr((int)LogLevel::info, "SessionManager::Dispose - Start");
 
 			for (auto pSession : mSessions)
 			{
 				if (pSession->IsConnected())
 				{
 					auto uniqueId = pSession->GetUniqueId();
-					pSession->Disconnect(uniqueId); // ³×Æ®¿öÅ© ¶óÀÌºê·¯¸® Á¾·á ½Ã¿¡ È£Ãâ
+					pSession->Disconnect(uniqueId); // ë„¤íŠ¸ì›Œí¬ ë¼ì´ë¸ŒëŸ¬ë¦¬ ì¢…ë£Œ ì‹œì— í˜¸ì¶œ
 				}
 
 				pSession->Dispose();
 				delete pSession;
 			}
 
-			LogFuncPtr((int)LogLevel::Info, "SessionManager::Dispose - Complete");
+			LogFuncPtr((int)LogLevel::info, "SessionManager::Dispose - Complete");
 		}
 
 		Session* GetSessionObj(const unsigned int session_index)
@@ -73,25 +81,29 @@ namespace C2RIONetLib
 			return mSessions[session_index];
 		}
 
-		Session* IssueClientSession()
+		Session* IssueClientSession(const UINT64 curSec_)
 		{
 			FastSpinlockGuard guard(mLock);
-						
-			if (mFreeSessionindexs.empty()) { return false; }
 
-			auto index = mFreeSessionindexs.front();
-			auto newSession = GetSessionObj(index);
-						
-			mFreeSessionindexs.pop_front();
-			
-			//newSessions´Â Àı´ë null °´Ã¼°¡ ¾Æ´Ï´Ù!!!
+			if (mFreeSessionindexs_.empty()) { return nullptr; }
+
+			auto indexContext = mFreeSessionindexs_.front();
+
+			if (indexContext.ReUseAbleTimeSec > curSec_) { return nullptr; }
+
+			auto newSession = GetSessionObj(indexContext.Index);
+			mFreeSessionindexs_.pop_front();
+
+			//newSessionsëŠ” ì ˆëŒ€ null ê°ì²´ê°€ ì•„ë‹ˆë‹¤!!!
 			return newSession;
 		}
 
-		void ReturnSession(const int sessionIndex)
+		void ReturnSession(const int sessionIndex_, const UINT64 curSec_)
 		{
 			FastSpinlockGuard guard(mLock);						
-			mFreeSessionindexs.push_back(sessionIndex);
+			mFreeSessionindexs_.emplace_back(SessionIndexContext{ 
+									(UINT32)sessionIndex_, 
+									(curSec_ + RE_USE_SESSION_WAITE_TIMESEC) });
 		}
 
 		
@@ -103,7 +115,7 @@ namespace C2RIONetLib
 		uint64_t mCurrentIssueCount = 0;
 		uint64_t mCurrentReturnCount = 0;
 
-		std::deque<unsigned int> mFreeSessionindexs;
+		std::deque<SessionIndexContext> mFreeSessionindexs_;
 		std::vector<Session*> mSessions;
 	};
 }

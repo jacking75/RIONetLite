@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -12,11 +12,11 @@ namespace C2RIONetLib
 	{
 		INT32 MaxRecvPacketSize = 0;
 		UINT32 MaxTry1RecvBufferSize = 0;		
-		INT32 MAXRecvCountPer1Sec = 0; // Á¤ÇÑ °Í º¸´Ù Á¶±İ ´õ ³Ë³ËÇÏ°Ô ÁÖ´Â °ÍÀ» ÃßÃµ
+		INT32 MAXRecvCountPer1Sec = 0; // ì •í•œ ê²ƒ ë³´ë‹¤ ì¡°ê¸ˆ ë” ë„‰ë„‰í•˜ê²Œ ì£¼ëŠ” ê²ƒì„ ì¶”ì²œ
 		INT32 MaxRecvBufferSize = 0;
 
 		INT32 MaxSendPacketSize = 0;
-		INT32 MAXSendCountPer1Sec = 0;  // Á¤ÇÑ °Í º¸´Ù Á¶±İ ´õ ³Ë³ËÇÏ°Ô ÁÖ´Â °ÍÀ» ÃßÃµ
+		INT32 MAXSendCountPer1Sec = 0;  // ì •í•œ ê²ƒ ë³´ë‹¤ ì¡°ê¸ˆ ë” ë„‰ë„‰í•˜ê²Œ ì£¼ëŠ” ê²ƒì„ ì¶”ì²œ
 		INT32 MaxSendBufferSize = 0;
 		
 	};
@@ -34,14 +34,14 @@ namespace C2RIONetLib
 
 	enum class DisconnectReason
 	{		
-		None,
-		Active,
-		accept_loop_Request_Queue_Error,
+		none,
+		active,
+		accept_loop_request_queue_error,
 		accept_loop_on_connect_rrror,
-		Zero_Completion,
-		IO_Request_Recv_Error,
-		Partial_Send_Completion,
-		Send_Error,
+		zero_completion,
+		io_request_recv_error,
+		partial_send_completion,
+		send_error,
 		forces_close_server,
 		forces_close_send_error,
 	};
@@ -49,12 +49,12 @@ namespace C2RIONetLib
 	
 	enum class LogLevel
 	{
-		Trace = 0,
-		Debug,
-		Info,
-		Warn,
-		Error,
-		Fetal
+		trace = 0,
+		debug,
+		info,
+		warn,
+		error,
+		fetal
 	};
 
 

@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib,"mswsock.lib")
@@ -36,7 +36,7 @@ int main()
 	{ 
 		char logmsg[256] = { 0, };
 		sprintf_s(logmsg, "main() - netManager.Initialize() Error: %d", result);
-		C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::Error, logmsg);
+		C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::error, logmsg);
 		return -1; 
 	}
 			
@@ -59,7 +59,7 @@ int main()
 		}
 	}
 
-	// Á¾·á
+	// ì¢…ë£Œ
 	netManager.End();
 
 	if (logicThread.joinable())
@@ -67,7 +67,7 @@ int main()
 		logicThread.join();
 	}
 
-	C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::Info, "End Server");
+	C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::info, "End Server");
 	return 0;
 }
 

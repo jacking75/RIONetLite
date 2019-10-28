@@ -1,32 +1,17 @@
-#pragma once
+ï»¿#pragma once
 
 #include <WinSock2.h>
 #include <MSWSock.h>
 
 namespace C2RIONetLib
 {
-	enum IOType
+	enum class IOType
 	{
-		IO_NONE,
-		IO_SEND,
-		IO_RECV,
+		none,
+		send,
+		recv,
 	};
-
-	
-
-	enum RioConfig
-	{
-		//SESSION_BUFFER_SIZE = 65536,
-		//MAX_RIO_THREAD = 4,
-		//MAX_RIO_RESULT = 256,
-		//MAX_SEND_RQ_SIZE_PER_SOCKET = 32,
-		//MAX_RECV_RQ_SIZE_PER_SOCKET = 32,
-		//MAX_CLIENT_PER_RIO_THREAD = 2560,
-		//MAX_CQ_SIZE_PER_RIO_THREAD = (MAX_SEND_RQ_SIZE_PER_SOCKET + MAX_RECV_RQ_SIZE_PER_SOCKET) * MAX_CLIENT_PER_RIO_THREAD,
-
-	};
-
-	
+		
 	struct RioIoContext : public RIO_BUF
 	{
 		void Init(const int _session_index, IOType _ioType) 
@@ -40,7 +25,7 @@ namespace C2RIONetLib
 		int session_index_;		
 		IOType	io_type_;
 
-		UINT64 SessionUnique; // io ¿Ï·á ½Ã¿¡ ¿äÃ» ¶§ÀÇ ¼¼¼Ç°ú µ¿ÀÏÇÑÁö Ã¼Å©ÇÏ±â À§ÇØ
+		UINT64 SessionUnique; // io ì™„ë£Œ ì‹œì— ìš”ì²­ ë•Œì˜ ì„¸ì…˜ê³¼ ë™ì¼í•œì§€ ì²´í¬í•˜ê¸° ìœ„í•´
 	};
 
 	struct RIOAPI

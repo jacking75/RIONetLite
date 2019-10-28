@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "../../C2RIONetLib/CommonDef.h"
 
@@ -203,7 +203,7 @@ namespace ServerCommon
 
 		BOOL PostNetMessage(NetEventType* pEvnet)
 		{
-			// Boost.AsioÀÇ °æ¿ì ´Ù¸¥ ½ÄÀ¸·Î ¿À·ù¿¡ ´ëÇØ ¹æ¾îÇÏ°í ÀÖ´Ù. Âü°íÇÏÀÚ
+			// Boost.Asioì˜ ê²½ìš° ë‹¤ë¥¸ ì‹ìœ¼ë¡œ ì˜¤ë¥˜ì— ëŒ€í•´ ë°©ì–´í•˜ê³  ìˆë‹¤. ì°¸ê³ í•˜ì
 			//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
 			
 			return PostQueuedCompletionStatus(

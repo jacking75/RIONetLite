@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 #include <thread>
@@ -7,7 +7,6 @@
 #include "SessionManager.h"
 #include "CommonDef.h"
 
-//TODO 코딩 룰 만들고, 이 룰에 코드 정리하기
 
 namespace C2RIONetLib
 {	
@@ -56,7 +55,7 @@ namespace C2RIONetLib
 			const unsigned int maxCQSizePerRIOThread = (netConfig.Conn.MAXRecvCountPer1Sec + netConfig.Conn.MAXSendCountPer1Sec) * sessionCountPerRioThread;
 			StartIoThreads(rioThreadCount, maxCQSizePerRIOThread);
 
-			LogFuncPtr((int)LogLevel::Info, "RIONetManager::Initialize() - Success!");
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::Initialize() - Success!");
 			return NetErrorCode::none;
 		}
 
@@ -67,13 +66,13 @@ namespace C2RIONetLib
 
 		void End()
 		{
-			LogFuncPtr((int)LogLevel::Info, "RIONetManager::End - Start");
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Start");
 
-			LogFuncPtr((int)LogLevel::Info, "RIONetManager::End - Close mListenSocket");
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Close mListenSocket");
 			mIsRunAcceptThread = false;
 			closesocket(mListenSocket);
 			
-			LogFuncPtr((int)LogLevel::Info, "RIONetManager::End - Stop IOThreads");
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Stop IOThreads");
 			mIsRunIOWorkThread = false;
 			for (auto& thread : mIOWorkThreads)
 			{
@@ -88,7 +87,7 @@ namespace C2RIONetLib
 
 			WSACleanup();
 
-			LogFuncPtr((int)LogLevel::Info, "RIONetManager::End - Complete");
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Complete");
 		}
 
 		const RIO_CQ& GetCompletionQueue(int threadId) { return mRioCompletionQueues[threadId]; }
@@ -108,7 +107,7 @@ namespace C2RIONetLib
 
 			if (session->PostSend(dataSize, pData) == false)
 			{				
-				ForcedClose(session, DisconnectReason::Send_Error);
+				ForcedClose(session, DisconnectReason::send_error);
 				return NetErrorCode::send_io_fail;
 			}
 
@@ -144,18 +143,30 @@ namespace C2RIONetLib
 		void StartAcceptLoop(ConnectionNetConfig netConfig)
 		{
 			mIsRunAcceptThread = true;
+			char logmsg[256] = { 0, };
 
 			while (mIsRunAcceptThread)
 			{
 				SOCKET acceptedSock = accept(mListenSocket, NULL, NULL);
 				if (acceptedSock == INVALID_SOCKET)
 				{
-					LogFuncPtr((int)LogLevel::Error, "RIONetManager::StartAcceptLoop() - accept invalid socket");
+					LogFuncPtr((int)LogLevel::error, "RIONetManager::StartAcceptLoop() - accept invalid socket");
 					continue;
 				}
 
+				auto curTimeSec = Helper::CurrentSecond();
+
 				/// new client session (should not be under any session locks)
-				auto pSession = mSessionManager.IssueClientSession();
+				auto pSession = mSessionManager.IssueClientSession(curTimeSec);
+				if (pSession == nullptr)
+				{			
+					//사용할 수 있는 세션이 없는 상태이므로 연결을 끊고, 잠시 대기한다
+					LogFuncPtr((int)LogLevel::debug, "RIONetManager::StartAcceptLoop() - Empry Session Pool");
+					closesocket(acceptedSock);
+					Sleep(1000);
+					continue;					
+				}
+
 				auto clientThreadId = pSession->GetRioThreadId();
 
 				/// connection establishing and then issuing recv
@@ -169,11 +180,10 @@ namespace C2RIONetLib
 					NULL);
 				if (rioRequestQueue == RIO_INVALID_RQ)
 				{
-					char logmsg[256] = { 0, };
 					sprintf_s(logmsg, "RIONetManager::StartAcceptLoop() - RIOCreateRequestQueue Error: %d", GetLastError());
-					LogFuncPtr((int)LogLevel::Error, logmsg);
+					LogFuncPtr((int)LogLevel::error, logmsg);
 
-					Disconnect(pSession, 0, DisconnectReason::accept_loop_Request_Queue_Error);
+					Disconnect(pSession, 0, DisconnectReason::accept_loop_request_queue_error);
 					continue;
 				}
 
@@ -199,7 +209,6 @@ namespace C2RIONetLib
 
 		void StartIoThreads(unsigned int rioThreadCount, const unsigned int maxCQSizePerRIOThread)
 		{
-			/// I/O Thread
 			for (decltype(rioThreadCount) i = 0; i < rioThreadCount; ++i)
 			{
 				CreateRioCompletionQueue(maxCQSizePerRIOThread);
@@ -207,11 +216,9 @@ namespace C2RIONetLib
 			}
 		}
 
-		//TODO 함수 쪼개기
 		void IoWorkerThread(const int _thread_index)
 		{
 			auto threadIndex = _thread_index;						
-
 			auto coreCount = Helper::GetNumberOfProcessors();
 			auto results = new RIORESULT[coreCount];
 
@@ -222,88 +229,101 @@ namespace C2RIONetLib
 
 				if (RIO_CORRUPT_CQ == numResults)
 				{
-					LogFuncPtr((int)LogLevel::Fetal, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
+					LogFuncPtr((int)LogLevel::fetal, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
 					continue;
 				}
 
 				for (ULONG i = 0; i < numResults; ++i)
 				{
 					auto context = reinterpret_cast<RioIoContext*>(results[i].RequestContext);
-					auto sessionUniqueIdByRioConext = context->SessionUnique;
 					auto pSession = mSessionManager.GetSessionObj(context->session_index_);
 					auto transferred = results[i].BytesTransferred;
 										
-					if (transferred == 0)
-					{
-						Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::Zero_Completion);
-					}
-					else if (IO_RECV == context->io_type_)
-					{
-						if (auto result = pSession->PostRecv(); result != NetErrorCode::none)
-						{
-							if (result == NetErrorCode::recv_rio_fail)
-							{
-								Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::IO_Request_Recv_Error);
-							}
-						}
-					}
-					else if (IO_SEND == context->io_type_)
-					{
-						pSession->SendCompletion(context);
+					IoWorkerThread_ProceRIORequest(transferred, context, pSession);					
+				} 
 
-						if (context->Length != transferred)
-						{
-							Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::Partial_Send_Completion);
-						}						
-					}
-					else
-					{
-						char logmsg[256] = { 0, };
-						sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Unknown I/O Type: %d", context->io_type_);
-						LogFuncPtr((int)LogLevel::Error, logmsg);
-					}					
-				} /// for
-
-				while (LazyedDisConnectSessions[threadIndex].empty() == false)
-				{
-					LazyedDisConnectSession disConnectInfo;
-					if (LazyedDisConnectSessions[threadIndex].try_pop(disConnectInfo) == false) { break; }
-					auto pSession = mSessionManager.GetSessionObj(disConnectInfo.SessionIndex, disConnectInfo.UniqueId);
-					if (pSession == nullptr) { break; }
-
-					Disconnect(pSession, disConnectInfo.UniqueId, disConnectInfo.reason);
-				}
-
-				if (0 == numResults)
-				{
-					Sleep(1); ///< for low cpu-usage
-				}
-			} /// while
+				ProcessLazyedDisConnectSession(threadIndex);
+				
+				if (0 == numResults) { Sleep(1); }///< for low cpu-usage
+			}
 
 			delete results;
 			return;
 		}
 
-		
+		void IoWorkerThread_ProceRIORequest(const ULONG transferred, RioIoContext* pContext, Session* pSession)
+		{
+			auto sessionUniqueIdByRioConext = pContext->SessionUnique;
+
+			if (transferred == 0)
+			{
+				Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::zero_completion);
+			}
+			else if (IOType::recv == pContext->io_type_)
+			{
+				auto pRecvBufferPtr = pSession->RecvCompletion(transferred);
+				mNetEventManager->OnReceive(pSession->GetIndex(), (UINT32)transferred, pRecvBufferPtr);
+
+				if (auto result = pSession->PostRecv(); result != NetErrorCode::none)
+				{
+					if (result == NetErrorCode::recv_rio_fail)
+					{
+						Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::io_request_recv_error);
+					}
+				}
+			}
+			else if (IOType::send == pContext->io_type_)
+			{
+				pSession->SendCompletion(pContext);
+
+				if (pContext->Length != transferred)
+				{
+					Disconnect(pSession, sessionUniqueIdByRioConext, DisconnectReason::partial_send_completion);
+				}
+			}
+			else
+			{
+				char logmsg[256] = { 0, };
+				sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Unknown I/O Type: %d", pContext->io_type_);
+				LogFuncPtr((int)LogLevel::error, logmsg);
+			}
+		}
+
+		void ProcessLazyedDisConnectSession(const int threadIndex)
+		{
+			while (LazyedDisConnectSessions[threadIndex].empty() == false)
+			{
+				LazyedDisConnectSession disConnectInfo;
+				if (LazyedDisConnectSessions[threadIndex].try_pop(disConnectInfo) == false) { break; }
+				
+				auto pSession = mSessionManager.GetSessionObj(disConnectInfo.SessionIndex, disConnectInfo.UniqueId);
+				if (pSession == nullptr) { break; }
+
+				Disconnect(pSession, disConnectInfo.UniqueId, disConnectInfo.reason);
+			}
+		}
+
 		void Disconnect(Session* pSession, const UINT64 sessionUniqueIdByContext, const DisconnectReason reason)
 		{
+			auto curTimeSec = Helper::CurrentSecond();
 			auto sessionIndex = pSession->GetIndex();
 
-			if (reason == DisconnectReason::accept_loop_Request_Queue_Error ||
+			if (reason == DisconnectReason::accept_loop_request_queue_error ||
 				reason == DisconnectReason::accept_loop_on_connect_rrror)
 			{
 				pSession->DisConnectByAcceptFail();
-				mSessionManager.ReturnSession(sessionIndex);
+				mSessionManager.ReturnSession(sessionIndex, curTimeSec);
 				return;
 			}
 
 			if (pSession->Disconnect(sessionUniqueIdByContext))
 			{
 				mNetEventManager->OnClose(sessionIndex, reason);
-
-				mSessionManager.ReturnSession(sessionIndex);
+				mSessionManager.ReturnSession(sessionIndex, curTimeSec);
 			}
 		}
+
+		
 	
 
 	private:
