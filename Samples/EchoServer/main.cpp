@@ -40,11 +40,8 @@ int main()
 		return -1; 
 	}
 			
-	std::thread logicThread([&]() 
-		{
-			netManager.StartAndBlocking();
-		}
-	);
+	// 서버 시작
+	std::thread logicThread([&]() { netManager.StartAndBlocking(); });
 	std::this_thread::sleep_for(std::chrono::milliseconds(256));
 
 	std::cout << "Server quits when you press (quit) !!!" << std::endl;	

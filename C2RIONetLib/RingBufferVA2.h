@@ -53,17 +53,17 @@ namespace C2RIONetLib
 		}
 
 
-		int Create(const int ringBufferSize)
+		int Create(const int ringBufferSize_)
 		{
-			auto [pRingBuffer, errorCode] = CreateRingBuffer(ringBufferSize, &m_pSecondaryView);
+			auto [pRingBuffer, errorCode] = CreateRingBuffer(ringBufferSize_, &mSecondaryView);
 			if (pRingBuffer == nullptr)
 			{
 				printf("CreateRingBuffer failed\n");
 				return errorCode;
 			}
 
-			m_pRingBuffer = pRingBuffer;
-			m_RingBufferSize = ringBufferSize;
+			mRingBuffer = pRingBuffer;
+			mRingBufferSize = ringBufferSize_;
 
 			Clear();
 			
@@ -72,59 +72,58 @@ namespace C2RIONetLib
 
 		void Clear()
 		{
-			m_WritePos = 0;
-			m_ReadPos = 0;
+			mWritePos = 0;
+			mReadPos = 0;
 		}
 
-		char* GetBuffer() {	return m_pRingBuffer; }
-		//char* GetBufferOffet(const UINT32 offset_) { return m_pRingBuffer[offset_]; }
-
-		char* Read(const int reqReadSize)
+		char* GetBuffer() {	return mRingBuffer; }
+		
+		char* Read(const int reqReadSize_)
 		{
 			char* pResult = nullptr;
-			pResult = &m_pRingBuffer[m_ReadPos];
-			m_ReadPos += reqReadSize;
+			pResult = &mRingBuffer[mReadPos];
+			mReadPos += reqReadSize_;
 
-			if (m_ReadPos >= m_RingBufferSize)
+			if (mReadPos >= mRingBufferSize)
 			{
-				m_ReadPos -= m_RingBufferSize;
+				mReadPos -= mRingBufferSize;
 			}
 
 			return pResult;
 		}
 
-		char* Write(const UINT32 size, const char* pData)
+		char* Write(const UINT32 size_, const char* pData_)
 		{
-			int oldPos = m_WritePos;
-			CopyMemory(&m_pRingBuffer[m_WritePos], pData, size);
-			m_WritePos += size;
+			int oldPos = mWritePos;
+			CopyMemory(&mRingBuffer[mWritePos], pData_, size_);
+			mWritePos += size_;
 
-			if (m_WritePos >= m_RingBufferSize)
+			if (mWritePos >= mRingBufferSize)
 			{
-				m_WritePos -= m_RingBufferSize;
+				mWritePos -= mRingBufferSize;
 			}
 
-			return &m_pRingBuffer[oldPos];
+			return &mRingBuffer[oldPos];
 		}
 
-		void Write(const UINT32 size)
+		void Write(const UINT32 size_)
 		{
-			m_WritePos += size;
+			mWritePos += size_;
 
-			if (m_WritePos >= m_RingBufferSize)
+			if (mWritePos >= mRingBufferSize)
 			{
-				m_WritePos -= m_RingBufferSize;
+				mWritePos -= mRingBufferSize;
 			}
 		}
 
-		void MoveWriteablePos(const UINT32 pos_) { m_WritePos = pos_; }
-		UINT32 GetWriteablePos() { return m_WritePos; }
+		void MoveWriteablePos(const UINT32 pos_) { mWritePos = pos_; }
+		UINT32 GetWriteablePos() { return mWritePos; }
 
-		void UnitTest_SetWritePos(UINT32 pos) { m_WritePos = pos; }
-		void UnitTest_SetReadPos(UINT32 pos) { m_ReadPos = pos; }
+		void UnitTest_SetWritePos(UINT32 pos) { mWritePos = pos; }
+		void UnitTest_SetReadPos(UINT32 pos) { mReadPos = pos; }
 
 	private:
-		std::tuple<char*, int> CreateRingBuffer(unsigned int bufferSize, _Outptr_ void** secondaryView)
+		std::tuple<char*, int> CreateRingBuffer(unsigned int bufferSize_, _Outptr_ void** secondaryView_)
 		{
 			int errorCode = 0;
 			BOOL result;
@@ -135,7 +134,7 @@ namespace C2RIONetLib
 			void* placeholder2 = nullptr;
 			void* view1 = nullptr;
 			void* view2 = nullptr;
-			*secondaryView = NULL;
+			*secondaryView_ = NULL;
 
 			GetSystemInfo(&sysInfo);
 			
@@ -155,7 +154,7 @@ namespace C2RIONetLib
 			placeholder1 = (PCHAR)VirtualAlloc2(
 				nullptr,
 				nullptr,
-				2 * bufferSize,
+				2 * bufferSize_,
 				MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
 				PAGE_NOACCESS,
 				nullptr, 0
@@ -172,7 +171,7 @@ namespace C2RIONetLib
 			//
 			result = VirtualFree(
 				placeholder1,
-				bufferSize,
+				bufferSize_,
 				MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER
 			);
 
@@ -182,7 +181,7 @@ namespace C2RIONetLib
 				goto Exit;
 			}
 
-			placeholder2 = (void*)((ULONG_PTR)placeholder1 + bufferSize);
+			placeholder2 = (void*)((ULONG_PTR)placeholder1 + bufferSize_);
 
 			//
 			// Create a pagefile-backed section for the buffer.
@@ -193,7 +192,7 @@ namespace C2RIONetLib
 				nullptr,
 				PAGE_READWRITE,
 				0,
-				bufferSize, nullptr
+				bufferSize_, nullptr
 			);
 
 			if (section == nullptr) {
@@ -211,7 +210,7 @@ namespace C2RIONetLib
 				nullptr,
 				placeholder1,
 				0,
-				bufferSize,
+				bufferSize_,
 				MEM_REPLACE_PLACEHOLDER,
 				PAGE_READWRITE,
 				nullptr, 0
@@ -238,7 +237,7 @@ namespace C2RIONetLib
 				nullptr,
 				placeholder2,
 				0,
-				bufferSize,
+				bufferSize_,
 				MEM_REPLACE_PLACEHOLDER,
 				PAGE_READWRITE,
 				nullptr, 0
@@ -255,7 +254,7 @@ namespace C2RIONetLib
 			//
 
 			ringBuffer = view1;
-			*secondaryView = view2;
+			*secondaryView_ = view2;
 
 			placeholder2 = nullptr;
 			view1 = nullptr;
@@ -290,17 +289,16 @@ namespace C2RIONetLib
 
 		void Release()
 		{
-			UnmapViewOfFile(m_pRingBuffer);
-			UnmapViewOfFile(m_pSecondaryView);
+			UnmapViewOfFile(mRingBuffer);
+			UnmapViewOfFile(mSecondaryView);
 		}
 
 
-		UINT32 m_RingBufferSize = 0;
-
-		char* m_pRingBuffer = nullptr;
-		void* m_pSecondaryView = nullptr;
-		UINT32 m_WritePos = 0;
-		UINT32 m_ReadPos = 0;
+		UINT32 mRingBufferSize = 0;
+		char* mRingBuffer = nullptr;
+		void* mSecondaryView = nullptr;
+		UINT32 mWritePos = 0;
+		UINT32 mReadPos = 0;
 
 	};
 }

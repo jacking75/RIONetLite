@@ -25,20 +25,20 @@ namespace C2RIONetLib
 		bool IsEnableNetwork() { return mEnableNetwork == ENABLE_VALUE; }
 		void SetDisableNetwork() { mEnableNetwork = 0; }
 		
-		void Init(int index, int threadId)
+		void Init(int index_, int threadId_)
 		{
-			mRioThreadId = threadId;
-			mIndex = index;
+			mRioThreadId = threadId_;
+			mIndex = index_;
 			memset(&mClientAddr, 0, sizeof(SOCKADDR_IN));
 		}
 
-		bool RioInitialize(ConnectionNetConfig netConfig)
+		bool RioInitialize(ConnectionNetConfig netConfig_)
 		{
-			mMaxTry1RecvBufferSize = netConfig.MaxTry1RecvBufferSize;
-			mIOSender_.Init(mIndex, netConfig);
-			mRecvBuffer_.Create(netConfig.MaxRecvBufferSize);
+			mMaxTry1RecvBufferSize = netConfig_.MaxTry1RecvBufferSize;
+			mIOSender.Init(mIndex, netConfig_);
+			mRecvBuffer.Create(netConfig_.MaxRecvBufferSize);
 
-			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer_.GetBuffer(), netConfig.MaxRecvBufferSize);
+			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer.GetBuffer(), netConfig_.MaxRecvBufferSize);
 			if (mRecvRioBufferId == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[256] = { 0, };
@@ -55,30 +55,25 @@ namespace C2RIONetLib
 		void Dispose()
 		{
 			if (mRecvRioBufferId != NULL) { RIO.RIODeregisterBuffer(mRecvRioBufferId); }
-			mIOSender_.Dispose();
+			mIOSender.Dispose();
 		}
 
-		bool OnConnect(UINT64 uniqueId, SOCKET socket, RIO_RQ rioRequestQueue)
+		bool OnConnect(UINT64 uniqueId_, SOCKET socket_, RIO_RQ rioRequestQueue_)
 		{
 			// 세션 객체가 재 사용되더라도 대기 시간이 있으므로 연결이 끊어질 때와 이 함수 호출이 겹쳐지지 않는다.
-			SetAddress(socket);
-						
-			//TODO 테스트 하면서 논블러링으로 해야 하는지 확인하기
-			/// make socket non-blocking
-			//u_long arg = 1;
-			//ioctlsocket(mSocket, FIONBIO, &arg);
-
+			SetAddress(socket_);
+									
 			/// turn off nagle
 			int opt = 1;
 			setsockopt(mSocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt, sizeof(int));
 			
-			mSocket = socket;
-			mUnqiueId = uniqueId;
+			mSocket = socket_;
+			mUnqiueId = uniqueId_;
 			mConnected = CONNECTED;
 			mEnableNetwork = ENABLE_VALUE;
-			mRequestQueue = rioRequestQueue;
-			mIOSender_.OnConnect(mRequestQueue);
-			mRecvBuffer_.Clear();
+			mRequestQueue = rioRequestQueue_;
+			mIOSender.OnConnect(mRequestQueue);
+			mRecvBuffer.Clear();
 
 			return PostRecv() == NetErrorCode::none;
 		}
@@ -87,18 +82,18 @@ namespace C2RIONetLib
 
 		int	GetRioThreadId() const { return mRioThreadId; }
 
-		bool PostSend(const UINT32 dataSize, const char* pData)
+		bool PostSend(const UINT32 dataSize_, const char* pData_)
 		{
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			auto result = mIOSender_.PostSend(GetUniqueId(), dataSize, pData);
+			auto result = mIOSender.PostSend(GetUniqueId(), dataSize_, pData_);
 			return result;
 		}
 
-		void SendCompletion(RioIoContext* pSendContext)
+		void SendCompletion(RioIoContext* pSendContext_)
 		{
 			FastSpinlockGuard criticalSection(mSessionLock);
-			mIOSender_.Completed(pSendContext);
+			mIOSender.Completed(pSendContext_);
 		}
 
 		NetErrorCode PostRecv()
@@ -109,10 +104,10 @@ namespace C2RIONetLib
 
 			if (IsEnableNetwork() == false) { return NetErrorCode::recv_disable_network_status; }
 
-			mRecvContext.SessionUnique = GetUniqueId();
+			mRecvContext.SessionUniqueId = GetUniqueId();
 			mRecvContext.BufferId = mRecvRioBufferId;
 			mRecvContext.Length = mMaxTry1RecvBufferSize;
-			mRecvContext.Offset = mRecvBuffer_.GetWriteablePos();
+			mRecvContext.Offset = mRecvBuffer.GetWriteablePos();
 						
 			/// start async recv
 			DWORD flags = 0;
@@ -130,19 +125,19 @@ namespace C2RIONetLib
 						
 		char* RecvCompletion(UINT32 readRecvSize_)
 		{ 
-			mRecvBuffer_.Write(readRecvSize_);
+			mRecvBuffer.Write(readRecvSize_);
 			
 			// lock을 걸지 않아도 문제 되지 않을 것 같다.
-			return mRecvBuffer_.Read(readRecvSize_);
+			return mRecvBuffer.Read(readRecvSize_);
 		}
 
-		bool Disconnect(const UINT64 sessionUniqueIdByContext)
+		bool Disconnect(const UINT64 sessionUniqueIdByContext_)
 		{
 			if (IsConnected() == false) { return false; }
 
 			FastSpinlockGuard criticalSection(mSessionLock);
 
-			if (GetUniqueId() != sessionUniqueIdByContext) { return false; }
+			if (GetUniqueId() != sessionUniqueIdByContext_) { return false; }
 
 			LINGER lingerOption;
 			lingerOption.l_onoff = 1;
@@ -171,11 +166,11 @@ namespace C2RIONetLib
 				
 
 	private:
-		void SetAddress(SOCKET socket)
+		void SetAddress(SOCKET socket_)
 		{
 			SOCKADDR_IN clientaddr;
 			int addrlen = sizeof(clientaddr);
-			getpeername(socket, (SOCKADDR*)&clientaddr, &addrlen);
+			getpeername(socket_, (SOCKADDR*)&clientaddr, &addrlen);
 			memcpy(&mClientAddr, &clientaddr, sizeof(SOCKADDR_IN));
 		}
 
@@ -201,9 +196,9 @@ namespace C2RIONetLib
 		RIO_RQ			mRequestQueue = NULL;
 		RioIoContext mRecvContext;
 				
-		NetSenderImmediately mIOSender_;
+		NetSenderImmediately mIOSender;
 
-		RingBufferVA2 mRecvBuffer_;
+		RingBufferVA2 mRecvBuffer;
 	};
 
 }

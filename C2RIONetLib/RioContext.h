@@ -14,18 +14,17 @@ namespace C2RIONetLib
 		
 	struct RioIoContext : public RIO_BUF
 	{
-		void Init(const int _session_index, IOType _ioType) 
+		void Init(const int sessionIndex_, IOType ioType_) 
 		{
 			Length = 0;
 
-			session_index_ = _session_index;
-			io_type_ = _ioType;
+			SessionIndex = sessionIndex_;
+			IoType = ioType_;
 		}
 
-		int session_index_;		
-		IOType	io_type_;
-
-		UINT64 SessionUnique; // io 완료 시에 요청 때의 세션과 동일한지 체크하기 위해
+		int SessionIndex;		
+		IOType	IoType;
+		UINT64 SessionUniqueId; // io 완료 시에 요청 때의 세션과 동일한지 체크하기 위해
 	};
 
 	struct RIOAPI

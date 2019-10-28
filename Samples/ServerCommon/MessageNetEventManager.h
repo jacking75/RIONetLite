@@ -10,31 +10,31 @@ namespace ServerCommon
 {
 	enum class NetEventType : INT8
 	{
-		None = 0,
-		Connection,
-		Close,
-		OnRecv
+		none = 0,
+		connection,
+		close,
+		onRecv
 	};
 
 	struct NetEvent
 	{		
 		int SessionIndex = -1;
-		NetEventType EventType = NetEventType::None;
+		NetEventType EventType = NetEventType::none;
 		unsigned int DataSize = 0;
 		char* pData = nullptr;
 		
-		void Set(const int sessionIndex, const NetEventType type, const unsigned int dataSize, char* data)
+		void Set(const int sessionIndex_, const NetEventType type_, const unsigned int dataSize_, char* pData_)
 		{
-			SessionIndex = sessionIndex;
-			EventType = type;
-			DataSize = dataSize;
-			pData = data;
+			SessionIndex = sessionIndex_;
+			EventType = type_;
+			DataSize = dataSize_;
+			pData = pData_;
 		}
 
-		void SetReceive(const unsigned int dataSize, char* data)
+		void SetReceive(const unsigned int dataSize_, char* pData_)
 		{
-			DataSize = dataSize;
-			pData = data;
+			DataSize = dataSize_;
+			pData = pData_;
 		}		
 	};
 
@@ -44,32 +44,32 @@ namespace ServerCommon
 		NetEventRecvRingBuffer() = default;
 		~NetEventRecvRingBuffer() = default;
 
-		void Init(const int sessionIndex, const unsigned int maxCount)
+		void Init(const int sessionIndex_, const unsigned int maxCount_)
 		{
-			mMaxCount = maxCount;
+			mMaxCount = maxCount_;
 
-			for (int i = 0; i < maxCount; ++i)
+			for (int i = 0; i < maxCount_; ++i)
 			{
-				Objects.emplace_back({ sessionIndex,  NetEventType::OnRecv, 0, nullptr });
+				mObjects.emplace_back(sessionIndex_,  NetEventType::onRecv, 0, nullptr);
 			}
 		}
 
 		void Clear()
 		{
-			mCurPos = 0;
+			mCurBufferPos = 0;
 		}		
 
 		NetEvent* GetData()
 		{
-			if (mCurPos >= mMaxCount) { mMaxCount = 0; }
+			if (mCurBufferPos >= mMaxCount) { mMaxCount = 0; }
 
-			return &Objects[mCurPos];
+			return &mObjects[mCurBufferPos];
 		}
 
 	private:
-		std::vector<NetEvent> Objects;
+		std::vector<NetEvent> mObjects;
 		unsigned int mMaxCount;
-		unsigned int mCurPos;
+		unsigned int mCurBufferPos;
 	};
 
 	class SessionNetEvent
@@ -78,21 +78,21 @@ namespace ServerCommon
 		SessionNetEvent() = default;
 		~SessionNetEvent() = default;
 
-		void Init(const int sessionIndex, const unsigned int maxRecvEvnetCount)
+		void Init(const int sessionIndex_, const unsigned int maxRecvEvnetCount_)
 		{
-			mConnect.Set(sessionIndex, NetEventType::Connection, 0, nullptr);
-			mConnect.Set(sessionIndex, NetEventType::Close, 0, nullptr);
-			mRecvs.Init(sessionIndex, maxRecvEvnetCount);
+			mConnect.Set(sessionIndex_, NetEventType::connection, 0, nullptr);
+			mConnect.Set(sessionIndex_, NetEventType::close, 0, nullptr);
+			mRecvBuffer.Init(sessionIndex_, maxRecvEvnetCount_);
 		}
 
 		NetEvent* GetConnect() { return &mConnect; }
 		NetEvent* GetClose() { return &mClose; }
-		NetEvent* GetRecv() { return mRecvs.GetData(); }
+		NetEvent* GetRecv() { return mRecvBuffer.GetData(); }
 		
 	private:
 		NetEvent mConnect;
 		NetEvent mClose;
-		NetEventRecvRingBuffer mRecvs;
+		NetEventRecvRingBuffer mRecvBuffer;
 	};
 
 	class MessageNetEventManager
@@ -101,31 +101,31 @@ namespace ServerCommon
 		MessageNetEventManager() = default;
 		~MessageNetEventManager() = default;
 
-		void OnConnect(const int index)
+		void OnConnect(const int index_)
 		{
 		}
 
-		void OnClose(const int index, const C2RIONetLib::DisconnectReason reason)
+		void OnClose(const int index_, const C2RIONetLib::DisconnectReason reason_)
 		{
 		}
 
-		void OnReceive()
+		void OnReceive(const INT32 index_, const UINT32 dataSize_, const char* pData_)
 		{
 		}
 
 
-		int Init(const unsigned int threadCount, const unsigned int sessionCount, const unsigned int maxRecvEvnetCount)
+		int Init(const unsigned int threadCount_, const unsigned int sessionCount_, const unsigned int maxRecvEvnetCount_)
 		{
-			mLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, threadCount);
+			mLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, threadCount_);
 			if (mLogicIOCP == INVALID_HANDLE_VALUE)
 			{
 				return -1;
 			}
 
-			for (auto i = decltype(sessionCount); i < sessionCount; ++i)
+			for (UINT32 i = sessionCount_; i < sessionCount_; ++i)
 			{
 				SessionNetEvent session;
-				session.Init(i, maxRecvEvnetCount);
+				session.Init(i, maxRecvEvnetCount_);
 				mSessionNetEventList.push_back(session);
 			}
 
@@ -147,7 +147,7 @@ namespace ServerCommon
 
 		}
 
-		void PostRecvEventMsg(const int dataSize, const char* pData)
+		void PostRecvEventMsg(const int dataSize_, const char* pData_)
 		{
 
 		}
@@ -201,7 +201,7 @@ namespace ServerCommon
 			return true;
 		}*/
 
-		BOOL PostNetMessage(NetEventType* pEvnet)
+		BOOL PostNetMessage(NetEventType* pEvnet_)
 		{
 			// Boost.Asio의 경우 다른 식으로 오류에 대해 방어하고 있다. 참고하자
 			//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
@@ -210,14 +210,13 @@ namespace ServerCommon
 							mLogicIOCP,
 							0,
 							NULL,
-							reinterpret_cast<LPOVERLAPPED>(pEvnet));
+							reinterpret_cast<LPOVERLAPPED>(pEvnet_));
 		}
 		
 
 		
 	private:		
 		std::vector<SessionNetEvent> mSessionNetEventList;
-
 		HANDLE mLogicIOCP = INVALID_HANDLE_VALUE;
 	};
 }

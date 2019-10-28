@@ -13,27 +13,27 @@ namespace C2RIONetLib
 	public:
 		CustomSpinLockCriticalSection()
 		{
-			(void)InitializeCriticalSectionAndSpinCount(&m_CS, SPINLOCK_COUNT);
+			(void)InitializeCriticalSectionAndSpinCount(&mCS, SPINLOCK_COUNT);
 		}
 
 		~CustomSpinLockCriticalSection()
 		{
-			DeleteCriticalSection(&m_CS);
+			DeleteCriticalSection(&mCS);
 		}
 		
 		void EnterLock()
 		{
-			EnterCriticalSection(&m_CS);
+			EnterCriticalSection(&mCS);
 		}
 
 		void LeaveLock()
 		{
-			LeaveCriticalSection(&m_CS);
+			LeaveCriticalSection(&mCS);
 		}
 				
 
 	private:
-		CRITICAL_SECTION m_CS;
+		CRITICAL_SECTION mCS;
 	};
 
 
@@ -47,8 +47,7 @@ namespace C2RIONetLib
 		{
 			for (int nloops = 0; ; nloops++)
 			{
-				if (InterlockedExchange(&mLockFlag, 1) == 0)
-					return;
+				if (InterlockedExchange(&mLockFlag, 1) == 0) { return; }
 
 				UINT uTimerRes = 1;
 				timeBeginPeriod(uTimerRes);
@@ -105,28 +104,3 @@ namespace C2RIONetLib
 		LockType& mLock;
 	};
 }
-//template <class TargetClass>
-//class ClassTypeLock
-//{
-//public:
-//	struct LockGuard
-//	{
-//		LockGuard()
-//		{
-//			TargetClass::mLock.EnterLock();
-//		}
-//
-//		~LockGuard()
-//		{
-//			TargetClass::mLock.LeaveLock();
-//		}
-//
-//	};
-//
-//private:
-//	static FastSpinlock mLock;
-//
-//};
-//
-//template <class TargetClass>
-//FastSpinlock ClassTypeLock<TargetClass>::mLock;

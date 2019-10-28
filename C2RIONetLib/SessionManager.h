@@ -25,26 +25,26 @@ namespace C2RIONetLib
 		SessionManager() = default;
 		~SessionManager() = default;
 		
-		bool PrepareSessionPool(unsigned int sessionCountPerRioThread, NetConfig netConfig)
+		bool PrepareSessionPool(unsigned int sessionCountPerRioThread_, NetConfig netConfig_)
 		{
 			unsigned int client_index = 0;
-			auto rioThreadCount = netConfig.IoWorkThreadCount;
+			auto rioThreadCount = netConfig_.IoWorkThreadCount;
 
 			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i)
 			{
-				for (decltype(sessionCountPerRioThread) j = 0; j < sessionCountPerRioThread; ++j)
+				for (decltype(sessionCountPerRioThread_) j = 0; j < sessionCountPerRioThread_; ++j)
 				{
 					auto client = new Session;
 					client->Init(client_index, i);
-					if (false == client->RioInitialize(netConfig.Conn)) { return false; }
+					if (false == client->RioInitialize(netConfig_.Conn)) { return false; }
 
 					mSessions.push_back(client);
-					mFreeSessionindexs_.emplace_back(SessionIndexContext{ client_index, 0 });
+					mFreeSessionindexs.emplace_back(SessionIndexContext{ client_index, 0 });
 					++client_index;
 				}
 			}
 
-			max_session_count_ = client_index;
+			mMaxSessionCount = client_index;
 			return true;
 		}
 
@@ -67,32 +67,32 @@ namespace C2RIONetLib
 			LogFuncPtr((int)LogLevel::info, "SessionManager::Dispose - Complete");
 		}
 
-		Session* GetSessionObj(const unsigned int session_index)
+		Session* GetSessionObj(const UINT32 sessionIndex_)
 		{
-			if (session_index >= max_session_count_) { return nullptr; }
-			return mSessions[session_index];
+			if (sessionIndex_ >= mMaxSessionCount) { return nullptr; }
+			return mSessions[sessionIndex_];
 		}
 
-		Session* GetSessionObj(const unsigned int session_index, const UINT64 sessionUniqueId)
+		Session* GetSessionObj(const UINT32 sessionIndex_, const UINT64 sessionUniqueId_)
 		{
-			if (session_index >= max_session_count_) { return nullptr; }
-			if (mSessions[session_index]->GetUniqueId() != sessionUniqueId) { return nullptr; }
+			if (sessionIndex_ >= mMaxSessionCount) { return nullptr; }
+			if (mSessions[sessionIndex_]->GetUniqueId() != sessionUniqueId_) { return nullptr; }
 
-			return mSessions[session_index];
+			return mSessions[sessionIndex_];
 		}
 
 		Session* IssueClientSession(const UINT64 curSec_)
 		{
 			FastSpinlockGuard guard(mLock);
 
-			if (mFreeSessionindexs_.empty()) { return nullptr; }
+			if (mFreeSessionindexs.empty()) { return nullptr; }
 
-			auto indexContext = mFreeSessionindexs_.front();
+			auto indexContext = mFreeSessionindexs.front();
 
 			if (indexContext.ReUseAbleTimeSec > curSec_) { return nullptr; }
 
 			auto newSession = GetSessionObj(indexContext.Index);
-			mFreeSessionindexs_.pop_front();
+			mFreeSessionindexs.pop_front();
 
 			//newSessions는 절대 null 객체가 아니다!!!
 			return newSession;
@@ -101,7 +101,7 @@ namespace C2RIONetLib
 		void ReturnSession(const int sessionIndex_, const UINT64 curSec_)
 		{
 			FastSpinlockGuard guard(mLock);						
-			mFreeSessionindexs_.emplace_back(SessionIndexContext{ 
+			mFreeSessionindexs.emplace_back(SessionIndexContext{ 
 									(UINT32)sessionIndex_, 
 									(curSec_ + RE_USE_SESSION_WAITE_TIMESEC) });
 		}
@@ -111,11 +111,11 @@ namespace C2RIONetLib
 	private:
 		FastSpinlock mLock;
 
-		unsigned int max_session_count_ = 0;
-		uint64_t mCurrentIssueCount = 0;
-		uint64_t mCurrentReturnCount = 0;
+		UINT32 mMaxSessionCount = 0;
+		UINT64 mCurrentIssueCount = 0;
+		UINT64 mCurrentReturnCount = 0;
 
-		std::deque<SessionIndexContext> mFreeSessionindexs_;
+		std::deque<SessionIndexContext> mFreeSessionindexs;
 		std::vector<Session*> mSessions;
 	};
 }

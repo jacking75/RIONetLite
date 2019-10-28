@@ -6,15 +6,13 @@ namespace C2RIONetLib
 {
 	LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 	{
-		if (IsDebuggerPresent())
-			return EXCEPTION_CONTINUE_SEARCH;
-
-
-		/// dump file 남기자.
-
-		HANDLE hFile = CreateFileA("EasyServer_minidump.dmp", GENERIC_READ | GENERIC_WRITE,
-			0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
+		if (IsDebuggerPresent()) { return EXCEPTION_CONTINUE_SEARCH; }
+		
+		HANDLE hFile = CreateFileA("EasyServer_minidump.dmp", 
+								GENERIC_READ | GENERIC_WRITE,
+								0, NULL, 
+								CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 
+								NULL);
 		if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE))
 		{
 			MINIDUMP_EXCEPTION_INFORMATION mdei;
@@ -28,11 +26,14 @@ namespace C2RIONetLib
 				MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
 				MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
-			MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
-				hFile, mdt, (exceptionInfo != 0) ? &mdei : 0, 0, NULL);
-
+			MiniDumpWriteDump(GetCurrentProcess(), 
+							GetCurrentProcessId(),
+							hFile, 
+							mdt, 
+							(exceptionInfo != 0) ? &mdei : 0, 
+							0, 
+							NULL);
 			CloseHandle(hFile);
-
 		}
 		else
 		{

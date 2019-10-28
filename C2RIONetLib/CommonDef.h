@@ -83,7 +83,7 @@ namespace C2RIONetLib
 	{
 		INT32 SessionIndex;
 		UINT64 UniqueId;
-		DisconnectReason reason;
+		DisconnectReason Reason;
 	};
 
 

@@ -18,16 +18,16 @@ namespace C2RIONetLib
 
 		~NetSenderImmediately() = default;
 		
-		char* GetBuffer() { return mSendBuffer_.GetBuffer(); }
+		char* GetBuffer() { return mSendBuffer.GetBuffer(); }
 
 		bool Init(const INT32 sessionIndex, ConnectionNetConfig netConfig)
 		{
-			mSessionIndex_ = sessionIndex;
-			mMaxSendPacketSize_ = netConfig.MaxSendPacketSize;
-			mMAXSendCountPer1Sec_ = netConfig.MAXSendCountPer1Sec;
-			mMaxSendRingBufferSize_ = netConfig.MaxSendBufferSize;
+			mSessionIndex = sessionIndex;
+			mMaxSendPacketSize = netConfig.MaxSendPacketSize;
+			mMAXSendCountPer1Sec = netConfig.MAXSendCountPer1Sec;
+			mMaxSendRingBufferSize = netConfig.MaxSendBufferSize;
 			
-			if (auto isResult = mSendBuffer_.Create(mMaxSendRingBufferSize_); 
+			if (auto isResult = mSendBuffer.Create(mMaxSendRingBufferSize); 
 				isResult != 0)
 			{
 				char logmsg[512] = { 0, };
@@ -36,16 +36,16 @@ namespace C2RIONetLib
 				return false;
 			}
 
-			for (int i = 0; i < mMAXSendCountPer1Sec_; ++i)
+			for (int i = 0; i < mMAXSendCountPer1Sec; ++i)
 			{
 				auto context = new RioIoContext;
-				context->Init(mSessionIndex_, IOType::send);
+				context->Init(mSessionIndex, IOType::send);
 
-				mSendContexts_.push_back(context);
+				mSendContexts.push_back(context);
 			}
 
-			mSendRioBufferId_ = RIO.RIORegisterBuffer(mSendBuffer_.GetBuffer(), netConfig.MaxSendBufferSize);
-			if (mSendRioBufferId_ == RIO_INVALID_BUFFERID)
+			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer.GetBuffer(), netConfig.MaxSendBufferSize);
+			if (mSendRioBufferId == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Init() - RIORegisterBuffer Error: %d", GetLastError());
@@ -60,24 +60,24 @@ namespace C2RIONetLib
 
 		void Dispose()
 		{
-			RIO.RIODeregisterBuffer(mSendRioBufferId_);
+			RIO.RIODeregisterBuffer(mSendRioBufferId);
 
-			for (int i = 0; i < mMAXSendCountPer1Sec_; ++i)
+			for (int i = 0; i < mMAXSendCountPer1Sec; ++i)
 			{
-				delete mSendContexts_[i];
+				delete mSendContexts[i];
 			}
 		}
 
 		void OnConnect(RIO_RQ requestQueue)
 		{
-			mRequestQueue_ = requestQueue;
+			mRequestQueue = requestQueue;
 			Clear();
 		}
 				
 		bool PostSend(const UINT64 sessionUniqueId, const UINT32 dataSize, const char* pData)
 		{
-			auto curPos = mSendSequence_ % mMAXSendCountPer1Sec_;
-			RioIoContext* pSendContext = mSendContexts_[curPos];
+			auto curPos = mSendSequence % mMAXSendCountPer1Sec;
+			RioIoContext* pSendContext = mSendContexts[curPos];
 			
 			if (pSendContext->Length != 0) 
 			{ 
@@ -85,18 +85,18 @@ namespace C2RIONetLib
 				return false; 
 			}
 
-			auto writeAblePos = mSendBuffer_.GetWriteablePos();
-			 mSendBuffer_.Write(dataSize, pData);
+			auto writeAblePos = mSendBuffer.GetWriteablePos();
+			 mSendBuffer.Write(dataSize, pData);
 			
-			pSendContext->SessionUnique = sessionUniqueId;
-			pSendContext->BufferId = mSendRioBufferId_;
+			pSendContext->SessionUniqueId = sessionUniqueId;
+			pSendContext->BufferId = mSendRioBufferId;
 			pSendContext->Length = dataSize;
 			pSendContext->Offset = writeAblePos;
 					
 			
 			/// start async send
 			DWORD flags = 0;
-			if (!RIO.RIOSend(mRequestQueue_, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
+			if (!RIO.RIOSend(mRequestQueue, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
 			{
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::PostSend() - RIOSend Error: %d", GetLastError());
@@ -118,26 +118,26 @@ namespace C2RIONetLib
 	private:
 		void Clear()
 		{
-			for (auto pContext : mSendContexts_)
+			for (auto pContext : mSendContexts)
 			{
 				pContext->Length = 0;
 			}
 
-			mSendBuffer_.Clear();
+			mSendBuffer.Clear();
 		}
 
 
-		INT32 mSessionIndex_ = 0;
-		INT32 mMaxSendPacketSize_ = 0;
-		UINT64 mMAXSendCountPer1Sec_ = 0;
-		INT32 mMaxSendRingBufferSize_ = 0;
+		INT32 mSessionIndex = 0;
+		INT32 mMaxSendPacketSize = 0;
+		UINT64 mMAXSendCountPer1Sec = 0;
+		INT32 mMaxSendRingBufferSize = 0;
 			
-		UINT64 mSendSequence_ = 0;
-		std::vector<RioIoContext*> mSendContexts_;
+		UINT64 mSendSequence = 0;
+		std::vector<RioIoContext*> mSendContexts;
 		
-		RIO_RQ			mRequestQueue_ = NULL;		
-		RIO_BUFFERID	mSendRioBufferId_ = NULL;
+		RIO_RQ			mRequestQueue = NULL;		
+		RIO_BUFFERID	mSendRioBufferId = NULL;
 		
-		RingBufferVA2 mSendBuffer_;
+		RingBufferVA2 mSendBuffer;
 	};
 }
