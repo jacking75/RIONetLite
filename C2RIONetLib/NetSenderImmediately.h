@@ -31,7 +31,7 @@ namespace C2RIONetLib
 				isResult != 0)
 			{
 				char logmsg[512] = { 0, };
-				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - Error: %d", isResult);
+				sprintf_s(logmsg, "NetSenderImmediately::Init() - Error: %d", isResult);
 				LogFuncPtr((int)LogLevel::error, logmsg);
 				return false;
 			}
@@ -48,7 +48,7 @@ namespace C2RIONetLib
 			if (mSendRioBufferId_ == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[512] = { 0, };
-				sprintf_s(logmsg, "NetSenderImmediately::Initialize() - RIORegisterBuffer Error: %d", GetLastError());
+				sprintf_s(logmsg, "NetSenderImmediately::Init() - RIORegisterBuffer Error: %d", GetLastError());
 				LogFuncPtr((int)LogLevel::error, logmsg);
 				return false;
 			}

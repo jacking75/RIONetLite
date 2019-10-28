@@ -60,10 +60,9 @@ namespace C2RIONetLib
 
 		bool OnConnect(UINT64 uniqueId, SOCKET socket, RIO_RQ rioRequestQueue)
 		{
+			// 세션 객체가 재 사용되더라도 대기 시간이 있으므로 연결이 끊어질 때와 이 함수 호출이 겹쳐지지 않는다.
 			SetAddress(socket);
-
-			FastSpinlockGuard criticalSection(mSessionLock);
-
+						
 			//TODO 테스트 하면서 논블러링으로 해야 하는지 확인하기
 			/// make socket non-blocking
 			//u_long arg = 1;

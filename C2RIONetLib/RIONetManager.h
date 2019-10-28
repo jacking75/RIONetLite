@@ -29,22 +29,11 @@ namespace C2RIONetLib
 			/// winsock initializing			
 			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return NetErrorCode::WSAStartUp_fail; }
 
-			/// create TCP socket with RIO mode
-			mListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_REGISTERED_IO);
-			if (mListenSocket == INVALID_SOCKET) { return NetErrorCode::listen_socket_create_fail; }
-
-			int opt = 1;
-			setsockopt(mListenSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(int));
-
-			/// bind
-			SOCKADDR_IN serveraddr;
-			ZeroMemory(&serveraddr, sizeof(serveraddr));
-			serveraddr.sin_family = AF_INET;
-			serveraddr.sin_port = htons(netConfig.PortNumber);
-			serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-			if (SOCKET_ERROR == bind(mListenSocket, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return NetErrorCode::listen_socket_bind_fail; }
-
+			if (auto result = BindListenSocket(netConfig.PortNumber); result != NetErrorCode::none)
+			{
+				return result;
+			}
+			
 			if (RIOAPI::SetFunction(mListenSocket) == false) { return NetErrorCode::rio_function_init_fail; }
 			
 			if (mSessionManager.PrepareSessionPool(sessionCountPerRioThread, netConfig) == false) { return NetErrorCode::prepare_session_pool_fail; }
@@ -52,8 +41,7 @@ namespace C2RIONetLib
 			/// listen
 			if (SOCKET_ERROR == listen(mListenSocket, SOMAXCONN)) { return NetErrorCode::listen_socket_listen_fail; }
 
-			const unsigned int maxCQSizePerRIOThread = (netConfig.Conn.MAXRecvCountPer1Sec + netConfig.Conn.MAXSendCountPer1Sec) * sessionCountPerRioThread;
-			StartIoThreads(rioThreadCount, maxCQSizePerRIOThread);
+			StartIoThreads(rioThreadCount, netConfig.Conn.MAXSendCountPer1Sec, sessionCountPerRioThread);
 
 			LogFuncPtr((int)LogLevel::info, "RIONetManager::Initialize() - Success!");
 			return NetErrorCode::none;
@@ -67,13 +55,12 @@ namespace C2RIONetLib
 		void End()
 		{
 			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Start");
+			mIsRunIOWorkThread = false;
 
-			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Close mListenSocket");
-			mIsRunAcceptThread = false;
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Close mListenSocket");			
 			closesocket(mListenSocket);
 			
-			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Stop IOThreads");
-			mIsRunIOWorkThread = false;
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Stop IOThreads");			
 			for (auto& thread : mIOWorkThreads)
 			{
 				if (thread.joinable())
@@ -129,6 +116,30 @@ namespace C2RIONetLib
 		}
 
 	private:	
+		NetErrorCode BindListenSocket(UINT16 port)
+		{
+			/// create TCP socket with RIO mode
+			mListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_REGISTERED_IO);
+			if (mListenSocket == INVALID_SOCKET) { return NetErrorCode::listen_socket_create_fail; }
+
+			int opt = 1;
+			setsockopt(mListenSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(int));
+
+			/// bind
+			SOCKADDR_IN serveraddr;
+			ZeroMemory(&serveraddr, sizeof(serveraddr));
+			serveraddr.sin_family = AF_INET;
+			serveraddr.sin_port = htons(port);
+			serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+			if (SOCKET_ERROR == bind(mListenSocket, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return NetErrorCode::listen_socket_bind_fail; }
+
+			char logmsg[256] = { 0, };
+			sprintf_s(logmsg, "RIONetManager::CreateListenSocketAndBind() - Port: %d", port);
+			LogFuncPtr((int)LogLevel::info, logmsg);
+			return NetErrorCode::none;
+		}
+
 		void ForcedClose(Session* pSession, DisconnectReason reason)
 		{
 			pSession->SetDisableNetwork();
@@ -142,10 +153,10 @@ namespace C2RIONetLib
 
 		void StartAcceptLoop(ConnectionNetConfig netConfig)
 		{
-			mIsRunAcceptThread = true;
 			char logmsg[256] = { 0, };
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::StartAcceptLoop() - Start~~~");
 
-			while (mIsRunAcceptThread)
+			while (mIsRunIOWorkThread)
 			{
 				SOCKET acceptedSock = accept(mListenSocket, NULL, NULL);
 				if (acceptedSock == INVALID_SOCKET)
@@ -196,6 +207,8 @@ namespace C2RIONetLib
 
 				mNetEventManager->OnConnect(pSession->GetIndex(), pSession->GetUniqueId());
 			}
+
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::StartAcceptLoop() - End!!!");
 		}
 
 		bool CreateRioCompletionQueue(const unsigned int maxCQSizePerRIOThread)
@@ -207,12 +220,19 @@ namespace C2RIONetLib
 			return true;
 		}
 
-		void StartIoThreads(unsigned int rioThreadCount, const unsigned int maxCQSizePerRIOThread)
+		void StartIoThreads(const UINT32 rioThreadCount, const UINT32 maxSendCountPer1Sec, const UINT32 sessionCountPerRioThread)
 		{
-			for (decltype(rioThreadCount) i = 0; i < rioThreadCount; ++i)
+			mIsRunIOWorkThread = true;
+			const unsigned int maxCQSizePerRIOThread = (1 + maxSendCountPer1Sec) * sessionCountPerRioThread;
+
+			for (UINT32 i = 0; i < rioThreadCount; ++i)
 			{
+				auto threadIndex = i;
 				CreateRioCompletionQueue(maxCQSizePerRIOThread);
-				mIOWorkThreads.emplace_back([&]() { IoWorkerThread(i); });
+				mIOWorkThreads.emplace_back([threadIndex, this]() { IoWorkerThread(threadIndex); });
+
+				// mIOWorkThreads 내부에서 초기화 작업이 있어서 잠시 대기한다
+				std::this_thread::sleep_for(std::chrono::milliseconds(32));
 			}
 		}
 
@@ -221,6 +241,10 @@ namespace C2RIONetLib
 			auto threadIndex = _thread_index;						
 			auto coreCount = Helper::GetNumberOfProcessors();
 			auto results = new RIORESULT[coreCount];
+
+			IoWorkerThread_startLog(threadIndex, coreCount);
+						
+			LazyedDisConnectSessions.emplace_back();
 
 			while (mIsRunIOWorkThread)
 			{
@@ -248,6 +272,8 @@ namespace C2RIONetLib
 			}
 
 			delete results;
+
+			IoWorkerThread_endLog(threadIndex);
 			return;
 		}
 
@@ -324,15 +350,26 @@ namespace C2RIONetLib
 		}
 
 		
+		void IoWorkerThread_startLog(const int _thread_index, const int coreCount)
+		{
+			char logmsg[256] = { 0, };
+			sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Start. threadIndex: %d, coreCount: %d", _thread_index, coreCount);
+			LogFuncPtr((int)LogLevel::info, logmsg);
+		}
+
+		void IoWorkerThread_endLog(const int _thread_index)
+		{
+			char logmsg[256] = { 0, };
+			sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - End. threadIndex: %d", _thread_index);
+			LogFuncPtr((int)LogLevel::info, logmsg);
+		}
 	
 
 	private:
 		NetConfig mNetConfig;
 
 		TNetEventManager* mNetEventManager;
-
-		bool mIsRunAcceptThread = false;
-
+				
 		bool mIsRunIOWorkThread = false;
 		std::vector<std::thread> mIOWorkThreads;
 

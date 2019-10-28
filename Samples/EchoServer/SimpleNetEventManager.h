@@ -17,7 +17,7 @@ public:
 
 	void OnClose(const INT32 index, const C2RIONetLib::DisconnectReason reason)
 	{
-		printf("[OnClose] - SessionIndex(%d), Reason(%d)\n", index, (int)reason);
+		printf("[OnClose] - SessionIndex(%d), Reason(%s)\n", index, C2RIONetLib::DisconnectReasonStr[(int)reason]);
 	}
 
 	void OnReceive(const INT32 index, const UINT32 dataSize, const char* pData)

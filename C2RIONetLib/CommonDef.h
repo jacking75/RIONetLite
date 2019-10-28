@@ -44,8 +44,9 @@ namespace C2RIONetLib
 		send_error,
 		forces_close_server,
 		forces_close_send_error,
+		end
 	};
-
+	char DisconnectReasonStr[(int)DisconnectReason::end][32] = { "none", "active", "accept_loop_request_queue_error", "accept_loop_on_connect_rrror", "zero_completion", "io_request_recv_error", "partial_send_completion", "send_error", "forces_close_server", "forces_close_send_error"  };
 	
 	enum class LogLevel
 	{
@@ -54,8 +55,10 @@ namespace C2RIONetLib
 		info,
 		warn,
 		error,
-		fetal
+		fetal,
+		end
 	};
+	char LogLevelStr[(int)LogLevel::end][6] = { "trace", "debug", "info", "warn", "error", "fetal"  };
 
 
 	enum class NetErrorCode : INT16
