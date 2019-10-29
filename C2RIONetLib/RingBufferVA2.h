@@ -15,8 +15,7 @@ namespace C2RIONetLib
 		}
 
 		char* GetBuffer() { return mRingBuffer; }
-
-
+		
 		int Create(const bool isWriteOnly_, const UINT32 ringBufferSize_)
 		{
 			mIsWriteOnly = isWriteOnly_;
@@ -43,18 +42,35 @@ namespace C2RIONetLib
 			mReadPos = 0;
 		}
 		
-		char* Read(bool isPeek_, const UINT32 reqReadSize_)
+		std::tuple<UINT32, char*> Read()
 		{
-			char* pResult = nullptr;
-			pResult = &mRingBuffer[mReadPos];
+			char* pData = nullptr;
+			UINT32 readAbleSize = 0;
 
-			if (isPeek_) { return pResult; }
-
-			mReadPos += reqReadSize_;
-			if (mReadPos >= mRingBufferSize) { mReadPos -= mRingBufferSize;	}
-
-			return pResult;
+			if (mReadPos < mWritePos)
+			{
+				readAbleSize = mWritePos - mReadPos;
+				pData = &mRingBuffer[mReadPos];
+			}
+			else
+			{
+				readAbleSize = (mRingBufferSize - mReadPos) + mWritePos;
+				pData = &mRingBuffer[mReadPos];
+			}
+			
+			return { readAbleSize, pData };
 		}
+		
+		void IncremantReadPos(const UINT32 pos_)
+		{
+			mReadPos += pos_;
+
+			if (mReadPos >= mRingBufferSize)
+			{
+				mReadPos -= mRingBufferSize;
+			}
+		}
+
 
 		char* Write(const UINT32 size_, const char* pData_)
 		{
@@ -86,10 +102,7 @@ namespace C2RIONetLib
 		void MoveWriteablePos(const UINT32 pos_) { mWritePos = pos_; }
 		UINT32 GetWriteablePos() { return mWritePos; }
 
-		void UnitTest_SetWritePos(UINT32 pos) { mWritePos = pos; }
-		void UnitTest_SetReadPos(UINT32 pos) { mReadPos = pos; }
-
-
+		
 	private:
 		bool CheckRemainingSpace(const UINT32 desiredSize_)
 		{			

@@ -9,15 +9,15 @@
 
 #include "../thirdparty/flags.h"
 
-C2RIONetLib::NetConfig GetConfig();
+C2RIONetLib::NetConfig GetConfig(int argc, char* argv[]);
 
-int main()
+int main(int argc, char* argv[])
 {
 	std::cout << "Start EchoServer" << std::endl;
 			
 	SetUnhandledExceptionFilter(C2RIONetLib::ExceptionFilter);
 
-	auto netConfig = GetConfig();
+	auto netConfig = GetConfig(argc, argv);
 	
 	EchoServerImpl netEventMgr;
 	if (netEventMgr.Init(netConfig) == false)
@@ -45,7 +45,7 @@ int main()
 	return 0;
 }
 
-C2RIONetLib::NetConfig GetConfig()
+C2RIONetLib::NetConfig GetConfig(int argc, char* argv[])
 {
 	C2RIONetLib::NetConfig config;
 	config.PortNumber = 32452;
@@ -59,6 +59,13 @@ C2RIONetLib::NetConfig GetConfig()
 	config.Conn.MaxSendPacketSize = 1024;
 	config.Conn.MAXSendCountPer1Sec = 5;
 	config.Conn.MaxSendBufferSize = 4096 * 2;
+
+	/*const flags::args args(argc, argv);
+	const auto port = args.get<UINT16>("port");
+	if (!port) {
+		std::cerr << "No Port. :(" << std::endl;
+		return config;
+	}*/
 
 	return config;
 }

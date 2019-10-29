@@ -122,16 +122,17 @@ namespace C2RIONetLib
 
 			return NetErrorCode::none;
 		}
-						
-		void RecvCompletion(UINT32 readRecvSize_)
+		
+
+		void RecvCompletion(UINT32 size_)
 		{ 
-			mRecvBuffer.Write(readRecvSize_);			
+			mRecvBuffer.Write(size_);			
 		}
 
-		void ReadRecvBuffer(const bool isPeek_, UINT32 readSize_)
-		{
-			mRecvBuffer.Read(isPeek_, readSize_);
-		}
+		std::tuple<UINT32, char*> ReadRecvBuffer() { return mRecvBuffer.Read(); }
+
+		void ReadCompleteRecvBuffer(const UINT32 size_) { mRecvBuffer.IncremantReadPos(size_); }
+
 
 		bool Disconnect(const UINT64 sessionUniqueIdByContext_)
 		{

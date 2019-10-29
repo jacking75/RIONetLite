@@ -306,11 +306,8 @@ namespace C2RIONetLib
 			}
 			else if (IOType::recv == pContext_->IoType)
 			{
-				pSession_->RecvCompletion(transferred_);
-
-				//auto pRecvBufferPtr = mRecvBuffer.Read(readRecvSize_);
-				//mNetEventManager->OnReceive(pSession_->GetIndex(), (UINT32)transferred_, pRecvBufferPtr);
-
+				RecvCompletion(pSession_, transferred_);
+				
 				if (auto result = pSession_->PostRecv(); result != NetErrorCode::none)
 				{
 					if (result == NetErrorCode::recv_rio_fail)
@@ -334,6 +331,18 @@ namespace C2RIONetLib
 				sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Unknown I/O Type: %d", pContext_->IoType);
 				LogFuncPtr((int)LogLevel::error, logmsg);
 			}
+		}
+
+		void RecvCompletion(Session* pSession_, const UINT32 transferred_)
+		{
+			pSession_->RecvCompletion(transferred_);
+
+			auto [readSize, pReadData] = pSession_->ReadRecvBuffer();
+			auto usedSize = mNetEventManager->OnReceive(pSession_->GetIndex(),
+				pSession_->GetUniqueId(),
+				readSize,
+				pReadData);
+			pSession_->ReadCompleteRecvBuffer(usedSize);
 		}
 				
 		void ProcessLazyedDisConnectSession(const int threadIndex_)
