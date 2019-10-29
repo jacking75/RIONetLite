@@ -19,7 +19,7 @@ public:
 			EchoServerImpl::WriteLog(eLogInfoType, szLogMsg);
 		};
 
-		if (auto result = netManager.Initialize(netConfig, this);
+		if (auto result = mNetManager.Initialize(netConfig, this);
 			result != netErrorCode::none)
 		{
 			char logmsg[256] = { 0, };
@@ -33,7 +33,7 @@ public:
 
 	void Start()
 	{
-		mLogicThread = std::thread([&]() { netManager.StartAndBlocking(); });
+		mLogicThread = std::thread([&]() { mNetManager.StartAndBlocking(); });
 		std::this_thread::sleep_for(std::chrono::milliseconds(256));
 	}
 
@@ -95,6 +95,6 @@ public:
 
 
 private:
-	C2RIONetLib::RIONetManager<EchoServerImpl> netManager;
+	C2RIONetLib::RIONetManager<EchoServerImpl> mNetManager;
 	std::thread mLogicThread;
 };

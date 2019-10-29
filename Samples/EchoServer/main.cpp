@@ -48,7 +48,7 @@ int main()
 C2RIONetLib::NetConfig GetConfig()
 {
 	C2RIONetLib::NetConfig config;
-	config.PortNumber = 11021;
+	config.PortNumber = 32452;
 	config.IoWorkThreadCount = 4;
 	config.MaxConnectionCount = 256;
 	
