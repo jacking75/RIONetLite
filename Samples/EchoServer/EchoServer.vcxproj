@@ -134,6 +134,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\C2RIONetLib\CircularMemory.h" />
     <ClInclude Include="..\..\C2RIONetLib\CommonDef.h" />
     <ClInclude Include="..\..\C2RIONetLib\Exception.h" />
     <ClInclude Include="..\..\C2RIONetLib\FastSpinlock.h" />
@@ -144,7 +145,8 @@
     <ClInclude Include="..\..\C2RIONetLib\Session.h" />
     <ClInclude Include="..\..\C2RIONetLib\SessionManager.h" />
     <ClInclude Include="..\ServerCommon\MessageNetEventManager.h" />
-    <ClInclude Include="SimpleNetEventManager.h" />
+    <ClInclude Include="EchoServer.h" />
+    <ClInclude Include="Packet.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

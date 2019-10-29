@@ -42,6 +42,10 @@
     <ClInclude Include="..\ServerCommon\MessageNetEventManager.h">
       <Filter>ServerCommon</Filter>
     </ClInclude>
-    <ClInclude Include="SimpleNetEventManager.h" />
+    <ClInclude Include="..\..\C2RIONetLib\CircularMemory.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h" />
+    <ClInclude Include="EchoServer.h" />
   </ItemGroup>
 </Project>

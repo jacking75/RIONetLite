@@ -36,7 +36,7 @@ namespace C2RIONetLib
 		{
 			mMaxTry1RecvBufferSize = netConfig_.MaxTry1RecvBufferSize;
 			mIOSender.Init(mIndex, netConfig_);
-			mRecvBuffer.Create(netConfig_.MaxRecvBufferSize);
+			mRecvBuffer.Create(false, netConfig_.MaxRecvBufferSize);
 
 			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer.GetBuffer(), netConfig_.MaxRecvBufferSize);
 			if (mRecvRioBufferId == RIO_INVALID_BUFFERID)
@@ -123,12 +123,14 @@ namespace C2RIONetLib
 			return NetErrorCode::none;
 		}
 						
-		char* RecvCompletion(UINT32 readRecvSize_)
+		void RecvCompletion(UINT32 readRecvSize_)
 		{ 
-			mRecvBuffer.Write(readRecvSize_);
-			
-			// lock을 걸지 않아도 문제 되지 않을 것 같다.
-			return mRecvBuffer.Read(readRecvSize_);
+			mRecvBuffer.Write(readRecvSize_);			
+		}
+
+		void ReadRecvBuffer(const bool isPeek_, UINT32 readSize_)
+		{
+			mRecvBuffer.Read(isPeek_, readSize_);
 		}
 
 		bool Disconnect(const UINT64 sessionUniqueIdByContext_)

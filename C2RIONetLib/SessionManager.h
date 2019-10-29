@@ -107,6 +107,7 @@ namespace C2RIONetLib
 		}
 
 		
+		
 
 	private:
 		FastSpinlock mLock;

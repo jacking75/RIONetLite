@@ -17,7 +17,33 @@ namespace C2RIONetLib
 		RIONetManager() = default;
 		~RIONetManager() = default;
 		
+		// 이 라이브러리르 사용하는 사람은 public 부분만을 보기 때문에 함수 이름을 보기 편하게 하기 위해 구현은 다른 함수로 분리했다.
+
 		NetErrorCode Initialize(NetConfig netConfig_, TNetEventManager* pNetEventManager_)
+		{
+			return Initialize_impl(netConfig_, pNetEventManager_);
+		}
+
+		void StartAndBlocking() { StartAcceptLoop(mNetConfig.Conn); }
+		
+		void End() { End_impl(); }
+		
+		const RIO_CQ& GetCompletionQueue(int threadId_) { return mRioCompletionQueues[threadId_]; }
+
+		NetErrorCode SendData(const INT32 sessionIndex_, const UINT64 sessionUniqueId_, const UINT32 dataSize_, const char* pData_)
+		{
+			return SendData_impl(sessionIndex_, sessionUniqueId_, dataSize_, pData_);
+		}
+
+		void ForcedClose(const INT32 sessionIndex_, const UINT64 sessionUniqueId_)
+		{
+			ForcedClose_impl(sessionIndex_, sessionUniqueId_);
+		}
+		
+
+
+	private:	
+		NetErrorCode Initialize_impl(NetConfig netConfig_, TNetEventManager* pNetEventManager_)
 		{
 			if ((netConfig_.MaxConnectionCount % netConfig_.IoWorkThreadCount) != 0) { return NetErrorCode::session_count_per_thread_incorrect; }
 
@@ -33,9 +59,9 @@ namespace C2RIONetLib
 			{
 				return result;
 			}
-			
+
 			if (RIOAPI::SetFunction(mListenSocket) == false) { return NetErrorCode::rio_function_init_fail; }
-			
+
 			if (mSessionManager.PrepareSessionPool(sessionCountPerRioThread, netConfig_) == false) { return NetErrorCode::prepare_session_pool_fail; }
 
 			/// listen
@@ -47,17 +73,15 @@ namespace C2RIONetLib
 			return NetErrorCode::none;
 		}
 
-		void StartAndBlocking() { StartAcceptLoop(mNetConfig.Conn); }
-		
-		void End()
+		void End_impl()
 		{
 			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Start");
 			mIsRunIOWorkThread = false;
 
-			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Close mListenSocket");			
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Close mListenSocket");
 			closesocket(mListenSocket);
-			
-			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Stop IOThreads");			
+
+			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Stop IOThreads");
 			for (auto& thread : mIOWorkThreads)
 			{
 				if (thread.joinable())
@@ -65,7 +89,7 @@ namespace C2RIONetLib
 					thread.join();
 				}
 			}
-			
+
 
 			mSessionManager.Dispose();
 
@@ -74,45 +98,6 @@ namespace C2RIONetLib
 			LogFuncPtr((int)LogLevel::info, "RIONetManager::End - Complete");
 		}
 
-		const RIO_CQ& GetCompletionQueue(int threadId_) { return mRioCompletionQueues[threadId_]; }
-
-		NetErrorCode SendData(const INT32 sessionIndex_, const UINT64 sessionUniqueId_, const UINT32 dataSize_, const char* pData_)
-		{
-			auto session = mSessionManager.GetSessionObj(sessionIndex_, sessionUniqueId_);
-			if (session == nullptr)
-			{
-				return NetErrorCode::send_invalid_session;
-			}
-
-			if (session->IsEnableNetwork() == false)
-			{
-				return NetErrorCode::send_session_network_disable;
-			}
-
-			if (session->PostSend(dataSize_, pData_) == false)
-			{				
-				ForcedClose(session, DisconnectReason::send_error);
-				return NetErrorCode::send_io_fail;
-			}
-
-			return NetErrorCode::none;
-		}
-
-		void ForcedClose(const INT32 sessionIndex_, const UINT64 sessionUniqueId_)
-		{
-			auto session = mSessionManager.GetSessionObj(sessionIndex_, sessionUniqueId_);
-			if (session == nullptr)
-			{
-				return;
-			}
-
-			session->SetDisableNetwork();
-
-			auto threadIndex = session->GetRioThreadId();
-			LazyedDisConnectSessions[threadIndex].push({ sessionIndex_, sessionUniqueId_, DisconnectReason::forces_close_server });
-		}
-
-	private:	
 		NetErrorCode BindListenSocket(UINT16 port_)
 		{
 			/// create TCP socket with RIO mode
@@ -135,6 +120,42 @@ namespace C2RIONetLib
 			sprintf_s(logmsg, "RIONetManager::CreateListenSocketAndBind() - Port: %d", port_);
 			LogFuncPtr((int)LogLevel::info, logmsg);
 			return NetErrorCode::none;
+		}
+
+		NetErrorCode SendData_impl(const INT32 sessionIndex_, const UINT64 sessionUniqueId_, const UINT32 dataSize_, const char* pData_)
+		{
+			auto session = mSessionManager.GetSessionObj(sessionIndex_, sessionUniqueId_);
+			if (session == nullptr)
+			{
+				return NetErrorCode::send_invalid_session;
+			}
+
+			if (session->IsEnableNetwork() == false)
+			{
+				return NetErrorCode::send_session_network_disable;
+			}
+
+			if (session->PostSend(dataSize_, pData_) == false)
+			{
+				ForcedClose(session, DisconnectReason::send_error);
+				return NetErrorCode::send_io_fail;
+			}
+
+			return NetErrorCode::none;
+		}
+
+		void ForcedClose_impl(const INT32 sessionIndex_, const UINT64 sessionUniqueId_)
+		{
+			auto session = mSessionManager.GetSessionObj(sessionIndex_, sessionUniqueId_);
+			if (session == nullptr)
+			{
+				return;
+			}
+
+			session->SetDisableNetwork();
+
+			auto threadIndex = session->GetRioThreadId();
+			LazyedDisConnectSessions[threadIndex].push({ sessionIndex_, sessionUniqueId_, DisconnectReason::forces_close_server });
 		}
 
 		void ForcedClose(Session* pSession_, DisconnectReason reason_)
@@ -162,6 +183,7 @@ namespace C2RIONetLib
 					continue;
 				}
 
+				Sleep(6000);
 				auto curTimeSec = Helper::CurrentSecond();
 
 				/// new client session (should not be under any session locks)
@@ -284,8 +306,10 @@ namespace C2RIONetLib
 			}
 			else if (IOType::recv == pContext_->IoType)
 			{
-				auto pRecvBufferPtr = pSession_->RecvCompletion(transferred_);
-				mNetEventManager->OnReceive(pSession_->GetIndex(), (UINT32)transferred_, pRecvBufferPtr);
+				pSession_->RecvCompletion(transferred_);
+
+				//auto pRecvBufferPtr = mRecvBuffer.Read(readRecvSize_);
+				//mNetEventManager->OnReceive(pSession_->GetIndex(), (UINT32)transferred_, pRecvBufferPtr);
 
 				if (auto result = pSession_->PostRecv(); result != NetErrorCode::none)
 				{
@@ -311,7 +335,7 @@ namespace C2RIONetLib
 				LogFuncPtr((int)LogLevel::error, logmsg);
 			}
 		}
-
+				
 		void ProcessLazyedDisConnectSession(const int threadIndex_)
 		{
 			while (LazyedDisConnectSessions[threadIndex_].empty() == false)
@@ -346,6 +370,7 @@ namespace C2RIONetLib
 			}
 		}
 
+		
 		
 		void IoWorkerThread_startLog(const int threadIndex_, const int coreCount_)
 		{

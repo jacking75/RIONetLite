@@ -27,8 +27,7 @@ namespace C2RIONetLib
 			mMAXSendCountPer1Sec = netConfig.MAXSendCountPer1Sec;
 			mMaxSendRingBufferSize = netConfig.MaxSendBufferSize;
 			
-			if (auto isResult = mSendBuffer.Create(mMaxSendRingBufferSize); 
-				isResult != 0)
+			if (auto isResult = mSendBuffer.Create(true, mMaxSendRingBufferSize); isResult != 0)
 			{
 				char logmsg[512] = { 0, };
 				sprintf_s(logmsg, "NetSenderImmediately::Init() - Error: %d", isResult);

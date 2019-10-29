@@ -5,45 +5,28 @@
 #pragma comment(lib,"DbgHelp.lib")
 #pragma comment(lib, "winmm.lib")
 
-#include "SimpleNetEventManager.h"
-
-#include "../../C2RIONetLib/RIONetManager.h"
+#include "EchoServer.h"
 
 #include "../thirdparty/flags.h"
 
 C2RIONetLib::NetConfig GetConfig();
 
-using netErrorCode = C2RIONetLib::NetErrorCode;
-
 int main()
 {
 	std::cout << "Start EchoServer" << std::endl;
+			
+	SetUnhandledExceptionFilter(C2RIONetLib::ExceptionFilter);
 
 	auto netConfig = GetConfig();
 	
-	C2RIONetLib::LogFuncPtr = [](const int eLogInfoType, const char* szLogMsg) {
-		printf("[%s] %s\r\n", C2RIONetLib::LogLevelStr[eLogInfoType], szLogMsg);
-	};
-
-	/// for dump on crash
-	SetUnhandledExceptionFilter(C2RIONetLib::ExceptionFilter);
-
-	SimpleNetEventManager netEventMgr;
-	C2RIONetLib::RIONetManager<SimpleNetEventManager> netManager;
-	
-	if (auto result = netManager.Initialize(netConfig, &netEventMgr); 
-		result != netErrorCode::none)
-	{ 
-		char logmsg[256] = { 0, };
-		sprintf_s(logmsg, "main() - netManager.Initialize() Error: %d", result);
-		C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::error, logmsg);
-		return -1; 
+	EchoServerImpl netEventMgr;
+	if (netEventMgr.Init(netConfig) == false)
+	{
+		return -1;
 	}
-			
-	// 서버 시작
-	std::thread logicThread([&]() { netManager.StartAndBlocking(); });
-	std::this_thread::sleep_for(std::chrono::milliseconds(256));
 
+	netEventMgr.Start();
+	
 	std::cout << "Server quits when you press (quit) !!!" << std::endl;	
 	while (true)
 	{
@@ -57,14 +40,8 @@ int main()
 	}
 
 	// 종료
-	netManager.End();
+	netEventMgr.End();
 
-	if (logicThread.joinable())
-	{
-		logicThread.join();
-	}
-
-	C2RIONetLib::LogFuncPtr((int)C2RIONetLib::LogLevel::info, "End Server");
 	return 0;
 }
 
