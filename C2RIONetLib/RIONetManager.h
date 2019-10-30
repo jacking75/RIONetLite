@@ -183,7 +183,6 @@ namespace C2RIONetLib
 					continue;
 				}
 
-				Sleep(6000);
 				auto curTimeSec = Helper::CurrentSecond();
 
 				/// new client session (should not be under any session locks)
@@ -318,9 +317,10 @@ namespace C2RIONetLib
 			}
 			else if (IOType::send == pContext_->IoType)
 			{
+				auto postDataLen = pContext_->Length;
 				pSession_->SendCompletion(pContext_);
 
-				if (pContext_->Length != transferred_)
+				if (postDataLen != transferred_)
 				{
 					Disconnect(pSession_, sessionUniqueIdByRioConext, DisconnectReason::partial_send_completion);
 				}

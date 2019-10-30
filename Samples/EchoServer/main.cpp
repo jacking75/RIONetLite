@@ -52,13 +52,13 @@ C2RIONetLib::NetConfig GetConfig(int argc, char* argv[])
 	config.IoWorkThreadCount = 4;
 	config.MaxConnectionCount = 256;
 	
-	config.Conn.MaxRecvPacketSize = 1024;
-	config.Conn.MaxTry1RecvBufferSize = 2048;
+	config.Conn.MaxRecvPacketSize = 4012;
+	config.Conn.MaxTry1RecvBufferSize = 4096;
 	config.Conn.MAXRecvCountPer1Sec = 5;
-	config.Conn.MaxRecvBufferSize = 4096 * 2;
-	config.Conn.MaxSendPacketSize = 1024;
+	config.Conn.MaxRecvBufferSize = 4096 * 3;
+	config.Conn.MaxSendPacketSize = 4012;
 	config.Conn.MAXSendCountPer1Sec = 5;
-	config.Conn.MaxSendBufferSize = 4096 * 2;
+	config.Conn.MaxSendBufferSize = 4096 * 3;
 
 	/*const flags::args args(argc, argv);
 	const auto port = args.get<UINT16>("port");

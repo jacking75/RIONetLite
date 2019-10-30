@@ -4,6 +4,7 @@
 
 namespace C2RIONetLib
 {
+	//RIO용 버퍼로는 사용할 수 없다!!
 	class RingBufferVA2
 	{
 	public:
@@ -36,6 +37,9 @@ namespace C2RIONetLib
 			return errorCode;
 		}
 
+		// VirtualAlloc2의 링버퍼를 사용하고 있어서 주소로는 2배까지 사용 가능하다. 
+		int EnableBufferSize() { return mRingBufferSize * 2; }
+		
 		void Clear()
 		{
 			mWritePos = 0;

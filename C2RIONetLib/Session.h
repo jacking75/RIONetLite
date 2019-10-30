@@ -36,9 +36,15 @@ namespace C2RIONetLib
 		{
 			mMaxTry1RecvBufferSize = netConfig_.MaxTry1RecvBufferSize;
 			mIOSender.Init(mIndex, netConfig_);
-			mRecvBuffer.Create(false, netConfig_.MaxRecvBufferSize);
+			
+			if (auto result = mRecvBuffer.Create(false, netConfig_.MaxRecvBufferSize);
+				result != 0)
+			{
+				LogFuncPtr((int)LogLevel::error, "Session::RioInitialize() - fail mRecvBuffer.Create");
+				return false;
+			}
 
-			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer.GetBuffer(), netConfig_.MaxRecvBufferSize);
+			mRecvRioBufferId = RIO.RIORegisterBuffer(mRecvBuffer.GetBuffer(), mRecvBuffer.EnableBufferSize());
 			if (mRecvRioBufferId == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[256] = { 0, };

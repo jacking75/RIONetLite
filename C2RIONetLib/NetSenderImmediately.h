@@ -27,11 +27,10 @@ namespace C2RIONetLib
 			mMAXSendCountPer1Sec = netConfig.MAXSendCountPer1Sec;
 			mMaxSendRingBufferSize = netConfig.MaxSendBufferSize;
 			
-			if (auto isResult = mSendBuffer.Create(true, mMaxSendRingBufferSize); isResult != 0)
+			if (auto isResult = mSendBuffer.Create(true, mMaxSendRingBufferSize); 
+				isResult != 0)
 			{
-				char logmsg[512] = { 0, };
-				sprintf_s(logmsg, "NetSenderImmediately::Init() - Error: %d", isResult);
-				LogFuncPtr((int)LogLevel::error, logmsg);
+				LogFuncPtr((int)LogLevel::error, "NetSenderImmediately::Init() - fail mSendBuffer.Create");
 				return false;
 			}
 
@@ -43,7 +42,7 @@ namespace C2RIONetLib
 				mSendContexts.push_back(context);
 			}
 
-			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer.GetBuffer(), netConfig.MaxSendBufferSize);
+			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer.GetBuffer(), mSendBuffer.EnableBufferSize());
 			if (mSendRioBufferId == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[512] = { 0, };
@@ -76,6 +75,7 @@ namespace C2RIONetLib
 		bool PostSend(const UINT64 sessionUniqueId, const UINT32 dataSize, const char* pData)
 		{
 			auto curPos = mSendSequence % mMAXSendCountPer1Sec;
+			InterlockedIncrement(&mSendSequence);
 			RioIoContext* pSendContext = mSendContexts[curPos];
 			
 			if (pSendContext->Length != 0) 
