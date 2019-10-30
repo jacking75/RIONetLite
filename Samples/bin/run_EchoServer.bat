@@ -1,1 +1,1 @@
-EchoServerConsole.exe --port=12021 --WorkThreadCount=4 --MaxRecvOverlappedBufferSize=600 --MaxSendOverlappedBufferSize=600 --MaxRecvConnectionBufferCount=1024 --MaxSendConnectionBufferCount=1024  --MaxPacketSize=1024 --MaxConnectionCount=1024 --MaxMessagePoolCount=1024
+EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288

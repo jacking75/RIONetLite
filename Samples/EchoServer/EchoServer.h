@@ -19,6 +19,8 @@ public:
 			EchoServerImpl::WriteLog(eLogInfoType, szLogMsg);
 		};
 
+		EchoServerImpl::WriteToLog(netConfig);
+
 		if (auto result = mNetManager.Initialize(netConfig, this);
 			result != netErrorCode::none)
 		{
@@ -47,6 +49,41 @@ public:
 		}
 
 		WriteLog((int)C2RIONetLib::LogLevel::info, "End Server");
+	}
+
+	static void WriteToLog(C2RIONetLib::NetConfig netConfig)
+	{
+		char logmsg[256] = { 0, };
+
+		sprintf_s(logmsg, "NetConfig - PortNumber: %d", netConfig.PortNumber);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - IoWorkThreadCount: %d", netConfig.IoWorkThreadCount);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - MaxConnectionCount: %d", netConfig.MaxConnectionCount);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxRecvPacketSize: %d", netConfig.Conn.MaxRecvPacketSize);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxTry1RecvBufferSize: %d", netConfig.Conn.MaxTry1RecvBufferSize);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - Conn.MAXRecvCountPer1Sec: %d", netConfig.Conn.MAXRecvCountPer1Sec);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - Conn.MaxRecvBufferSize: %d", netConfig.Conn.MaxRecvBufferSize);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - Conn.MaxSendPacketSize: %d", netConfig.Conn.MaxSendPacketSize);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - Conn.MAXSendCountPer1Sec: %d", netConfig.Conn.MAXSendCountPer1Sec);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
+
+		sprintf_s(logmsg, "NetConfig - Conn.MaxSendBufferSize: %d", netConfig.Conn.MaxSendBufferSize);
+		WriteLog((int)C2RIONetLib::LogLevel::info, logmsg);
 	}
 
 	static void WriteLog(const int eLogInfoType, const char* szLogMsg)
