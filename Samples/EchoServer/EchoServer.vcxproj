@@ -139,7 +139,6 @@
     <ClInclude Include="..\..\C2RIONetLib\Exception.h" />
     <ClInclude Include="..\..\C2RIONetLib\FastSpinlock.h" />
     <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h" />
-    <ClInclude Include="..\..\C2RIONetLib\RingBuffer.h" />
     <ClInclude Include="..\..\C2RIONetLib\RingBufferVA2.h" />
     <ClInclude Include="..\..\C2RIONetLib\RioContext.h" />
     <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h" />
