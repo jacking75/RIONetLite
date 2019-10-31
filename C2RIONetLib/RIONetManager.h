@@ -155,7 +155,7 @@ namespace C2RIONetLib
 			session->SetDisableNetwork();
 
 			auto threadIndex = session->GetRioThreadId();
-			LazyedDisConnectSessions[threadIndex].push({ sessionIndex_, sessionUniqueId_, DisconnectReason::forces_close_server });
+			mLazyedDisConnectSessions[threadIndex].push({ sessionIndex_, sessionUniqueId_, DisconnectReason::forces_close_server });
 		}
 
 		void ForcedClose(Session* pSession_, DisconnectReason reason_)
@@ -166,7 +166,7 @@ namespace C2RIONetLib
 			auto sessionIndex = pSession_->GetIndex();
 			auto sessionUniqueId = pSession_->GetUniqueId();
 
-			LazyedDisConnectSessions[threadIndex].push({ sessionIndex, sessionUniqueId, reason_ });
+			mLazyedDisConnectSessions[threadIndex].push({ sessionIndex, sessionUniqueId, reason_ });
 		}
 
 		void StartAcceptLoop(ConnectionNetConfig netConfig_)
@@ -262,7 +262,7 @@ namespace C2RIONetLib
 
 			IoWorkerThread_startLog(threadIndex, coreCount);
 						
-			LazyedDisConnectSessions.emplace_back();
+			mLazyedDisConnectSessions.emplace_back();
 
 			while (mIsRunIOWorkThread)
 			{
@@ -333,6 +333,7 @@ namespace C2RIONetLib
 			}
 		}
 
+		// 받기 버퍼의 읽은 위치도 여기서 이동 시키므로 링버퍼의 데이터가 겹치는 것을 막고 싶으면 애플리케이션에서 OnReceive의 데이터를 다 사용할 때까지 잘 보관해야 한다.
 		void RecvCompletion(Session* pSession_, const UINT32 transferred_)
 		{
 			pSession_->RecvCompletion(transferred_);
@@ -342,15 +343,15 @@ namespace C2RIONetLib
 				pSession_->GetUniqueId(),
 				readSize,
 				pReadData);
-			pSession_->ReadCompleteRecvBuffer(usedSize);
+			pSession_->IncremantReadPosRecvBuffer(usedSize);
 		}
-				
+								
 		void ProcessLazyedDisConnectSession(const int threadIndex_)
 		{
-			while (LazyedDisConnectSessions[threadIndex_].empty() == false)
+			while (mLazyedDisConnectSessions[threadIndex_].empty() == false)
 			{
 				LazyedDisConnectSession disConnectInfo;
-				if (LazyedDisConnectSessions[threadIndex_].try_pop(disConnectInfo) == false) { break; }
+				if (mLazyedDisConnectSessions[threadIndex_].try_pop(disConnectInfo) == false) { break; }
 				
 				auto pSession = mSessionManager.GetSessionObj(disConnectInfo.SessionIndex, disConnectInfo.UniqueId);
 				if (pSession == nullptr) { break; }
@@ -412,7 +413,7 @@ namespace C2RIONetLib
 
 		UINT64 mConnectSequenceId = 0;
 
-		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> LazyedDisConnectSessions;
+		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> mLazyedDisConnectSessions;	
 	};
 
 }

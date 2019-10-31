@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\C2RIONetLib\CircularMemory.h" />
     <ClInclude Include="..\..\C2RIONetLib\CommonDef.h" />
+    <ClInclude Include="..\..\C2RIONetLib\DoubleBufferingQueue.h" />
     <ClInclude Include="..\..\C2RIONetLib\Exception.h" />
     <ClInclude Include="..\..\C2RIONetLib\FastSpinlock.h" />
     <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h" />

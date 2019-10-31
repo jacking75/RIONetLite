@@ -130,16 +130,13 @@ namespace C2RIONetLib
 		}
 		
 
-		void RecvCompletion(UINT32 size_)
-		{ 
-			mRecvBuffer.Write(size_);			
-		}
+		void RecvCompletion(UINT32 size_) { mRecvBuffer.Write(size_); }
 
 		std::tuple<UINT32, char*> ReadRecvBuffer() { return mRecvBuffer.Read(); }
 
-		void ReadCompleteRecvBuffer(const UINT32 size_) { mRecvBuffer.IncremantReadPos(size_); }
+		void IncremantReadPosRecvBuffer(const UINT32 size_) { mRecvBuffer.IncremantReadPos(size_); }
 
-
+		
 		bool Disconnect(const UINT64 sessionUniqueIdByContext_)
 		{
 			if (IsConnected() == false) { return false; }
