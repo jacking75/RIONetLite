@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="server_common">
+      <UniqueIdentifier>{e7dd0815-fdb4-4d9d-a849-2f0f5a465c6f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="c2_rio_net">
+      <UniqueIdentifier>{f1f03037-378e-499a-98ec-964555c82b0f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="packet.h" />
+    <ClInclude Include="echo_server.h" />
+    <ClInclude Include="..\server_common\message_net_event_manager.h">
+      <Filter>server_common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\circular_memory.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\common_def.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\exception.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\fast_spin_lock.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\net_sender_immediately.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\ring_buffer.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\rio_context.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\server_net_manager.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\session.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\session_manager.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\sendpacket_buffer.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\sendpacket_manager.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\sendpacket_session.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
