@@ -1,1 +1,0 @@
-EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
