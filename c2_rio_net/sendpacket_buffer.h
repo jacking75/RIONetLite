@@ -12,22 +12,23 @@ namespace c2rionet
 	{
 	public:
 		SendRingBuffer() = default;
-		~SendRingBuffer() { delete mRingBuffer; }
+		~SendRingBuffer() { delete ring_buffer_; }
 
-		char* GetBuffer() { return mRingBuffer; }
+		char* GetBuffer() { return ring_buffer_; }
 
-		UINT32 EnableBufferSize() { return mRingBufferSize; }
+		UINT32 EnableBufferSize() { return ring_buffer_size_; }
 
-		//void MoveWriteablePos(const unsigned int pos_) { mWritePos = pos_; }
-		UINT32 GetReadPos() { return mReadPos; }
+		UINT32 GetReadPos() { return read_pos_; }
 
 		bool Create(const UINT32 ringBufferSize_)
 		{
-			mRingBufferSize = ringBufferSize_;
-			mRingBuffer = new char[mRingBufferSize];
-			mRingBufferHalfSize = mRingBufferSize / 2;
+			ring_buffer_size_ = ringBufferSize_;
+			ring_buffer_ = new char[ring_buffer_size_];
+			ring_buffer_half_size_ = ring_buffer_size_ / 2;
 
-			if (mRingBuffer == nullptr) { return false; }
+			if (ring_buffer_ == nullptr) { 
+				return false; 
+			}
 
 			Clear();
 			return true;
@@ -35,42 +36,42 @@ namespace c2rionet
 
 		void Clear()
 		{
-			mWritePos = 0;
-			mReadPos = 0;
+			write_pos_ = 0;
+			read_pos_ = 0;
 		}
 
 		bool Write(const UINT32 size_, const char* pData_)
 		{
-			if ((mWritePos + size_) >= mRingBufferSize)
+			if ((write_pos_ + size_) >= ring_buffer_size_)
 			{
 				return false;
 			}
 
-			CopyMemory(&mRingBuffer[mWritePos], pData_, size_);
-			mWritePos += size_;
+			CopyMemory(&ring_buffer_[write_pos_], pData_, size_);
+			write_pos_ += size_;
 			return true;
 		}
 
-		UINT32 SendAbleSize() {	return mWritePos - mReadPos; }
+		UINT32 SendAbleSize() {	return write_pos_ - read_pos_; }
 
-		void IncremantReadPos(const UINT32 pos) { mReadPos += pos; }
+		void IncremantReadPos(const UINT32 pos) { read_pos_ += pos; }
 
 		void MoveWrittenDataForward()
 		{
-			auto remainData = mWritePos - mReadPos;
+			auto remainData = write_pos_ - read_pos_;
 
 			if (remainData == 0)
 			{
-				mReadPos = 0;
-				mWritePos = 0;
+				read_pos_ = 0;
+				write_pos_ = 0;
 			}
 			else
 			{
 				if (IsMoveWrittenDataForward(remainData))
 				{
-					CopyMemory(&mRingBuffer[0], &mRingBuffer[mReadPos], remainData);
-					mReadPos = 0;
-					mWritePos = remainData;
+					CopyMemory(&ring_buffer_[0], &ring_buffer_[read_pos_], remainData);
+					read_pos_ = 0;
+					write_pos_ = remainData;
 				}
 			}
 		}
@@ -78,7 +79,7 @@ namespace c2rionet
 	private:
 		bool IsMoveWrittenDataForward(const UINT32 remainData)
 		{
-			if ( (mWritePos > mRingBufferHalfSize) && (remainData < mRingBufferHalfSize) ) {
+			if ( (write_pos_ > ring_buffer_half_size_) && (remainData < ring_buffer_half_size_) ) {
 				return true;
 			}
 
@@ -86,11 +87,11 @@ namespace c2rionet
 		}
 
 
-		UINT32 mRingBufferSize = 0;
+		UINT32 ring_buffer_size_ = 0;
 
-		UINT32 mRingBufferHalfSize = 0;
-		char* mRingBuffer = nullptr;
-		UINT32 mWritePos = 0;
-		UINT32 mReadPos = 0;
+		UINT32 ring_buffer_half_size_ = 0;
+		char* ring_buffer_ = nullptr;
+		UINT32 write_pos_ = 0;
+		UINT32 read_pos_ = 0;
 	};
 }

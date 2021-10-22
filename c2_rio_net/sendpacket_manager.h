@@ -13,33 +13,27 @@ namespace c2rionet
 		~SenderManager() = default;
 		
 
-		//char* GetBuffer() { return mRingBuffer; }
-		//UINT32 EnableBufferSize() {	return mRingBufferSize;	}
-		//void MoveWriteablePos(const unsigned int pos_) { mWritePos = pos_; }
-		//UINT32 GetWriteablePos() { return mWritePos; }
-
-
-		bool Start(const NetSendConfig netConfig_)
+		bool Start(const NetSendConfig net_config)
 		{
-			if ((netConfig_.MaxSessionCount % netConfig_.MaxSessionCount) != 0) { return false; }
+			if ((net_config.max_session_count_ % net_config.max_session_count_) != 0) { return false; }
 
-			for (auto i = 0; i < netConfig_.MaxSessionCount; ++i)
+			for (auto i = 0; i < net_config.max_session_count_; ++i)
 			{
-				m_Sessions.emplace_back();
-				if (m_Sessions[i].Init(i, netConfig_) == false) { return false; }
+				sessions_.emplace_back();
+				if (sessions_[i].Init(i, net_config) == false) { return false; }
 			}
 
-			auto sessionCountPerThread = netConfig_.MaxSessionCount / netConfig_.MaxWorkerThreadCount;
+			auto sessionCountPerThread = net_config.max_session_count_ / net_config.max_worker_thread_count_;
 
-			StartThread(netConfig_.MaxWorkerThreadCount, sessionCountPerThread);
+			StartThread(net_config.max_worker_thread_count_, sessionCountPerThread);
 			return true;
 		}
 
 		void End()
 		{
-			mIsRunWorkThread = false;
+			is_run_work_thread_ = false;
 
-			for (auto& thread : mWorkThreads)
+			for (auto& thread : work_threads_)
 			{
 				if (thread.joinable())
 				{
@@ -47,46 +41,46 @@ namespace c2rionet
 				}
 			}
 
-			for (auto& session : m_Sessions)
+			for (auto& session : sessions_)
 			{
 				session.Dispose();
 			}
 		}
 
 		// 세션 객체의 재 사용은 이전 연결에서 최소한 몇초 이상은 지난 후라는 전제가 꼭 필요하다
-		void ConnectSession(const UINT32 sessionIndex_, RIO_RQ requestQueue_)
+		void ConnectSession(const UINT32 session_index, RIO_RQ request_queue)
 		{
 			// sessionIndex는 절대 범위를 벗어나지 않는다. 만약 벗어난다면 초기부터 모두 잘 못된 것임.
-			m_Sessions[sessionIndex_].OnConnect(requestQueue_);			
+			sessions_[session_index].OnConnect(request_queue);			
 		}
 
-		void DisConnectSession(const UINT32 sessionIndex_)
+		void DisConnectSession(const UINT32 session_index)
 		{
-			m_Sessions[sessionIndex_].OnDisConnect();
+			sessions_[session_index].OnDisConnect();
 		}
 
-		bool PostSendSession(const UINT32 sessionIndex_, const UINT32 dataSize_, const char* pData_)
+		bool PostSendSession(const UINT32 session_index, const UINT32 data_size, const char* p_data)
 		{
-			return m_Sessions[sessionIndex_].PostSend(dataSize_, pData_);
+			return sessions_[session_index].PostSend(data_size, p_data);
 		}
 
-		void SendCompletedSession(const UINT32 sessionIndex_, const UINT32 length_)
+		void SendCompletedSession(const UINT32 session_index, const UINT32 length)
 		{
-			m_Sessions[sessionIndex_].SendCompleted(length_);
+			sessions_[session_index].SendCompleted(length);
 		}
 		
 				
 	private:
-		void StartThread(const UINT32 threadCount_, const UINT32 sessionCountPerThread_)
+		void StartThread(const UINT32 thread_count, const UINT32 session_count_per_thread)
 		{
-			mIsRunWorkThread = true;
+			is_run_work_thread_ = true;
 			
 			UINT32 beginSessionIndex = 0;
-			UINT32 endSessionIndex = sessionCountPerThread_;
+			UINT32 endSessionIndex = session_count_per_thread;
 			
-			for (UINT32 i = 0; i < threadCount_; ++i)
+			for (UINT32 i = 0; i < thread_count; ++i)
 			{
-				mWorkThreads.emplace_back([beginSessionIndex, endSessionIndex, this]()
+				work_threads_.emplace_back([beginSessionIndex, endSessionIndex, this]()
 					{ 
 						SendThread(beginSessionIndex, endSessionIndex);
 					});
@@ -94,17 +88,17 @@ namespace c2rionet
 				std::this_thread::sleep_for(std::chrono::milliseconds(32));
 
 				beginSessionIndex = endSessionIndex;
-				endSessionIndex += sessionCountPerThread_;
+				endSessionIndex += session_count_per_thread;
 			}
 		}
 
-		void SendThread(const UINT32 beginSessionIndex, const UINT32 endSessionIndex)
+		void SendThread(const UINT32 begin_session_index, const UINT32 end_session_index)
 		{
-			while (mIsRunWorkThread)
+			while (is_run_work_thread_)
 			{
-				for (UINT32 i = beginSessionIndex; i < endSessionIndex; ++i)
+				for (UINT32 i = begin_session_index; i < end_session_index; ++i)
 				{
-					auto* pSession = &m_Sessions[i];
+					auto* pSession = &sessions_[i];
 					if (pSession->IsConnected() == false) { continue; }
 
 					pSession->RealSend();
@@ -113,9 +107,9 @@ namespace c2rionet
 		}
 
 				
-		bool mIsRunWorkThread = false;		
-		std::vector<std::thread> mWorkThreads;
+		bool is_run_work_thread_ = false;		
+		std::vector<std::thread> work_threads_;
 
-		std::vector<SendSession> m_Sessions;		
+		std::vector<SendSession> sessions_;		
 	};
 }

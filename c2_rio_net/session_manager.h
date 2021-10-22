@@ -6,17 +6,17 @@
 
 #include "exception.h"
 #include "fast_spin_lock.h"
-#include "session.h"
+#include "tcp_session.h"
 
 
 namespace c2rionet
 {
-	const UINT64 RE_USE_SESSION_WAITE_TIMESEC = 3;
+	const UINT64 kRE_USE_SESSION_WAITE_TIME_SEC = 3;
 
 	struct SessionIndexContext
 	{
-		UINT32 Index = 0;
-		UINT64 ReUseAbleTimeSec = 0;
+		UINT32 index_ = 0;
+		UINT64 reuse_able_timesec_ = 0;
 	};
 
 	class SessionManager
@@ -25,34 +25,34 @@ namespace c2rionet
 		SessionManager() = default;
 		~SessionManager() = default;
 		
-		bool PrepareSessionPool(unsigned int sessionCountPerRioThread_, NetConfig netConfig_)
+		bool PrepareSessionPool(unsigned int session_count_per_rio_thread, NetConfig net_cfg)
 		{
 			unsigned int client_index = 0;
-			auto rioThreadCount = netConfig_.io_work_thread_count_;
+			auto rioThreadCount = net_cfg.io_work_thread_count_;
 
 			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i)
 			{
-				for (decltype(sessionCountPerRioThread_) j = 0; j < sessionCountPerRioThread_; ++j)
+				for (decltype(session_count_per_rio_thread) j = 0; j < session_count_per_rio_thread; ++j)
 				{
-					auto client = new SenderSession;
+					auto client = new TcpSession;
 					client->Init(client_index, i);
-					if (false == client->RioInitialize(netConfig_.conn_cfg_)) { return false; }
+					if (false == client->RioInitialize(net_cfg.conn_cfg_)) { return false; }
 
-					mSessions.push_back(client);
-					mFreeSessionindexs.emplace_back(SessionIndexContext{ client_index, 0 });
+					sessions_.push_back(client);
+					free_session_indexs_.emplace_back(SessionIndexContext{ client_index, 0 });
 					++client_index;
 				}
 			}
 
-			mMaxSessionCount = client_index;
+			max_session_count_ = client_index;
 			return true;
 		}
 
 		void Dispose()
 		{
-			LogFuncPtr((int)LogLevel::info, "SessionManager::Dispose - Start");
+			LogFuncPtr((int)LogLevel::kINFO, "SessionManager::Dispose - Start");
 
-			for (auto pSession : mSessions)
+			for (auto pSession : sessions_)
 			{
 				if (pSession->IsConnected())
 				{
@@ -64,59 +64,59 @@ namespace c2rionet
 				delete pSession;
 			}
 
-			LogFuncPtr((int)LogLevel::info, "SessionManager::Dispose - Complete");
+			LogFuncPtr((int)LogLevel::kINFO, "SessionManager::Dispose - Complete");
 		}
 
-		SenderSession* GetSessionObj(const UINT32 sessionIndex_)
+		TcpSession* GetSessionObj(const UINT32 session_index)
 		{
-			if (sessionIndex_ >= mMaxSessionCount) { return nullptr; }
-			return mSessions[sessionIndex_];
+			if (session_index >= max_session_count_) { return nullptr; }
+			return sessions_[session_index];
 		}
 
-		SenderSession* GetSessionObj(const UINT32 sessionIndex_, const UINT64 sessionUniqueId_)
+		TcpSession* GetSessionObj(const UINT32 session_index, const UINT64 session_uid)
 		{
-			if (sessionIndex_ >= mMaxSessionCount) { return nullptr; }
-			if (mSessions[sessionIndex_]->GetUniqueId() != sessionUniqueId_) { return nullptr; }
+			if (session_index >= max_session_count_) { return nullptr; }
+			if (sessions_[session_index]->GetUniqueId() != session_uid) { return nullptr; }
 
-			return mSessions[sessionIndex_];
+			return sessions_[session_index];
 		}
 
-		SenderSession* IssueClientSession(const UINT64 curSec_)
+		TcpSession* IssueClientSession(const UINT64 cur_sec)
 		{
-			FastSpinlockGuard guard(mLock);
+			FastSpinlockGuard guard(lock_);
 
-			if (mFreeSessionindexs.empty()) { return nullptr; }
+			if (free_session_indexs_.empty()) { return nullptr; }
 
-			auto indexContext = mFreeSessionindexs.front();
+			auto indexContext = free_session_indexs_.front();
 
-			if (indexContext.ReUseAbleTimeSec > curSec_) { return nullptr; }
+			if (indexContext.reuse_able_timesec_ > cur_sec) { return nullptr; }
 
-			auto newSession = GetSessionObj(indexContext.Index);
-			mFreeSessionindexs.pop_front();
+			auto newSession = GetSessionObj(indexContext.index_);
+			free_session_indexs_.pop_front();
 
 			//newSessions는 절대 null 객체가 아니다!!!
 			return newSession;
 		}
 
-		void ReturnSession(const int sessionIndex_, const UINT64 curSec_)
+		void ReturnSession(const int session_index, const UINT64 cur_sec)
 		{
-			FastSpinlockGuard guard(mLock);						
-			mFreeSessionindexs.emplace_back(SessionIndexContext{ 
-									(UINT32)sessionIndex_, 
-									(curSec_ + RE_USE_SESSION_WAITE_TIMESEC) });
+			FastSpinlockGuard guard(lock_);						
+			free_session_indexs_.emplace_back(SessionIndexContext{ 
+									(UINT32)session_index, 
+									(cur_sec + kRE_USE_SESSION_WAITE_TIME_SEC) });
 		}
 
 		
 		
 
 	private:
-		FastSpinlock mLock;
+		FastSpinlock lock_;
 
-		UINT32 mMaxSessionCount = 0;
-		UINT64 mCurrentIssueCount = 0;
-		UINT64 mCurrentReturnCount = 0;
+		UINT32 max_session_count_ = 0;
+		UINT64 current_issue_count_ = 0;
+		UINT64 current_return_count_ = 0;
 
-		std::deque<SessionIndexContext> mFreeSessionindexs;
-		std::vector<SenderSession*> mSessions;
+		std::deque<SessionIndexContext> free_session_indexs_;
+		std::vector<TcpSession*> sessions_;
 	};
 }

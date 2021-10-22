@@ -12,16 +12,16 @@ namespace c2rionet
 
 		~RingBufferVA2()
 		{
-			CircularMemory::Release(mRingBuffer, mSecondaryView);
+			CircularMemory::Release(ring_buffer_, secondary_view_);
 		}
 
-		char* GetBuffer() { return mRingBuffer; }
+		char* GetBuffer() { return ring_buffer_; }
 		
-		int Create(const bool isWriteOnly_, const UINT32 ringBufferSize_)
+		int Create(const bool is_write_only, const UINT32 ring_buffer_size)
 		{
-			mIsWriteOnly = isWriteOnly_;
+			is_write_only_ = is_write_only;
 
-			auto [pRingBuffer, errorCode] = CircularMemory::AllocMemory(ringBufferSize_, &mSecondaryView);
+			auto [pRingBuffer, errorCode] = CircularMemory::AllocMemory(ring_buffer_size, &secondary_view_);
 
 			if (pRingBuffer == nullptr)
 			{
@@ -29,8 +29,8 @@ namespace c2rionet
 				return errorCode;
 			}
 
-			mRingBuffer = pRingBuffer;
-			mRingBufferSize = ringBufferSize_;
+			ring_buffer_ = pRingBuffer;
+			ring_buffer_size_ = ring_buffer_size;
 
 			Clear();
 
@@ -38,12 +38,12 @@ namespace c2rionet
 		}
 
 		// VirtualAlloc2의 링버퍼를 사용하고 있어서 주소로는 2배까지 사용 가능하다. 
-		int EnableBufferSize() { return mRingBufferSize * 2; }
+		int EnableBufferSize() { return ring_buffer_size_ * 2; }
 		
 		void Clear()
 		{
-			mWritePos = 0;
-			mReadPos = 0;
+			write_pos_ = 0;
+			read_pos_ = 0;
 		}
 		
 		std::tuple<UINT32, char*> Read()
@@ -51,94 +51,94 @@ namespace c2rionet
 			char* pData = nullptr;
 			UINT32 readAbleSize = 0;
 
-			if (mReadPos < mWritePos)
+			if (read_pos_ < write_pos_)
 			{
-				readAbleSize = mWritePos - mReadPos;
-				pData = &mRingBuffer[mReadPos];
+				readAbleSize = write_pos_ - read_pos_;
+				pData = &ring_buffer_[read_pos_];
 			}
 			else
 			{
-				readAbleSize = (mRingBufferSize - mReadPos) + mWritePos;
-				pData = &mRingBuffer[mReadPos];
+				readAbleSize = (ring_buffer_size_ - read_pos_) + write_pos_;
+				pData = &ring_buffer_[read_pos_];
 			}
 			
 			return { readAbleSize, pData };
 		}
 		
-		void IncremantReadPos(const UINT32 pos_)
+		void IncremantReadPos(const UINT32 pos)
 		{
-			mReadPos += pos_;
+			read_pos_ += pos;
 
-			if (mReadPos >= mRingBufferSize)
+			if (read_pos_ >= ring_buffer_size_)
 			{
-				mReadPos -= mRingBufferSize;
+				read_pos_ -= ring_buffer_size_;
 			}
 		}
 
 
-		char* Write(const UINT32 size_, const char* pData_)
+		char* Write(const UINT32 size, const char* p_data)
 		{
-			if (mIsWriteOnly == false && CheckRemainingSpace(size_) == false) { return nullptr; }
+			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { return nullptr; }
 			
-			int oldPos = mWritePos;
-			CopyMemory(&mRingBuffer[mWritePos], pData_, size_);
-			mWritePos += size_;
+			int oldPos = write_pos_;
+			CopyMemory(&ring_buffer_[write_pos_], p_data, size);
+			write_pos_ += size;
 
-			if (mWritePos >= mRingBufferSize)
+			if (write_pos_ >= ring_buffer_size_)
 			{
-				mWritePos -= mRingBufferSize;
+				write_pos_ -= ring_buffer_size_;
 			}
 
-			return &mRingBuffer[oldPos];
+			return &ring_buffer_[oldPos];
 		}
 
-		bool Write(const UINT32 size_)
+		bool Write(const UINT32 size)
 		{
-			if (mIsWriteOnly == false && CheckRemainingSpace(size_) == false) { return false; }
+			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { return false; }
 
-			mWritePos += size_;
+			write_pos_ += size;
 
-			if (mWritePos >= mRingBufferSize) {	mWritePos -= mRingBufferSize; }
+			if (write_pos_ >= ring_buffer_size_) {	write_pos_ -= ring_buffer_size_; }
 
 			return true;
 		}
 
-		void MoveWriteablePos(const UINT32 pos_) { mWritePos = pos_; }
-		UINT32 GetWriteablePos() { return mWritePos; }
+		void MoveWriteablePos(const UINT32 pos) { write_pos_ = pos; }
+		UINT32 GetWriteablePos() { return write_pos_; }
 
 		
 	private:
-		bool CheckRemainingSpace(const UINT32 desiredSize_)
+		bool CheckRemainingSpace(const UINT32 desired_size)
 		{			
-			if (mReadPos <= mWritePos)
+			if (read_pos_ <= write_pos_)
 			{
 				INT32 remain = 0;
-				if (mWritePos >= mRingBufferSize)
+				if (write_pos_ >= ring_buffer_size_)
 				{
-					remain = ((INT32)mReadPos - (INT32)(mWritePos - mRingBufferSize));
+					remain = ((INT32)read_pos_ - (INT32)(write_pos_ - ring_buffer_size_));
 				}
 				else
 				{
-					remain = (mRingBufferSize - mWritePos) + mReadPos;
+					remain = (ring_buffer_size_ - write_pos_) + read_pos_;
 				}
 				
-				if (remain < (INT32)desiredSize_) { return false; }
+				if (remain < (INT32)desired_size) { return false; }
 			}
 			else
 			{
-				auto remain = mReadPos - mWritePos;
-				if (remain < desiredSize_) { return false; }
+				auto remain = read_pos_ - write_pos_;
+				if (remain < desired_size) { return false; }
 			}
 
 			return true;
 		}
 
-		bool mIsWriteOnly = false;
-		UINT32 mRingBufferSize = 0;
-		char* mRingBuffer = nullptr;
-		void* mSecondaryView = nullptr;
-		UINT32 mWritePos = 0;
-		UINT32 mReadPos = 0;
+		bool is_write_only_ = false;
+		UINT32 ring_buffer_size_ = 0;
+		char* ring_buffer_ = nullptr;
+		void* secondary_view_ = nullptr;
+		UINT32 write_pos_ = 0;
+		UINT32 read_pos_ = 0;
 
 	};
 }

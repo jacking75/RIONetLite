@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sendpacket_send_buffer.h"
+#include "sendpacket_buffer.h"
 
 #include "fast_spin_lock.h"
 #include "rio_context.h"
@@ -11,11 +11,11 @@ namespace c2rionet
 {
 	struct NetSendConfig
 	{
-		UINT32 MaxSessionCount = 0;
-		UINT32 MaxWorkerThreadCount = 0;
-		UINT32 MaxSendPacketSize = 0;
-		UINT32 MAXSendCountPer1Sec = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
-		UINT32 MaxSendBufferSize = 0;
+		UINT32 max_session_count_ = 0;
+		UINT32 max_worker_thread_count_ = 0;
+		UINT32 max_send_packet_size_ = 0;
+		UINT32 max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
+		UINT32 max_send_buffer_size_ = 0;
 
 	};
 
@@ -26,32 +26,32 @@ namespace c2rionet
 		SendSession() = default;
 		~SendSession() = default;
 
-		char* GetBuffer() { return mSendBuffer.GetBuffer(); }
+		char* GetBuffer() { return send_buffer_.GetBuffer(); }
 
-		bool IsConnected() { return mIsConnected; }
+		bool IsConnected() { return is_connected_; }
 
 		bool Init(const INT32 sessionIndex_, NetSendConfig netConfig_)
 		{
-			mSessionIndex = sessionIndex_;
-			mMaxSendPacketSize = netConfig_.MaxSendPacketSize;
-			mMAXSendCountPer1Sec = netConfig_.MAXSendCountPer1Sec;
-			mMaxSendRingBufferSize = netConfig_.MaxSendBufferSize;
+			session_index_ = sessionIndex_;
+			max_send_packet_size_ = netConfig_.max_send_packet_size_;
+			max_send_count_per_1sec_ = netConfig_.max_send_count_per_1sec_;
+			max_send_ring_buffer_size_ = netConfig_.max_send_buffer_size_;
 
-			if (auto isResult = mSendBuffer.Create(mMaxSendRingBufferSize);
+			if (auto isResult = send_buffer_.Create(max_send_ring_buffer_size_);
 				isResult != 0)
 			{
-				LogFuncPtr((int)LogLevel::error, "Session::Init() - fail mSendBuffer.Create");
+				LogFuncPtr((int)LogLevel::kERROR, "Session::Init() - fail mSendBuffer.Create");
 				return false;
 			}
 
-			mSendContexts.Init(mSessionIndex, IOType::kSEND);
+			sendContext_.Init(session_index_, IOType::kSEND);
 			
-			mSendRioBufferId = RIO.RIORegisterBuffer(mSendBuffer.GetBuffer(), mSendBuffer.EnableBufferSize());
-			if (mSendRioBufferId == RIO_INVALID_BUFFERID)
+			send_rio_buffer_id_ = RIO.RIORegisterBuffer(send_buffer_.GetBuffer(), send_buffer_.EnableBufferSize());
+			if (send_rio_buffer_id_ == RIO_INVALID_BUFFERID)
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "Session::Init() - RIORegisterBuffer Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::error, logmsg);
+				LogFuncPtr((int)LogLevel::kERROR, logmsg);
 				return false;
 			}
 
@@ -62,59 +62,61 @@ namespace c2rionet
 
 		void Dispose()
 		{
-			RIO.RIODeregisterBuffer(mSendRioBufferId);			
+			RIO.RIODeregisterBuffer(send_rio_buffer_id_);			
 		}
 
 		void OnConnect(RIO_RQ requestQueue_)
 		{
-			mIsConnected = true;
-			mRequestQueue = requestQueue_;
+			is_connected_ = true;
+			rio_rq_ = requestQueue_;
 			Clear();
 		}
 
 		void OnDisConnect()
 		{
-			mIsConnected = false;
+			is_connected_ = false;
 		}
 
 		bool PostSend(const UINT32 dataSize_, const char* pData_)
 		{
-			C2RIONetLib::FastSpinlockGuard criticalSection(mSessionLock);
-			if (mSendBuffer.Write(dataSize_, pData_) == false) { return false; }
+			FastSpinlockGuard criticalSection(session_lock_);
+			if (send_buffer_.Write(dataSize_, pData_) == false) { return false; }
 			return true;
 		}
 
 		void SendCompleted(const UINT32 length_)
 		{
-			C2RIONetLib::FastSpinlockGuard criticalSection(mSessionLock);
+			FastSpinlockGuard criticalSection(session_lock_);
 
-			mSendBuffer.IncremantReadPos(length_);
-			mSendBuffer.MoveWrittenDataForward();
+			send_buffer_.IncremantReadPos(length_);
+			send_buffer_.MoveWrittenDataForward();
 		}
 
 
 		bool RealSend()
 		{
-			C2RIONetLib::FastSpinlockGuard criticalSection(mSessionLock);
+			FastSpinlockGuard criticalSection(session_lock_);
 
-			auto sendSize = mSendBuffer.SendAbleSize();
+			auto sendSize = send_buffer_.SendAbleSize();
 
-			if (sendSize <= 0) { return true }
+			if (sendSize <= 0) { 
+				return true; 
+			}
 
-			if (sendSize > mMaxSendPacketSize) { sendSize = mMaxSendPacketSize;	}
+			if (sendSize > max_send_packet_size_) { sendSize = max_send_packet_size_;	}
 			
-			mSendContexts.SessionUniqueId = sessionUniqueId;
-			mSendContexts.BufferId = mSendRioBufferId;
-			mSendContexts.Length = sendSize;
-			mSendContexts.Offset = mSendBuffer.GetReadPos();
+			sendContext_.session_index_ = session_index_;
+			sendContext_.BufferId = send_rio_buffer_id_;
+			sendContext_.Length = sendSize;
+			sendContext_.Offset = send_buffer_.GetReadPos();
 			
 			/// start async send
 			DWORD flags = 0;
-			if (!RIO.RIOSend(mRequestQueue, (PRIO_BUF)pSendContext, 1, flags, pSendContext))
+			if (!RIO.RIOSend(rio_rq_, (PRIO_BUF)&sendContext_, 1, flags, &sendContext_))
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "Session::RealSend() - RIOSend Error: %d", GetLastError());
-				LogFunc((int)LogLevel::error, logmsg);
+				LogFuncPtr((int)LogLevel::kERROR, logmsg);
 				return false;
 			}
 
@@ -125,21 +127,21 @@ namespace c2rionet
 	private:
 		void Clear()
 		{
-			mSendBuffer.Clear();
+			send_buffer_.Clear();
 		}
 
-		bool mIsConnected = false;
-		INT32 mSessionIndex = 0;
-		INT32 mMaxSendPacketSize = 0;
-		UINT64 mMAXSendCountPer1Sec = 0;
-		INT32 mMaxSendRingBufferSize = 0;
+		bool is_connected_ = false;
+		INT32 session_index_ = 0;
+		INT32 max_send_packet_size_ = 0;
+		UINT64 max_send_count_per_1sec_ = 0;
+		INT32 max_send_ring_buffer_size_ = 0;
 
-		C2RIONetLib::RioIoContext mSendContexts;
+		RioIoContext sendContext_;
 
-		RIO_RQ			mRequestQueue = NULL;
-		RIO_BUFFERID	mSendRioBufferId = NULL;
+		RIO_RQ			rio_rq_ = NULL;
+		RIO_BUFFERID	send_rio_buffer_id_ = NULL;
 
-		C2RIONetLib::FastSpinlock mSessionLock;
-		SendBuffer mSendBuffer;
+		FastSpinlock session_lock_;
+		SendRingBuffer send_buffer_;
 	};
 }

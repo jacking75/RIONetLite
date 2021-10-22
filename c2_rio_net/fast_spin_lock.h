@@ -8,32 +8,32 @@ namespace c2rionet
 {
 	class CustomSpinLockCriticalSection
 	{
-		const int SPINLOCK_COUNT = 1000;
+		const int kSPIN_LOCK_COUNT = 1000;
 
 	public:
 		CustomSpinLockCriticalSection()
 		{
-			(void)InitializeCriticalSectionAndSpinCount(&mCS, SPINLOCK_COUNT);
+			(void)InitializeCriticalSectionAndSpinCount(&cs_lock_, kSPIN_LOCK_COUNT);
 		}
 
 		~CustomSpinLockCriticalSection()
 		{
-			DeleteCriticalSection(&mCS);
+			DeleteCriticalSection(&cs_lock_);
 		}
 		
 		void EnterLock()
 		{
-			EnterCriticalSection(&mCS);
+			EnterCriticalSection(&cs_lock_);
 		}
 
 		void LeaveLock()
 		{
-			LeaveCriticalSection(&mCS);
+			LeaveCriticalSection(&cs_lock_);
 		}
 				
 
 	private:
-		CRITICAL_SECTION mCS;
+		CRITICAL_SECTION cs_lock_;
 	};
 
 
@@ -47,7 +47,7 @@ namespace c2rionet
 		{
 			for (int nloops = 0; ; nloops++)
 			{
-				if (InterlockedExchange(&mLockFlag, 1) == 0) { return; }
+				if (InterlockedExchange(&lock_flag_, 1) == 0) { return; }
 
 				UINT uTimerRes = 1;
 				timeBeginPeriod(uTimerRes);
@@ -58,49 +58,49 @@ namespace c2rionet
 
 		void LeaveLock()
 		{
-			InterlockedExchange(&mLockFlag, 0);
+			InterlockedExchange(&lock_flag_, 0);
 		}
 
 	private:
 		FastSpinlock(const FastSpinlock& rhs);
 		FastSpinlock& operator=(const FastSpinlock& rhs);
 
-		volatile long mLockFlag = 0;
+		volatile long lock_flag_ = 0;
 	};
 
 
 	class FastSpinlockGuard
 	{
 	public:
-		FastSpinlockGuard(FastSpinlock& lock) : mLock(lock)
+		FastSpinlockGuard(FastSpinlock& lock) : lock_(lock)
 		{
-			mLock.EnterLock();
+			lock_.EnterLock();
 		}
 
 		~FastSpinlockGuard()
 		{
-			mLock.LeaveLock();
+			lock_.LeaveLock();
 		}
 
 	private:
-		FastSpinlock& mLock;
+		FastSpinlock& lock_;
 	};
 
 	template<class LockType>  
 	class SpinlockGuard
 	{
 	public:
-		SpinlockGuard(LockType& lock) : mLock(lock)
+		SpinlockGuard(LockType& lock) : lock_(lock)
 		{
-			mLock.EnterLock();
+			lock_.EnterLock();
 		}
 
 		~SpinlockGuard()
 		{
-			mLock.LeaveLock();
+			lock_.LeaveLock();
 		}
 
 	private:
-		LockType& mLock;
+		LockType& lock_;
 	};
 }

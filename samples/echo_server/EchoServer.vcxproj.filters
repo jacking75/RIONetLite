@@ -41,7 +41,7 @@
     <ClInclude Include="..\..\c2_rio_net\server_net_manager.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\session.h">
+    <ClInclude Include="..\..\c2_rio_net\tcp_session.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\session_manager.h">

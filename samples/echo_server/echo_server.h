@@ -22,11 +22,11 @@ public:
 		EchoServerImpl::WriteToLog(netConfig);
 
 		if (auto result = mNetManager.Initialize(netConfig, this);
-			result != netErrorCode::none)
+			result != netErrorCode::kNONE)
 		{
 			char logmsg[256] = { 0, };
 			sprintf_s(logmsg, "main() - netManager.Initialize() Error: %d", result);
-			WriteLog((int)c2rionet::LogLevel::error, logmsg);
+			WriteLog((int)c2rionet::LogLevel::kERROR, logmsg);
 			return false;
 		}
 
@@ -48,7 +48,7 @@ public:
 			mLogicThread.join();
 		}
 
-		WriteLog((int)c2rionet::LogLevel::info, "End Server");
+		WriteLog((int)c2rionet::LogLevel::kINFO, "End Server");
 	}
 
 	static void WriteToLog(c2rionet::NetConfig netConfig)
@@ -56,34 +56,34 @@ public:
 		char logmsg[256] = { 0, };
 
 		sprintf_s(logmsg, "NetConfig - PortNumber: %d", netConfig.port_number_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - IoWorkThreadCount: %d", netConfig.io_work_thread_count_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - MaxConnectionCount: %d", netConfig.max_connection_count_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxRecvPacketSize: %d", netConfig.conn_cfg_.max_recv_packet_size_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxTry1RecvBufferSize: %d", netConfig.conn_cfg_.max_try_1recv_buffer_size);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - Conn.MAXRecvCountPer1Sec: %d", netConfig.conn_cfg_.max_recv_count_per_1sec_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - Conn.MaxRecvBufferSize: %d", netConfig.conn_cfg_.max_recv_buffer_size_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - Conn.MaxSendPacketSize: %d", netConfig.conn_cfg_.max_send_packet_size_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - Conn.MAXSendCountPer1Sec: %d", netConfig.conn_cfg_.max_send_count_per_1sec_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
 		sprintf_s(logmsg, "NetConfig - Conn.MaxSendBufferSize: %d", netConfig.conn_cfg_.max_send_buffer_size_);
-		WriteLog((int)c2rionet::LogLevel::info, logmsg);
+		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 	}
 
 	static void WriteLog(const int eLogInfoType, const char* szLogMsg)
