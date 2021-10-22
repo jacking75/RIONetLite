@@ -11,11 +11,11 @@
 namespace C2RIONetLib
 {	
 	template<class TNetEventManager>
-	class RIONetManager
+	class ServerNetManager
 	{
 	public:
-		RIONetManager() = default;
-		~RIONetManager() = default;
+		ServerNetManager() = default;
+		~ServerNetManager() = default;
 		
 		// 이 라이브러리르 사용하는 사람은 public 부분만을 보기 때문에 함수 이름을 보기 편하게 하기 위해 구현은 다른 함수로 분리했다.
 

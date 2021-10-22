@@ -1,21 +1,13 @@
-# cpp_RIONetLib
-Windows Registered I/O API를 사용한 네트워크 라이브러리
-
+# RIONetLib - C++
+Windows Registered I/O API를 사용한 네트워크 라이브러리  
+[Registered I/O  - Windows에서 고 성능 서버 만들기](https://docs.google.com/presentation/d/11PE5zKPtgCoxwfhNBWI1nM6gTuLRwWteZTQuX9bIHmM/edit?usp=sharing )    
+  
+[코딩 스타일](https://docs.google.com/document/d/1maR-thjNKaeWnbqdtGlUyjQvQT1Xuy_TMsP24LL4ctg/edit?usp=sharing )에 맞추어서 코딩하도록 한다.   
+   
+   
+  
 ## TODO
 - Echo 테스트: 패킷처리를 네트워크 스레드에서 하지 않고, 패킷 처리용 워커스레드에서 처리한다.
     - 이렇게 해야 recv와 send 스레드가 다르게 동작하고, 특히 세션이 동시에 recv와 send를 할 수 있다.
       
     
-## Coding Rules
-- 상수는 대문자로 시작하고, 단어의 연결에는 `_`을 붙인다.
-- enum의 타입 이름은 대문자, 상수는 소문자로 하고, 단어 연결은 _ 로
-- class 
-    - 멤버 변수는 `m` 이 앞에 붙고 대문자로 시작하는 파스칼 표기법. 예) UserItem 
-- 함수    
-    - 함수의 이름은 파스칼 표기법을 사용한다.
-    - 파라미터 변수의 이름은 소문자로 시작하는 낙타 표기법. 뒤에 `_`을 붙인다.
-    - 지역 변수는 소문자로 시작하는 낙타 표기법.
-    - 포인터 타입 변수는 앞에 p를 붙인다.
-- if문은 꼭 중괄호 `{}`을 사용한다.
-    - 한줄로 끝나는 경우는 if문 줄에 기술해도 괜찮다. 예) if(isRun) { return false; }
-    - '{`는 if문 다음 라인에서 시작한다.

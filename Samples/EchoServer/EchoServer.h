@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "Packet.h"
-#include "../../C2RIONetLib/RIONetManager.h"
+#include "../../C2RIONetLib/ServerNetManager.h"
 
 #include <iostream>
 
@@ -136,6 +136,6 @@ public:
 
 
 private:
-	C2RIONetLib::RIONetManager<EchoServerImpl> mNetManager;
+	C2RIONetLib::ServerNetManager<EchoServerImpl> mNetManager;
 	std::thread mLogicThread;
 };

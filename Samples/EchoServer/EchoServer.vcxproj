@@ -93,7 +93,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -122,7 +122,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,7 +142,10 @@
     <ClInclude Include="..\..\C2RIONetLib\NetSenderImmediately.h" />
     <ClInclude Include="..\..\C2RIONetLib\RingBufferVA2.h" />
     <ClInclude Include="..\..\C2RIONetLib\RioContext.h" />
-    <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h" />
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\SendBuffer.h" />
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\SendManager.h" />
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\Session.h" />
+    <ClInclude Include="..\..\C2RIONetLib\ServerNetManager.h" />
     <ClInclude Include="..\..\C2RIONetLib\Session.h" />
     <ClInclude Include="..\..\C2RIONetLib\SessionManager.h" />
     <ClInclude Include="..\ServerCommon\MessageNetEventManager.h" />

@@ -10,6 +10,9 @@
     <Filter Include="ServerCommon">
       <UniqueIdentifier>{e7dd0815-fdb4-4d9d-a849-2f0f5a465c6f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="C2RIONetLib\SendPacketCollectSystem">
+      <UniqueIdentifier>{6648f02b-0069-4e51-960f-3fd8c102f08e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\C2RIONetLib\Exception.h">
@@ -22,9 +25,6 @@
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\SessionManager.h">
-      <Filter>C2RIONetLib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\C2RIONetLib\RIONetManager.h">
       <Filter>C2RIONetLib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\C2RIONetLib\CommonDef.h">
@@ -49,6 +49,18 @@
     <ClInclude Include="EchoServer.h" />
     <ClInclude Include="..\..\C2RIONetLib\DoubleBufferingQueue.h">
       <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\ServerNetManager.h">
+      <Filter>C2RIONetLib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\SendBuffer.h">
+      <Filter>C2RIONetLib\SendPacketCollectSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\SendManager.h">
+      <Filter>C2RIONetLib\SendPacketCollectSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\C2RIONetLib\SendPacketCollectSystem\Session.h">
+      <Filter>C2RIONetLib\SendPacketCollectSystem</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
