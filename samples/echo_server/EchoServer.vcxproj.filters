@@ -20,9 +20,6 @@
     <ClInclude Include="..\..\c2_rio_net\circular_memory.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\common_def.h">
-      <Filter>c2_rio_net</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\exception.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
@@ -54,6 +51,10 @@
       <Filter>c2_rio_net</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\sendpacket_session.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\server_net_manager_impl.h" />
+    <ClInclude Include="..\..\c2_rio_net\define.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
   </ItemGroup>

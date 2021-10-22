@@ -5,7 +5,8 @@
 #include <concurrent_queue.h>
 
 #include "session_manager.h"
-#include "common_def.h"
+#include "define.h"
+#include "helper.h"
 
 
 namespace c2rionet
