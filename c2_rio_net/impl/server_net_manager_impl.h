@@ -383,7 +383,7 @@ namespace c2rionet
 
 
 
-	
+	private:	
 		NetConfig net_config_;
 
 		TNetEventManager* net_event_mgr_;
