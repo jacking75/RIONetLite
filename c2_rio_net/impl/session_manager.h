@@ -106,7 +106,43 @@ namespace c2rionet
 									(cur_sec + kRE_USE_SESSION_WAITE_TIME_SEC) });
 		}
 
-		
+
+
+		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, const UINT32 data_size, const char* p_data)
+		{
+			auto session = GetSessionObj(session_index, session_uid);
+			if (session == nullptr)
+			{
+				return NetErrorCode::kSEND_INVALID_SESSION;
+			}
+
+			if (session->IsEnableNetwork() == false)
+			{
+				return NetErrorCode::kSEND_SESSION_NETWORK_DISABLE;
+			}
+
+			if (session->PostSend(data_size, p_data) == false)
+			{
+				return NetErrorCode::kSEND_IO_FAIL;
+			}
+
+			return NetErrorCode::kNONE;
+		}
+
+		int ForcedClose(const INT32 session_index, const UINT64 session_uid)
+		{
+			auto session = GetSessionObj(session_index, session_uid);
+			if (session == nullptr)
+			{
+				return -1;
+			}
+
+			session->SetDisableNetwork();
+
+			auto threadIndex = session->GetRioThreadId();
+			return threadIndex;
+		}
+				
 		
 
 	private:

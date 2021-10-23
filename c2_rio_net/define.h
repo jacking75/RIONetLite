@@ -81,9 +81,9 @@ namespace c2rionet
 
 	struct LazyedDisConnectSession
 	{
-		INT32 session_index_;
-		UINT64 unique_id_;
-		DisconnectReason reason_;
+		INT32 session_index_ = -1;
+		UINT64 unique_id_ = 0;
+		DisconnectReason reason_ = DisconnectReason::kNONE;
 	};
 				
 	inline void (*LogFuncPtr) (const int, const char* pszLogMsg);
