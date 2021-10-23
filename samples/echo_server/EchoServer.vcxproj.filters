@@ -27,7 +27,7 @@
     <ClInclude Include="..\..\c2_rio_net\define.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager_impl.h">
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\circular_memory.h">

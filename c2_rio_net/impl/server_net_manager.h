@@ -1,12 +1,13 @@
 ﻿#pragma once
 
-#include <vector>
-#include <thread>
-#include <concurrent_queue.h>
-
+//#include "server_net_manager_init.h"
 #include "session_manager.h"
 #include "..\define.h"
 #include "helper.h"
+
+#include <vector>
+#include <thread>
+#include <concurrent_queue.h>
 
 
 namespace c2rionet
@@ -21,18 +22,21 @@ namespace c2rionet
 
 		NetErrorCode Initialize(NetConfig net_cfg, TNetEventManager* p_net_event_mgr)
 		{
-			if ((net_cfg.max_connection_count_ % net_cfg.io_work_thread_count_) != 0) { return NetErrorCode::kSESSION_COUNT_PER_THREAD_INCORRECT; }
+			if ((net_cfg.max_connection_count_ % net_cfg.io_work_thread_count_) != 0) { 
+				return NetErrorCode::kSESSION_COUNT_PER_THREAD_INCORRECT; 
+			}
 
-			auto sessionCountPerRioThread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;
-			net_config_ = net_cfg;
+			auto sessionCountPerRioThread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;			
 			auto rioThreadCount = net_cfg.io_work_thread_count_;
+			
+			net_config_ = net_cfg;
 			net_event_mgr_ = p_net_event_mgr;
 
-			/// winsock initializing			
-			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { return NetErrorCode::kWSASTARTUP_FAIL; }
+			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { 
+				return NetErrorCode::kWSASTARTUP_FAIL; 
+			}
 
-			if (auto result = BindListenSocket(net_cfg.port_number_); result != NetErrorCode::kNONE)
-			{
+			if (auto result = BindListenSocket(net_cfg.port_number_); result != NetErrorCode::kNONE) {
 				return result;
 			}
 

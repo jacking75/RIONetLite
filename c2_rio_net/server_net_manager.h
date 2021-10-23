@@ -4,7 +4,7 @@
 #include <thread>
 #include <concurrent_queue.h>
 
-#include ".\impl\server_net_manager_impl.h"
+#include ".\impl\server_net_manager.h"
 #include ".\impl\helper.h"
 #include "define.h"
 
@@ -32,11 +32,6 @@ namespace c2rionet
 			impl_.End(); 
 		}
 		
-		const RIO_CQ& GetCompletionQueue(int thread_id) { 
-			return impl_.GetCompletionQueue(thread_id); 
-		}
-
-
 		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, const UINT32 data_size, const char* p_data) {
 			return impl_.SendData(session_index, session_uid, data_size, p_data);
 		}
