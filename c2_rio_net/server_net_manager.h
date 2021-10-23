@@ -4,6 +4,7 @@
 #include <thread>
 #include <concurrent_queue.h>
 
+#include "i_net_event_manager.h"
 #include ".\impl\server_net_manager.h"
 #include ".\impl\helper.h"
 #include "define.h"
@@ -12,7 +13,6 @@
 
 namespace c2rionet
 {	
-	template<class TNetEventManager>
 	class ServerNetManager
 	{
 	public:
@@ -20,7 +20,7 @@ namespace c2rionet
 		~ServerNetManager() = default;
 		
 	
-		NetErrorCode Initialize(NetConfig net_cfg, TNetEventManager* p_net_event_mgr) {
+		NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr) {
 			return impl_.Initialize(net_cfg, p_net_event_mgr);
 		}
 
@@ -42,7 +42,7 @@ namespace c2rionet
 		
 
 	private:
-		ServerNetManagerImpl<TNetEventManager> impl_;
+		ServerNetManagerImpl impl_;
 	};
 
 }

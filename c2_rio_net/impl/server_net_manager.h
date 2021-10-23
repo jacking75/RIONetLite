@@ -2,6 +2,7 @@
 
 #include "server_net_manager_init.h"
 //#include "server_net_manager_io_work.h"
+#include "..\i_net_event_manager.h"
 #include "session_manager.h"
 #include "..\define.h"
 #include "helper.h"
@@ -13,7 +14,6 @@
 
 namespace c2rionet
 {	
-	template<class TNetEventManager>
 	class ServerNetManagerImpl
 	{
 	public:
@@ -21,7 +21,7 @@ namespace c2rionet
 		~ServerNetManagerImpl() = default;
 	
 
-		NetErrorCode Initialize(NetConfig net_cfg, TNetEventManager* p_net_event_mgr)
+		NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr)
 		{
 			if (auto ret = ServerNetManagerInit::Initialize(listen_socket_, net_cfg); ret != NetErrorCode::kNONE) {
 				return ret;
@@ -362,7 +362,7 @@ namespace c2rionet
 	private:	
 		NetConfig net_config_;
 
-		TNetEventManager* net_event_mgr_;
+		INetEventManager* net_event_mgr_;
 				
 		bool is_run_io_work_thread_ = false;
 		std::vector<std::thread> io_work_threads_;

@@ -19,13 +19,13 @@ int main(int argc, char* argv[])
 
 	auto net_config = GetConfig(argc, argv);
 	
-	EchoServerImpl net_event_mgr;
-	if (net_event_mgr.Init(net_config) == false)
+	EchoServer echo_server;
+	if (echo_server.Init(net_config) == false)
 	{
 		return -1;
 	}
 
-	net_event_mgr.Start();
+	echo_server.Start();
 	
 	std::cout << "Server quits when you press (quit) !!!" << std::endl;	
 	while (true)
@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 	}
 
 	// 종료
-	net_event_mgr.End();
+	echo_server.End();
 
 	return 0;
 }
