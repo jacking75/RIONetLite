@@ -13,7 +13,7 @@ namespace c2rionet
 		ServerNetLazyedDisConnManager() = default;
 		~ServerNetLazyedDisConnManager() = default;
 
-		void AddDisConnSessionQueue()
+		void AddSessionQueue()
 		{
 			lazyed_dis_connect_sessions_.emplace_back();
 		}
@@ -25,7 +25,7 @@ namespace c2rionet
 				});
 		}
 
-		LazyedDisConnectSession FetchDisConnSession(const int thread_index)
+		LazyedDisConnectSession FetchSession(const int thread_index)
 		{
 			LazyedDisConnectSession disConnectInfo;
 			lazyed_dis_connect_sessions_[thread_index].try_pop(disConnectInfo);

@@ -2,6 +2,7 @@
 
 #include "server_net_init.h"
 #include "server_net_lazyed_dis_conn_manager.h"
+#include "server_net_accepter.h"
 #include "session_manager.h"
 #include "helper.h"
 #include "..\i_net_event_manager.h"
@@ -35,6 +36,12 @@ namespace c2rionet
 			}
 
 
+			auto dis_connect_func = [&](TcpSession* p_session, const uint64_t session_uid, const DisconnectReason reason)
+			{
+				Disconnect(p_session, session_uid, reason);
+			};
+			accepter_.DisConnectFunc = dis_connect_func;
+
 			net_config_ = net_cfg;
 			net_event_mgr_ = p_net_event_mgr;
 
@@ -42,18 +49,20 @@ namespace c2rionet
 			return NetErrorCode::kNONE;
 		}
 
-		void StartAndBlocking() { 
-			auto sessionCountPerRioThread = net_config_.max_connection_count_ / net_config_.io_work_thread_count_;
-			auto rioThreadCount = net_config_.io_work_thread_count_;
+		void StartAndBlocking() 
+		{ 
+			StartIoThreads(net_config_.io_work_thread_count_, 
+							net_config_.conn_cfg_.max_send_count_per_1sec_, 
+							net_config_.max_connection_count_, 
+							net_config_.io_work_thread_count_);
 
-			StartIoThreads(rioThreadCount, net_config_.conn_cfg_.max_send_count_per_1sec_, sessionCountPerRioThread);
-
-			StartAcceptLoop(net_config_.conn_cfg_); 
+			accepter_.Run(net_config_.conn_cfg_, listen_socket_, rio_completion_queues_, session_mgr_, net_event_mgr_);
 		}
 		
 		void End()
 		{
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Start");
+			accepter_.Stop();
 			is_run_io_work_thread_ = false;
 
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Close mListenSocket");
@@ -76,7 +85,8 @@ namespace c2rionet
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Complete");
 		}
 						
-		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, const UINT32 data_size, const char* p_data)
+		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, 
+							const UINT32 data_size, const char* p_data)
 		{
 			if (auto ret = session_mgr_.SendData(session_index, session_uid, data_size, p_data);
 				ret != NetErrorCode::kNONE) {
@@ -91,11 +101,11 @@ namespace c2rionet
 
 		bool ForcedClose(const INT32 session_index, const UINT64 session_uid)
 		{
-			if (auto threadIndex = session_mgr_.ForcedClose(session_index, session_uid);
-					threadIndex >= 0) {
-				lazyed_dis_connect_sessions_[threadIndex].push({
-					session_index, session_uid, DisconnectReason::kFORCES_CLOSE_SERVER
-					});
+			if (auto thread_index = session_mgr_.ForcedClose(session_index, session_uid);
+				thread_index >= 0) {
+				lazyed_dis_conn_mgr_.AddSession(thread_index,
+									session_index, session_uid, 
+									DisconnectReason::kFORCES_CLOSE_SERVER);
 				return true;
 			}
 
@@ -104,82 +114,27 @@ namespace c2rionet
 
 
 	private:
-		const RIO_CQ& GetCompletionQueue(int thread_id)
+		bool StartIoThreads(const UINT32 rio_thread_count, 
+						const UINT32 max_send_count_per_1sec, 
+						const UINT32 max_connection_count,
+						const UINT32 io_work_thread_count)
 		{
-			return rio_completion_queues_[thread_id];
-		}
+			auto session_count_per_rio_thread = max_connection_count / io_work_thread_count;
 
-		void StartAcceptLoop(ConnectionNetConfig net_cfg)
-		{
-			char logmsg[256] = { 0, };
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
-
-			while (is_run_io_work_thread_)
-			{
-				SOCKET acceptedSock = accept(listen_socket_, NULL, NULL);
-				if (acceptedSock == INVALID_SOCKET)
-				{
-					LogFuncPtr((int)LogLevel::kERROR, "RIONetManager::StartAcceptLoop() - accept invalid socket");
-					continue;
-				}
-
-				auto curTimeSec = Helper::CurrentSecond();
-
-				/// new client session (should not be under any session locks)
-				auto pSession = session_mgr_.IssueClientSession(curTimeSec);
-				if (pSession == nullptr)
-				{			
-					//사용할 수 있는 세션이 없는 상태이므로 연결을 끊고, 잠시 대기한다
-					LogFuncPtr((int)LogLevel::kDEBUG, "RIONetManager::StartAcceptLoop() - Empry Session Pool");
-					closesocket(acceptedSock);
-					Sleep(1000);
-					continue;					
-				}
-
-				auto clientThreadId = pSession->GetRioThreadId();
-
-				/// connection establishing and then issuing recv
-				/// create socket RQ
-				/// SEND and RECV within one CQ (you can do with two CQs, seperately)
-				if (auto rioRequestQueue = RIO.RIOCreateRequestQueue(acceptedSock,
-												1, 1, // 받기는 연속으로 요청하지 않으므로 1
-												net_cfg.max_send_count_per_1sec_, 1,
-												GetCompletionQueue(clientThreadId),
-												GetCompletionQueue(clientThreadId),
-												NULL); rioRequestQueue != RIO_INVALID_RQ) {
-					++connect_sequence_id_;
-					if (pSession->OnConnect(connect_sequence_id_, acceptedSock, rioRequestQueue) == false)
-					{
-						Disconnect(pSession, 0, DisconnectReason::kkACCEPT_LOOP_ON_CONNECT_ERROR);
-						continue;
-					}
-				}
-				else {
-					sprintf_s(logmsg, "RIONetManager::StartAcceptLoop() - RIOCreateRequestQueue Error: %d", GetLastError());
-					LogFuncPtr((int)LogLevel::kERROR, logmsg);
-
-					Disconnect(pSession, 0, DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR);
-					continue;
-				}
-				
-				net_event_mgr_->OnConnect(pSession->GetIndex(), pSession->GetUniqueId());
-			}
-
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - End!!!");
-		}
-
-
-		void StartIoThreads(const UINT32 rio_thread_count, const UINT32 max_send_count_per_1sec, const UINT32 session_count_per_rio_thread)
-		{
 			is_run_io_work_thread_ = true;
 			const unsigned int maxCQSizePerRIOThread = (1 + max_send_count_per_1sec) * session_count_per_rio_thread;
 
 			for (UINT32 i = 0; i < rio_thread_count; ++i)
 			{
-				auto threadIndex = i;
-				
-				CreateRioCompletionQueue(maxCQSizePerRIOThread);
+				auto rioQueue = RIO.RIOCreateCompletionQueue(maxCQSizePerRIOThread, 0);
+				if (rioQueue == RIO_INVALID_CQ) {
+					return false;
+				}
+				else {
+					rio_completion_queues_.push_back(rioQueue);
+				}
 
+				auto threadIndex = i;
 				io_work_threads_.emplace_back([threadIndex, this]() { 
 					IoWorkerThread(threadIndex);
 					});
@@ -187,14 +142,7 @@ namespace c2rionet
 				// mIOWorkThreads 내부에서 초기화 작업이 있어서 잠시 대기한다
 				std::this_thread::sleep_for(std::chrono::milliseconds(32));
 			}
-		}
 
-		bool CreateRioCompletionQueue(const unsigned int max_cq_size_per_rio_thread)
-		{
-			auto rioQueue = RIO.RIOCreateCompletionQueue(max_cq_size_per_rio_thread, 0);
-			if (rioQueue == RIO_INVALID_CQ) { return false; }
-
-			rio_completion_queues_.push_back(rioQueue);
 			return true;
 		}
 
@@ -206,8 +154,8 @@ namespace c2rionet
 
 			IoWorkerThread_startLog(threadIndex, coreCount);
 						
-			lazyed_dis_connect_sessions_.emplace_back();
-
+			lazyed_dis_conn_mgr_.AddSessionQueue();
+			
 			while (is_run_io_work_thread_)
 			{
 				memset(results, 0, sizeof(results));
@@ -292,19 +240,24 @@ namespace c2rionet
 								
 		void ProcessLazyedDisConnectSession(const int thread_index)
 		{
-			while (lazyed_dis_connect_sessions_[thread_index].empty() == false)
-			{
-				LazyedDisConnectSession disConnectInfo;
-				if (lazyed_dis_connect_sessions_[thread_index].try_pop(disConnectInfo) == false) { break; }
-				
-				auto pSession = session_mgr_.GetSessionObj(disConnectInfo.session_index_, disConnectInfo.unique_id_);
-				if (pSession == nullptr) { break; }
+			while (true) {
+				if (auto disConnectInfo = lazyed_dis_conn_mgr_.FetchSession(thread_index);
+					disConnectInfo.unique_id_ <= 0) {
+					break;
+				}
+				else {
+					auto pSession = session_mgr_.GetSessionObj(disConnectInfo.session_index_, disConnectInfo.unique_id_);
+					if (pSession == nullptr) { 
+						break; 
+					}
 
-				Disconnect(pSession, disConnectInfo.unique_id_, disConnectInfo.reason_);
-			}
+					Disconnect(pSession, disConnectInfo.unique_id_, disConnectInfo.reason_);
+				}
+
+			}			
 		}
 
-		void Disconnect(TcpSession* p_session, const UINT64 session_uid_by_context, const DisconnectReason reason)
+		void Disconnect(TcpSession* p_session, const UINT64 session_uid, const DisconnectReason reason)
 		{
 			auto curTimeSec = Helper::CurrentSecond();
 			auto sessionIndex = p_session->GetIndex();
@@ -317,7 +270,7 @@ namespace c2rionet
 				return;
 			}
 
-			if (p_session->Disconnect(session_uid_by_context))
+			if (p_session->Disconnect(session_uid))
 			{
 				net_event_mgr_->OnClose(sessionIndex, reason);
 				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
@@ -329,11 +282,10 @@ namespace c2rionet
 			// 이 함수를 호출할 때는 절대 session_index는 유효한 값이다.
 			auto p_session = session_mgr_.GetSessionObj(session_index);
 			p_session->SetDisableNetwork();
-
-			auto threadIndex = p_session->GetRioThreadId();
-			lazyed_dis_connect_sessions_[threadIndex].push({
-					p_session->GetIndex(), p_session->GetUniqueId(), reason
-				});
+						
+			lazyed_dis_conn_mgr_.AddSession(p_session->GetRioThreadId(), 
+									p_session->GetIndex(), p_session->GetUniqueId(), 
+									reason);
 		}
 
 
@@ -361,6 +313,8 @@ namespace c2rionet
 				
 		ServerNetLazyedDisConnManager lazyed_dis_conn_mgr_;
 
+		Accepter accepter_;
+
 		bool is_run_io_work_thread_ = false;
 		std::vector<std::thread> io_work_threads_;
 
@@ -371,8 +325,6 @@ namespace c2rionet
 		SessionManager session_mgr_;
 
 		UINT64 connect_sequence_id_ = 0;
-
-		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> lazyed_dis_connect_sessions_;	
 	};
 
 }
