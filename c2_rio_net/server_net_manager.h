@@ -46,3 +46,20 @@ namespace c2rionet
 	};
 
 }
+
+//TODO 리팩토링 및 기능 추가
+/*
+- 리팩토링
+ - 코딩 스타일 지키기
+ - modern c++ 20
+  - std::option 사용하기
+ - 파일 분할
+  - io_work 분할
+ - c++의 정수 타입 사용하기  https://www.enseignement.polytechnique.fr/informatique/INF478/docs/Cpp/en/cpp/types/integer.html
+- 기능 개선
+ - 스케일업에 대응
+- 샘플 프로젝트
+ - 채팅 서버
+ - 오목 서버
+ - 메타버스
+*/

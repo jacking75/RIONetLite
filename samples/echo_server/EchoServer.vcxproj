@@ -145,6 +145,7 @@
     <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_buffer.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_session.h" />
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_accepter.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_lazyed_dis_conn_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_init.h" />

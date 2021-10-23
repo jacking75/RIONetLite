@@ -76,5 +76,8 @@
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_lazyed_dis_conn_manager.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_accepter.h">
+      <Filter>c2_rio_net\impl</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
