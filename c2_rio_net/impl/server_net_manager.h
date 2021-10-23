@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-//#include "server_net_manager_init.h"
+#include "server_net_manager_init.h"
+//#include "server_net_manager_io_work.h"
 #include "session_manager.h"
 #include "..\define.h"
 #include "helper.h"
@@ -22,32 +23,24 @@ namespace c2rionet
 
 		NetErrorCode Initialize(NetConfig net_cfg, TNetEventManager* p_net_event_mgr)
 		{
-			if ((net_cfg.max_connection_count_ % net_cfg.io_work_thread_count_) != 0) { 
-				return NetErrorCode::kSESSION_COUNT_PER_THREAD_INCORRECT; 
+			if (auto ret = ServerNetManagerInit::Initialize(listen_socket_, net_cfg); ret != NetErrorCode::kNONE) {
+				return ret;
 			}
 
-			auto sessionCountPerRioThread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;			
-			auto rioThreadCount = net_cfg.io_work_thread_count_;
 			
-			net_config_ = net_cfg;
-			net_event_mgr_ = p_net_event_mgr;
+			auto sessionCountPerRioThread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;
+			auto rioThreadCount = net_cfg.io_work_thread_count_;
 
-			if (WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { 
-				return NetErrorCode::kWSASTARTUP_FAIL; 
+			if (session_mgr_.PrepareSessionPool(sessionCountPerRioThread, net_cfg) == false) {
+				return NetErrorCode::kPREPARE_SESSION_POOL_FAIL;
 			}
 
-			if (auto result = BindListenSocket(net_cfg.port_number_); result != NetErrorCode::kNONE) {
-				return result;
-			}
-
-			if (RIOAPI::SetFunction(listen_socket_) == false) { return NetErrorCode::kRIO_FUNCTION_INIT_FAIL; }
-
-			if (session_mgr_.PrepareSessionPool(sessionCountPerRioThread, net_cfg) == false) { return NetErrorCode::kPREPARE_SESSION_POOL_FAIL; }
-
-			/// listen
-			if (SOCKET_ERROR == listen(listen_socket_, SOMAXCONN)) { return NetErrorCode::kLISTEN_SOCKET_LISTEN_FAIL; }
 
 			StartIoThreads(rioThreadCount, net_cfg.conn_cfg_.max_send_count_per_1sec_, sessionCountPerRioThread);
+
+
+			net_config_ = net_cfg;
+			net_event_mgr_ = p_net_event_mgr;
 
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::Initialize() - Success!");
 			return NetErrorCode::kNONE;
@@ -86,30 +79,6 @@ namespace c2rionet
 			return rio_completion_queues_[thread_id]; 
 		}
 						
-		NetErrorCode BindListenSocket(UINT16 port)
-		{
-			/// create TCP socket with RIO mode
-			listen_socket_ = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_REGISTERED_IO);
-			if (listen_socket_ == INVALID_SOCKET) { return NetErrorCode::kLISTEN_SOCKET_CREATE_FAIL; }
-
-			int opt = 1;
-			setsockopt(listen_socket_, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(int));
-
-			/// bind
-			SOCKADDR_IN serveraddr;
-			ZeroMemory(&serveraddr, sizeof(serveraddr));
-			serveraddr.sin_family = AF_INET;
-			serveraddr.sin_port = htons(port);
-			serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-			if (SOCKET_ERROR == bind(listen_socket_, (SOCKADDR*)&serveraddr, sizeof(serveraddr))) { return NetErrorCode::kLISTEN_SOCKET_BIND_FAIL; }
-
-			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "RIONetManager::CreateListenSocketAndBind() - Port: %d", port);
-			LogFuncPtr((int)LogLevel::kINFO, logmsg);
-			return NetErrorCode::kNONE;
-		}
-
 		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, const UINT32 data_size, const char* p_data)
 		{
 			auto session = session_mgr_.GetSessionObj(session_index, session_uid);
@@ -384,7 +353,10 @@ namespace c2rionet
 			LogFuncPtr((int)LogLevel::kINFO, logmsg);
 		}
 	
-
+		void AddLazyedDisConnectSessionQueue()
+		{
+			lazyed_dis_connect_sessions_.emplace_back();
+		}
 
 
 	private:	

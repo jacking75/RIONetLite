@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "../../c2_rio_net/common_def.h"
+#include "../../c2_rio_net/define.h"
 
 #include <vector>
 #include <concurrent_queue.h>
@@ -10,16 +10,16 @@ namespace servercommon
 {
 	enum class NetEventType : INT8
 	{
-		none = 0,
-		connection,
-		close,
-		onRecv
+		kNONE = 0,
+		kCONNECTION,
+		kCLOSE,
+		kONRECV
 	};
 
 	struct NetEvent
 	{		
 		int SessionIndex = -1;
-		NetEventType EventType = NetEventType::none;
+		NetEventType EventType = NetEventType::kNONE;
 		unsigned int DataSize = 0;
 		char* pData = nullptr;
 		
@@ -50,7 +50,7 @@ namespace servercommon
 
 			for (int i = 0; i < maxCount_; ++i)
 			{
-				mObjects.emplace_back(sessionIndex_,  NetEventType::onRecv, 0, nullptr);
+				mObjects.emplace_back(sessionIndex_,  NetEventType::kONRECV, 0, nullptr);
 			}
 		}
 
@@ -80,8 +80,8 @@ namespace servercommon
 
 		void Init(const int sessionIndex_, const unsigned int maxRecvEvnetCount_)
 		{
-			mConnect.Set(sessionIndex_, NetEventType::connection, 0, nullptr);
-			mConnect.Set(sessionIndex_, NetEventType::close, 0, nullptr);
+			mConnect.Set(sessionIndex_, NetEventType::kCONNECTION, 0, nullptr);
+			mConnect.Set(sessionIndex_, NetEventType::kCLOSE, 0, nullptr);
 			mRecvBuffer.Init(sessionIndex_, maxRecvEvnetCount_);
 		}
 

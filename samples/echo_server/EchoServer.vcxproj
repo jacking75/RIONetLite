@@ -146,8 +146,11 @@
     <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_session.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager.h" />
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager_init.h" />
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager_io_work.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\session_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\tcp_session.h" />
+    <ClInclude Include="..\..\c2_rio_net\i_net_event_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\server_net_manager.h" />
     <ClInclude Include="..\..\c2_rio_net\server_net_manager_impl.h" />
     <ClInclude Include="..\server_common\message_net_event_manager.h" />

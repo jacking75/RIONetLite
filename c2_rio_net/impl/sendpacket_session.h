@@ -4,7 +4,7 @@
 
 #include "fast_spin_lock.h"
 #include "rio_context.h"
-#include "common_def.h"
+#include "../define.h"
 
 
 namespace c2rionet

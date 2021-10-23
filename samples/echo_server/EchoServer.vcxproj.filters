@@ -66,5 +66,14 @@
     <ClInclude Include="..\..\c2_rio_net\impl\tcp_session.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager_init.h">
+      <Filter>c2_rio_net\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager_io_work.h">
+      <Filter>c2_rio_net\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\i_net_event_manager.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
