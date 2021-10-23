@@ -20,46 +20,34 @@ int main(int argc, char* argv[])
 	auto net_config = GetConfig(argc, argv);
 	
 	EchoServer echo_server;
-	if (echo_server.Init(net_config) == false)
-	{
+	if (echo_server.Init(net_config) == false) {
 		return -1;
 	}
 
+
 	echo_server.Start();
 	
+
 	std::cout << "Server quits when you press (quit) !!!" << std::endl;	
-	while (true)
-	{
+	while (true) {
 		std::string inputCmd;
 		std::getline(std::cin, inputCmd);
 
-		if (inputCmd == "quit")
-		{
+		if (inputCmd == "quit") {
 			break;
 		}
 	}
 
-	// 종료
 	echo_server.End();
 
 	return 0;
 }
 
+// EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
 c2rionet::NetConfig GetConfig(int argc, char* argv[])
 {
 	c2rionet::NetConfig config;
-	/*config.PortNumber = 32452;
-	config.IoWorkThreadCount = 4;
-	config.MaxConnectionCount = 256;
 	
-	config.Conn.MaxRecvPacketSize = 4012;
-	config.Conn.MaxTry1RecvBufferSize = 4096;
-	config.Conn.MAXRecvCountPer1Sec = 5;
-	config.Conn.MaxRecvBufferSize = 4096 * 3;
-	config.Conn.MaxSendPacketSize = 4012;
-	config.Conn.MAXSendCountPer1Sec = 5;
-	config.Conn.MaxSendBufferSize = 4096 * 3;*/
-
 	const flags::args args(argc, argv);
 	const auto port_number = args.get<UINT16>("PortNumber");
 	if (!port_number) {

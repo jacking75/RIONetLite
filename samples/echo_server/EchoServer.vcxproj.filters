@@ -75,5 +75,6 @@
     <ClInclude Include="..\..\c2_rio_net\i_net_event_manager.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>
+    <ClInclude Include="echo_server_content.h" />
   </ItemGroup>
 </Project>
