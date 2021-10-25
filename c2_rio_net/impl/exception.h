@@ -13,14 +13,11 @@ namespace c2rionet
 								0, NULL, 
 								CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 
 								NULL);
-		if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE))
-		{
+		if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE)) {
 			MINIDUMP_EXCEPTION_INFORMATION mdei;
-
 			mdei.ThreadId = GetCurrentThreadId();
 			mdei.ExceptionPointers = exceptionInfo;
 			mdei.ClientPointers = FALSE;
-
 
 			auto mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
 				MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
@@ -34,9 +31,7 @@ namespace c2rionet
 							0, 
 							NULL);
 			CloseHandle(hFile);
-		}
-		else
-		{
+		} else {
 			printf("CreateFile failed. Error: %u \n", GetLastError());
 		}
 

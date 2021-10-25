@@ -17,7 +17,6 @@ namespace c2rionet
 		void Init(const int session_index, IOType io_type) 
 		{
 			Length = 0;
-
 			session_index_ = session_index;
 			io_type_ = io_type;
 		}
@@ -38,9 +37,9 @@ namespace c2rionet
 			DWORD dwBytes = 0;
 
 			if (WSAIoctl(socket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER, &functionTableId, sizeof(GUID),
-				(void**)&rio_function_table_, sizeof(rio_function_table_),
-				&dwBytes, NULL, NULL))
-			{
+						(void**)&rio_function_table_, sizeof(rio_function_table_),
+						&dwBytes, NULL, NULL)
+				) {
 				return false;
 			}
 

@@ -2,6 +2,9 @@
 
 #include "circular_memory.h"
 
+#include <cstdint>
+
+
 namespace c2rionet
 {
 	//RIO용 버퍼로는 사용할 수 없다!!
@@ -17,14 +20,13 @@ namespace c2rionet
 
 		char* GetBuffer() { return ring_buffer_; }
 		
-		int Create(const bool is_write_only, const UINT32 ring_buffer_size)
+		int Create(const bool is_write_only, const std::uint32_t ring_buffer_size)
 		{
 			is_write_only_ = is_write_only;
 
 			auto [pRingBuffer, errorCode] = CircularMemory::AllocMemory(ring_buffer_size, &secondary_view_);
 
-			if (pRingBuffer == nullptr)
-			{
+			if (pRingBuffer == nullptr) {
 				printf("CreateRingBuffer failed\n");
 				return errorCode;
 			}
@@ -46,18 +48,15 @@ namespace c2rionet
 			read_pos_ = 0;
 		}
 		
-		std::tuple<UINT32, char*> Read()
+		std::tuple<std::uint32_t, char*> Read()
 		{
 			char* pData = nullptr;
-			UINT32 readAbleSize = 0;
+			std::uint32_t readAbleSize = 0;
 
-			if (read_pos_ < write_pos_)
-			{
+			if (read_pos_ < write_pos_) {
 				readAbleSize = write_pos_ - read_pos_;
 				pData = &ring_buffer_[read_pos_];
-			}
-			else
-			{
+			} else {
 				readAbleSize = (ring_buffer_size_ - read_pos_) + write_pos_;
 				pData = &ring_buffer_[read_pos_];
 			}
@@ -65,7 +64,7 @@ namespace c2rionet
 			return { readAbleSize, pData };
 		}
 		
-		void IncremantReadPos(const UINT32 pos)
+		void IncremantReadPos(const std::uint32_t pos)
 		{
 			read_pos_ += pos;
 
@@ -76,69 +75,76 @@ namespace c2rionet
 		}
 
 
-		char* Write(const UINT32 size, const char* p_data)
+		char* Write(const std::uint32_t size, const char* p_data)
 		{
-			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { return nullptr; }
+			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { 
+				return nullptr; 
+			}
 			
 			int oldPos = write_pos_;
 			CopyMemory(&ring_buffer_[write_pos_], p_data, size);
 			write_pos_ += size;
 
-			if (write_pos_ >= ring_buffer_size_)
-			{
+			if (write_pos_ >= ring_buffer_size_) {
 				write_pos_ -= ring_buffer_size_;
 			}
 
 			return &ring_buffer_[oldPos];
 		}
 
-		bool Write(const UINT32 size)
+		bool Write(const std::uint32_t size)
 		{
-			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { return false; }
+			if (is_write_only_ == false && CheckRemainingSpace(size) == false) { 
+				return false; 
+			}
 
 			write_pos_ += size;
 
-			if (write_pos_ >= ring_buffer_size_) {	write_pos_ -= ring_buffer_size_; }
+			if (write_pos_ >= ring_buffer_size_) {	
+				write_pos_ -= ring_buffer_size_; 
+			}
 
 			return true;
 		}
 
-		void MoveWriteablePos(const UINT32 pos) { write_pos_ = pos; }
-		UINT32 GetWriteablePos() { return write_pos_; }
+		void MoveWriteablePos(const std::uint32_t pos) { write_pos_ = pos; }
+
+		std::uint32_t GetWriteablePos() { return write_pos_; }
 
 		
 	private:
-		bool CheckRemainingSpace(const UINT32 desired_size)
+		bool CheckRemainingSpace(const std::uint32_t desired_size)
 		{			
 			if (read_pos_ <= write_pos_)
 			{
-				INT32 remain = 0;
-				if (write_pos_ >= ring_buffer_size_)
-				{
-					remain = ((INT32)read_pos_ - (INT32)(write_pos_ - ring_buffer_size_));
-				}
-				else
-				{
+				std::int32_t remain = 0;
+
+				if (write_pos_ >= ring_buffer_size_) {
+					remain = ((std::int32_t)read_pos_ - (std::int32_t)(write_pos_ - ring_buffer_size_));
+				} else {
 					remain = (ring_buffer_size_ - write_pos_) + read_pos_;
 				}
 				
-				if (remain < (INT32)desired_size) { return false; }
-			}
-			else
-			{
+				if (remain < (std::int32_t)desired_size) {
+					return false; 
+				}
+			} else {
 				auto remain = read_pos_ - write_pos_;
-				if (remain < desired_size) { return false; }
+				if (remain < desired_size) { 
+					return false; 
+				}
 			}
 
 			return true;
 		}
 
+
 		bool is_write_only_ = false;
-		UINT32 ring_buffer_size_ = 0;
+		std::uint32_t ring_buffer_size_ = 0;
 		char* ring_buffer_ = nullptr;
 		void* secondary_view_ = nullptr;
-		UINT32 write_pos_ = 0;
-		UINT32 read_pos_ = 0;
+		std::uint32_t write_pos_ = 0;
+		std::uint32_t read_pos_ = 0;
 
 	};
 }

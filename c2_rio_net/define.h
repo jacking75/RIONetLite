@@ -4,29 +4,29 @@
 #include <windows.h>
 
 #include <chrono>
-
+#include <cstdint>
 
 namespace c2rionet
 {
 	struct ConnectionNetConfig
 	{
-		INT32 max_recv_packet_size_ = 0;
-		UINT32 max_try_1recv_buffer_size = 0;		
-		INT32 max_recv_count_per_1sec_ = 0; // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
-		INT32 max_recv_buffer_size_ = 0;
+		std::int32_t max_recv_packet_size_ = 0;
+		std::uint32_t max_try_1recv_buffer_size = 0;
+		std::int32_t max_recv_count_per_1sec_ = 0; // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
+		std::int32_t max_recv_buffer_size_ = 0;
 
-		INT32 max_send_packet_size_ = 0;
-		INT32 max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
-		INT32 max_send_buffer_size_ = 0;
+		std::int32_t max_send_packet_size_ = 0;
+		std::int32_t max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
+		std::int32_t max_send_buffer_size_ = 0;
 		
 	};
 
 	struct NetConfig
 	{
-		UINT16 port_number_ = 0;
-		INT32 io_work_thread_count_ = 0;
+		std::uint16_t port_number_ = 0;
+		std::int32_t io_work_thread_count_ = 0;
 
-		INT32 max_connection_count_ = 0;
+		std::int32_t max_connection_count_ = 0;
 		ConnectionNetConfig conn_cfg_;
 	};
 
@@ -61,7 +61,7 @@ namespace c2rionet
 	char LogLevelStr[(int)LogLevel::kEND][6] = { "trace", "debug", "info", "warn", "error", "fetal"  };
 
 
-	enum class NetErrorCode : INT16
+	enum class NetErrorCode : std::int16_t
 	{
 		kNONE = 0,
 		kSESSION_COUNT_PER_THREAD_INCORRECT = 1,
@@ -81,8 +81,8 @@ namespace c2rionet
 
 	struct LazyedDisConnectSession
 	{
-		INT32 session_index_ = -1;
-		UINT64 unique_id_ = 0;
+		std::int32_t session_index_ = -1;
+		std::uint64_t unique_id_ = 0;
 		DisconnectReason reason_ = DisconnectReason::kNONE;
 	};
 				
