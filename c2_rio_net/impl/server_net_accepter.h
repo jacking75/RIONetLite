@@ -27,11 +27,9 @@ namespace c2rionet
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
 
 			is_run_ = true;
-			while (is_run_)
-			{
+			while (is_run_) {
 				SOCKET acceptedSock = accept(listen_socket, NULL, NULL);
-				if (acceptedSock == INVALID_SOCKET)
-				{
+				if (acceptedSock == INVALID_SOCKET) {
 					LogFuncPtr((int)LogLevel::kERROR, "RIONetManager::StartAcceptLoop() - accept invalid socket");
 					continue;
 				}
@@ -40,10 +38,9 @@ namespace c2rionet
 
 				/// new client session (should not be under any session locks)
 				auto pSession = session_mgr.IssueClientSession(curTimeSec);
-				if (pSession == nullptr)
-				{
+				if (pSession == nullptr) {
 					//사용할 수 있는 세션이 없는 상태이므로 연결을 끊고, 잠시 대기한다
-					LogFuncPtr((int)LogLevel::kDEBUG, "RIONetManager::StartAcceptLoop() - Empry Session Pool");
+					LogFuncPtr((int)LogLevel::kDEBUG, "Accepter::Run() - Empry Session Pool");
 					closesocket(acceptedSock);
 					Sleep(1000);
 					continue;
@@ -55,21 +52,19 @@ namespace c2rionet
 				/// create socket RQ
 				/// SEND and RECV within one CQ (you can do with two CQs, seperately)
 				if (auto rioRequestQueue = RIO.RIOCreateRequestQueue(acceptedSock,
-					1, 1, // 받기는 연속으로 요청하지 않으므로 1
-					net_cfg.max_send_count_per_1sec_, 1,
-					rio_completion_queues[clientThreadId],
-					rio_completion_queues[clientThreadId],
-					NULL); rioRequestQueue != RIO_INVALID_RQ) {
+													1, 1, // 받기는 연속으로 요청하지 않으므로 1
+													net_cfg.max_send_count_per_1sec_, 1,
+													rio_completion_queues[clientThreadId],
+													rio_completion_queues[clientThreadId],
+													NULL); rioRequestQueue != RIO_INVALID_RQ) {
 					
 					++connect_sequence_id_;
-					if (pSession->OnConnect(connect_sequence_id_, acceptedSock, rioRequestQueue) == false)
-					{
+					if (pSession->OnConnect(connect_sequence_id_, acceptedSock, rioRequestQueue) == false) {
 						DisConnectFunc(pSession, 0, DisconnectReason::kkACCEPT_LOOP_ON_CONNECT_ERROR);
 						continue;
 					}
-				}
-				else {
-					sprintf_s(logmsg, "RIONetManager::StartAcceptLoop() - RIOCreateRequestQueue Error: %d", GetLastError());
+				} else {
+					sprintf_s(logmsg, "Accepter::Run() - RIOCreateRequestQueue Error: %d", GetLastError());
 					LogFuncPtr((int)LogLevel::kERROR, logmsg);
 
 					DisConnectFunc(pSession, 0, DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR);

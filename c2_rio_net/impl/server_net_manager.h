@@ -81,7 +81,7 @@ namespace c2rionet
 							const UINT32 data_size, const char* p_data)
 		{
 			if (auto ret = session_mgr_.SendData(session_index, session_uid, data_size, p_data);
-				ret != NetErrorCode::kNONE) {
+						ret != NetErrorCode::kNONE) {
 				if (ret == NetErrorCode::kSEND_IO_FAIL) {
 					ForcedClose(session_index, DisconnectReason::kSEND_ERROR);
 				}
@@ -113,15 +113,13 @@ namespace c2rionet
 			auto sessionIndex = p_session->GetIndex();
 
 			if (reason == DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR ||
-				reason == DisconnectReason::kkACCEPT_LOOP_ON_CONNECT_ERROR)
-			{
+				reason == DisconnectReason::kkACCEPT_LOOP_ON_CONNECT_ERROR) {
 				p_session->DisConnectByAcceptFail();
 				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
 				return;
 			}
 
-			if (p_session->Disconnect(session_uid))
-			{
+			if (p_session->Disconnect(session_uid)) {
 				net_event_mgr_->OnClose(sessionIndex, reason);
 				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
 			}

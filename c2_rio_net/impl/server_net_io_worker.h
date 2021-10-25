@@ -42,13 +42,11 @@ namespace c2rionet
 
 			const unsigned int maxCQSizePerRIOThread = (1 + max_send_count_per_1sec) * session_count_per_rio_thread;
 
-			for (std::uint32_t i = 0; i < rio_thread_count; ++i)
-			{
-				auto rioQueue = RIO.RIOCreateCompletionQueue(maxCQSizePerRIOThread, 0);
-				if (rioQueue == RIO_INVALID_CQ) {
+			for (std::uint32_t i = 0; i < rio_thread_count; ++i) {				
+				if (auto rioQueue = RIO.RIOCreateCompletionQueue(maxCQSizePerRIOThread, 0); 
+							rioQueue == RIO_INVALID_CQ) {
 					return false;
-				}
-				else {
+				} else {
 					rio_completion_queues.push_back(rioQueue);
 				}
 
@@ -68,10 +66,8 @@ namespace c2rionet
 		{
 			is_run_ = true;
 
-			for (auto& thread : io_work_threads_)
-			{
-				if (thread.joinable())
-				{
+			for (auto& thread : io_work_threads_) {
+				if (thread.joinable()) {
 					thread.join();
 				}
 			}
@@ -87,19 +83,16 @@ namespace c2rionet
 
 			pref_lazyed_dis_conn_mgr_->AddSessionQueue();
 
-			while (is_run_)
-			{
+			while (is_run_) {
 				memset(results, 0, sizeof(results));
 				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues[threadIndex], results, coreCount);
 
-				if (RIO_CORRUPT_CQ == numResults)
-				{
+				if (RIO_CORRUPT_CQ == numResults) {
 					LogFuncPtr((int)LogLevel::kFATAL, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
 					continue;
 				}
 
-				for (ULONG i = 0; i < numResults; ++i)
-				{
+				for (ULONG i = 0; i < numResults; ++i) {
 					auto context = reinterpret_cast<RioIoContext*>(results[i].RequestContext);
 					auto pSession = pref_session_mgr_->GetSessionObj(context->session_index_);
 					auto transferred = results[i].BytesTransferred;
@@ -109,7 +102,9 @@ namespace c2rionet
 
 				pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(threadIndex, pref_session_mgr_);
 
-				if (0 == numResults) { Sleep(1); }///< for low cpu-usage
+				if (0 == numResults) { 
+					Sleep(1); ///< for low cpu-usage
+				}
 			}
 
 			delete results;
@@ -122,34 +117,24 @@ namespace c2rionet
 		{
 			auto sessionUniqueIdByRioConext = p_context->session_unique_Id_;
 
-			if (transferred == 0)
-			{
+			if (transferred == 0) {
 				DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kZERO_COMPLETION);
-			}
-			else if (IOType::kRECV == p_context->io_type_)
-			{
+			} else if (IOType::kRECV == p_context->io_type_) {
 				RecvCompletion(p_session, transferred);
 
-				if (auto result = p_session->PostRecv(); result != NetErrorCode::kNONE)
-				{
-					if (result == NetErrorCode::kRECV_RIO_FAIL)
-					{
+				if (auto result = p_session->PostRecv(); result != NetErrorCode::kNONE) {
+					if (result == NetErrorCode::kRECV_RIO_FAIL) {
 						DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kIO_REQUEST_RECV_ERROR);
 					}
 				}
-			}
-			else if (IOType::kSEND == p_context->io_type_)
-			{
+			} else if (IOType::kSEND == p_context->io_type_) {
 				auto postDataLen = p_context->Length;
 				p_session->SendCompletion(p_context);
 
-				if (postDataLen != transferred)
-				{
+				if (postDataLen != transferred) {
 					DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kPARITAL_SEND_COMPLETION);
 				}
-			}
-			else
-			{
+			} else {
 				char logmsg[256] = { 0, };
 				sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Unknown I/O Type: %d", p_context->io_type_);
 				LogFuncPtr((int)LogLevel::kERROR, logmsg);
@@ -157,7 +142,7 @@ namespace c2rionet
 		}
 
 		// 받기 버퍼의 읽은 위치도 여기서 이동 시키므로 링버퍼의 데이터가 겹치는 것을 막고 싶으면 애플리케이션에서 OnReceive의 데이터를 다 사용할 때까지 잘 보관해야 한다.
-		void RecvCompletion(TcpSession* p_session, const UINT32 transferred)
+		void RecvCompletion(TcpSession* p_session, const std::uint32_t transferred)
 		{
 			p_session->RecvCompletion(transferred);
 
@@ -183,6 +168,7 @@ namespace c2rionet
 			sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - End. threadIndex: %d", threadIndex_);
 			LogFuncPtr((int)LogLevel::kINFO, logmsg);
 		}
+
 
 	private:
 		bool is_run_ = false;
