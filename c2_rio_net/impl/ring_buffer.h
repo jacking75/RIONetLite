@@ -2,6 +2,8 @@
 
 #include "circular_memory.h"
 
+#include <string>
+#include <tuple>
 #include <cstdint>
 
 
@@ -20,15 +22,14 @@ namespace c2rionet
 
 		char* GetBuffer() { return ring_buffer_; }
 		
-		int Create(const bool is_write_only, const std::uint32_t ring_buffer_size)
+		std::tuple<int, std::string> Create(const bool is_write_only, const std::uint32_t ring_buffer_size)
 		{
 			is_write_only_ = is_write_only;
 
-			auto [pRingBuffer, errorCode] = CircularMemory::AllocMemory(ring_buffer_size, &secondary_view_);
+			auto [pRingBuffer, errorCode, error_msg] = CircularMemory::AllocMemory(ring_buffer_size, &secondary_view_);
 
 			if (pRingBuffer == nullptr) {
-				printf("CreateRingBuffer failed\n");
-				return errorCode;
+				return { errorCode, error_msg };
 			}
 
 			ring_buffer_ = pRingBuffer;
@@ -36,7 +37,7 @@ namespace c2rionet
 
 			Clear();
 
-			return errorCode;
+			return { errorCode, error_msg };
 		}
 
 		// VirtualAlloc2의 링버퍼를 사용하고 있어서 주소로는 2배까지 사용 가능하다. 

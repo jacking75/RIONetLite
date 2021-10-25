@@ -6,6 +6,7 @@
 #include "rio_context.h"
 
 #include <vector>
+#include <format>
 #include <cstdint>
 
 namespace c2rionet
@@ -40,9 +41,10 @@ namespace c2rionet
 			max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
 			io_sender_.Init(index_, net_config);
 			
-			if (auto result = recv_buffer_.Create(false, net_config.max_recv_buffer_size_);
-					result != 0) {
-				LogFuncPtr((int)LogLevel::kERROR, "Session::RioInitialize() - fail mRecvBuffer.Create");
+			if (auto [err_code, err_msg] = recv_buffer_.Create(false, net_config.max_recv_buffer_size_);
+				err_code != (int)NetErrorCode::kNONE) {
+
+				LogFuncPtr((int)LogLevel::kERROR, std::format("Session::RioInitialize() - fail mRecvBuffer.Create. {0}, {1}", err_code, err_msg).c_str());
 				return false;
 			}
 

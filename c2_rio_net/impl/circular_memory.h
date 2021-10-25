@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <tuple>
+#include <string>
+#include <format>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -10,6 +12,7 @@
 // MS Docs에는 Kernel32.lib 이 필수 lib인데 아래 lib이 필수 lib임 -_-;;
 #pragma comment(lib,"mincore.lib")
 
+// 정리: https://docs.google.com/document/d/175VX3vthy_O88EvfYRaOJ-sf9XoBHmMAMzA5Cq5Pui8/edit?usp=sharing
 //https://docs.microsoft.com/ko-kr/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc2
 //int main()
 //{
@@ -44,9 +47,10 @@ namespace c2rionet
 {	
 	struct CircularMemory
 	{
-		static std::tuple<char*, int> AllocMemory(UINT32 buffer_size, _Outptr_ void** secondary_view)
+		static std::tuple<char*, int, std::string> AllocMemory(UINT32 buffer_size, _Outptr_ void** secondary_view)
 		{
-			int errorCode = 0;
+			int error_code = 0;
+			std::string error_msg = "";
 			BOOL result;
 			HANDLE section = nullptr;
 			SYSTEM_INFO sysInfo;
@@ -72,6 +76,10 @@ namespace c2rionet
 			//
 
 			// bufferSize의 크기는 4096의 배수이어야 한다!!!
+			if ((buffer_size % sysInfo.dwPageSize) != 0) {
+				return { nullptr, 6, "size of bufferSize is not a multiple of page size" };
+			}
+
 			placeholder1 = (PCHAR)VirtualAlloc2(
 				nullptr,
 				nullptr,
@@ -82,8 +90,8 @@ namespace c2rionet
 			);
 
 			if (placeholder1 == nullptr) {
-				errorCode = 1;
-				printf("VirtualAlloc2 failed, error %#x\n", GetLastError());
+				error_code = 1;
+				error_msg = std::format("VirtualAlloc2 failed, errorCode: {0}", GetLastError());
 				goto Exit;
 			}
 
@@ -97,8 +105,8 @@ namespace c2rionet
 			);
 
 			if (result == FALSE) {
-				errorCode = 2;
-				printf("VirtualFreeEx failed, error %#x\n", GetLastError());
+				error_code = 2;
+				error_msg = std::format("VirtualFreeEx failed, errorCode: {0}", GetLastError());
 				goto Exit;
 			}
 
@@ -117,8 +125,8 @@ namespace c2rionet
 			);
 
 			if (section == nullptr) {
-				errorCode = 3;
-				printf("CreateFileMapping failed, error %#x\n", GetLastError());
+				error_code = 3;
+				error_msg = std::format("CreateFileMapping failed, errorCode: {0}", GetLastError());
 				goto Exit;
 			}
 
@@ -138,8 +146,8 @@ namespace c2rionet
 			);
 
 			if (view1 == nullptr) {
-				errorCode = 4;
-				printf("MapViewOfFile3 failed, error %#x\n", GetLastError());
+				error_code = 4;
+				error_msg = std::format("MapViewOfFile3 failed, errorCode: {0}", GetLastError());
 				goto Exit;
 			}
 
@@ -165,8 +173,8 @@ namespace c2rionet
 			);
 
 			if (view2 == nullptr) {
-				errorCode = 5;
-				printf("MapViewOfFile3 failed, error %#x\n", GetLastError());
+				error_code = 5;
+				error_msg = std::format("MapViewOfFile3 failed, errorCode: {0}", GetLastError());
 				goto Exit;
 			}
 
@@ -203,7 +211,7 @@ namespace c2rionet
 				UnmapViewOfFileEx(view2, 0);
 			}
 
-			return { (char*)ringBuffer, errorCode };
+			return { (char*)ringBuffer, error_code, error_msg };
 		}
 
 		static void Release(char* pRingBuffer, void* pSecondaryView)

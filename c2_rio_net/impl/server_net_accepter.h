@@ -37,7 +37,7 @@ namespace c2rionet
 				auto curTimeSec = Helper::CurrentSecond();
 
 				/// new client session (should not be under any session locks)
-				auto pSession = session_mgr.IssueClientSession(curTimeSec);
+				auto pSession = session_mgr.AllocClientSession(curTimeSec);
 				if (pSession == nullptr) {
 					//사용할 수 있는 세션이 없는 상태이므로 연결을 끊고, 잠시 대기한다
 					LogFuncPtr((int)LogLevel::kDEBUG, "Accepter::Run() - Empry Session Pool");

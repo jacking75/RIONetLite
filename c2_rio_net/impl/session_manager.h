@@ -37,6 +37,7 @@ namespace c2rionet
 			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i) {
 				for (decltype(session_count_per_rio_thread) j = 0; j < session_count_per_rio_thread; ++j) {
 					auto client = new TcpSession;
+
 					client->Init(client_index, i);
 
 					if (client->RioInitialize(net_cfg.conn_cfg_) == false) { 
@@ -44,7 +45,8 @@ namespace c2rionet
 					}
 
 					sessions_.push_back(client);
-					free_session_indexs_.emplace_back(SessionIndexContext{ client_index, 0 });
+					free_session_indexs_.emplace_back(SessionIndexContext{ .index_ = client_index, 
+																			.reuse_able_timesec_ = 0 });
 					
 					++client_index;
 				}
@@ -93,7 +95,7 @@ namespace c2rionet
 			return sessions_[session_index];
 		}
 
-		TcpSession* IssueClientSession(const std::uint64_t cur_sec)
+		TcpSession* AllocClientSession(const std::uint64_t cur_sec)
 		{
 			FastSpinlockGuard guard(lock_);
 

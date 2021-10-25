@@ -5,6 +5,7 @@
 #include "rio_context.h"
 
 #include <vector>
+#include <format>
 #include <cstdint>
 
 
@@ -26,9 +27,10 @@ namespace c2rionet
 			max_send_count_per_1sec_ = net_cfg.max_send_count_per_1sec_;
 			max_send_ring_buffer_size_ = net_cfg.max_send_buffer_size_;
 			
-			if (auto isResult = send_buffer_.Create(true, max_send_ring_buffer_size_); 
-				isResult != 0) {
-				LogFuncPtr((int)LogLevel::kERROR, "NetSenderImmediately::Init() - fail mSendBuffer.Create");
+			if (auto [err_code, err_msg] = send_buffer_.Create(true, max_send_ring_buffer_size_); 
+				err_code != (int)NetErrorCode::kNONE) {
+
+				LogFuncPtr((int)LogLevel::kERROR, std::format("SendImmediately::Init() - fail mSendBuffer.Create. {0}, {1}", err_code, err_msg).c_str());
 				return false;
 			}
 
