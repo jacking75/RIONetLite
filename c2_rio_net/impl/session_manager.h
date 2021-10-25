@@ -25,10 +25,11 @@ namespace c2rionet
 		SessionManager() = default;
 		~SessionManager() = default;
 		
-		bool PrepareSessionPool(unsigned int session_count_per_rio_thread, NetConfig net_cfg)
+		bool PrepareSessionPool(NetConfig net_cfg)
 		{
 			unsigned int client_index = 0;
 			auto rioThreadCount = net_cfg.io_work_thread_count_;
+			auto session_count_per_rio_thread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;
 
 			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i)
 			{

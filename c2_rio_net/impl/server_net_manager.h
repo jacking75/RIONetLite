@@ -26,23 +26,17 @@ namespace c2rionet
 			if (auto ret = ServerNetManagerInit::Initialize(listen_socket_, net_cfg); ret != NetErrorCode::kNONE) {
 				return ret;
 			}
-
-			
-			auto sessionCountPerRioThread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;
-
-			if (session_mgr_.PrepareSessionPool(sessionCountPerRioThread, net_cfg) == false) {
+						
+			if (session_mgr_.PrepareSessionPool(net_cfg) == false) {
 				return NetErrorCode::kPREPARE_SESSION_POOL_FAIL;
 			}
 
-
 			io_worker_.Init(&lazyed_dis_conn_mgr_, &session_mgr_, p_net_event_mgr);
-
 
 			auto dis_connect_func = [&](TcpSession* p_session, const uint64_t session_uid, const DisconnectReason reason)
 			{
 				Disconnect(p_session, session_uid, reason);
 			};
-
 			io_worker_.DisConnectFunc = dis_connect_func;
 			accepter_.DisConnectFunc = dis_connect_func;
 			lazyed_dis_conn_mgr_.DisConnectFunc = dis_connect_func;
