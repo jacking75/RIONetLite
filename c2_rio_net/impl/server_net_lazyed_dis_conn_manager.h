@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <functional>
+#include <cstdint>
 #include <concurrent_queue.h>
 
 namespace c2rionet
@@ -20,7 +21,9 @@ namespace c2rionet
 			lazyed_dis_connect_sessions_.emplace_back();
 		}
 
-		void AddSession(const int thread_index, const INT32 session_index, const UINT64 session_uid, DisconnectReason reason)
+		void AddSession(const int thread_index, 
+						const INT32 session_index, const UINT64 session_uid, 
+						const DisconnectReason reason)
 		{
 			lazyed_dis_connect_sessions_[thread_index].push({
 					session_index, session_uid, reason
@@ -39,22 +42,24 @@ namespace c2rionet
 		{
 			while (true) {
 				if (auto disConnectInfo = FetchSession(thread_index);
-					disConnectInfo.unique_id_ <= 0) {
+						disConnectInfo.unique_id_ <= 0) {
 					break;
 				}
 				else {
-					auto pSession = p_session_mgr->GetSessionObj(disConnectInfo.session_index_, disConnectInfo.unique_id_);
-					if (pSession == nullptr) {
+					if (auto pSession = p_session_mgr->GetSessionObj(disConnectInfo.session_index_,																		disConnectInfo.unique_id_);
+						pSession == nullptr
+						) {
 						break;
-					}
-
-					DisConnectFunc(pSession, disConnectInfo.unique_id_, disConnectInfo.reason_);
+					} else {
+						DisConnectFunc(pSession, disConnectInfo.unique_id_, disConnectInfo.reason_);
+					}					
 				}
-
 			}
 		}
 
+
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
+
 
 	private:
 		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> lazyed_dis_connect_sessions_;

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "sendpacket_buffer.h"
-
+#include "send_ring_buffer.h"
 #include "fast_spin_lock.h"
 #include "rio_context.h"
 #include "../define.h"

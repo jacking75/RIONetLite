@@ -58,7 +58,7 @@ namespace c2rionet
 			}
 
 			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "RIONetManager::CreateListenSocketAndBind() - Port: %d", port);
+			sprintf_s(logmsg, "success Bind, Listen - Port: %d", port);
 			LogFuncPtr((int)LogLevel::kINFO, logmsg);
 			return NetErrorCode::kNONE;
 		}

@@ -11,11 +11,11 @@
 namespace c2rionet
 {
 	// 스레드 세이프 하지 않다 !!!
-	class NetSenderImmediately
+	class SendImmediately
 	{
 	public:
-		NetSenderImmediately() = default;
-		~NetSenderImmediately() = default;
+		SendImmediately() = default;
+		~SendImmediately() = default;
 		
 		char* GetBuffer() { return send_buffer_.GetBuffer(); }
 

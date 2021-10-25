@@ -42,7 +42,7 @@
     <ClInclude Include="..\..\c2_rio_net\impl\helper.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\net_sender_immediately.h">
+    <ClInclude Include="..\..\c2_rio_net\impl\send_immediately.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\ring_buffer.h">
@@ -51,13 +51,13 @@
     <ClInclude Include="..\..\c2_rio_net\impl\rio_context.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_buffer.h">
+    <ClInclude Include="..\..\c2_rio_net\impl\send_ring_buffer.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_manager.h">
+    <ClInclude Include="..\..\c2_rio_net\impl\send_manager.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\sendpacket_session.h">
+    <ClInclude Include="..\..\c2_rio_net\impl\send_session.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\session_manager.h">
@@ -77,6 +77,9 @@
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_accepter.h">
+      <Filter>c2_rio_net\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net_io_worker.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
   </ItemGroup>

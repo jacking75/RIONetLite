@@ -24,9 +24,7 @@ public:
 
 		content_.pref_net_mgr_ = &net_mgr_;
 		if (auto result = net_mgr_.Initialize(netConfig, &content_); result != netErrorCode::kNONE) {
-			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "main() - netManager.Initialize() Error: %d", result);
-			WriteLog((int)c2rionet::LogLevel::kERROR, logmsg);
+			WriteLog_Initialize("main() - netManager.Initialize() Error: %d", result);
 			return false;
 		}
 
@@ -36,7 +34,7 @@ public:
 	void Start()
 	{
 		logic_thread_ = std::thread([&]() { 
-			net_mgr_.StartAndBlocking(); 
+				net_mgr_.StartAndBlocking(); 
 			});
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(256));
@@ -93,6 +91,12 @@ public:
 		printf("[%s] %s\r\n", c2rionet::LogLevelStr[eLogInfoType], szLogMsg);
 	}
 
+	static void WriteLog_Initialize(const char* sz_format, const netErrorCode error)
+	{
+		char logmsg[256] = { 0, };
+		sprintf_s(logmsg, sz_format, error);
+		WriteLog((int)c2rionet::LogLevel::kERROR, logmsg);
+	}
 	
 
 

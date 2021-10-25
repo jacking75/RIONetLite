@@ -6,11 +6,11 @@
 
 namespace c2rionet
 {
-	class SenderManager
+	class SendManager
 	{
 	public:
-		SenderManager() = default;
-		~SenderManager() = default;
+		SendManager() = default;
+		~SendManager() = default;
 		
 
 		bool Start(const NetSendConfig net_config)

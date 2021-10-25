@@ -5,21 +5,24 @@
 #include "../../c2_rio_net/i_net_event_manager.h"
 #include "../../c2_rio_net/server_net_manager.h"
 
+#include <cstdint>
+
 
 class EchoServerContent : public c2rionet::INetEventManager
 {
 public:
-	void OnConnect(const INT32 index, const UINT64 uid) override
+	void OnConnect(const std::int32_t index, const std::uint64_t uid) override
 	{
 		printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uid);
 	}
 
-	void OnClose(const INT32 index, const c2rionet::DisconnectReason reason) override
+	void OnClose(const std::int32_t index, const c2rionet::DisconnectReason reason) override
 	{
 		printf("[OnClose] - SessionIndex(%d), Reason(%s)\n", index, c2rionet::DisconnectReasonStr[(int)reason]);
 	}
 
-	UINT32 OnReceive(const INT32 index, const UINT64 uid, const UINT32 data_size, const char* p_data) override
+	std::uint32_t OnReceive(const std::int32_t index, const std::uint64_t uid, 
+							const std::uint32_t data_size, const char* p_data) override
 	{
 		// 이 데이터는 방금 받은 데이터로 여기서 사용 도중 세션이 끊어져서 이 세션이 재 사용되면 버퍼의 값이 이상해질 수 있다. 이 이벤트 발생 후 RE_USE_SESSION_WAITE_TIMESEC는 보장한다
 		//printf("[OnReceive] - SessionIndex(%d), size(%d)\n", index_, (int)dataSize_);
@@ -28,9 +31,10 @@ public:
 		return usedDataSize;
 	}
 
-	UINT32 ProcessPacket(const INT32 index, const UINT64 uid, const UINT32 data_size, const char* p_data)
+	std::uint32_t ProcessPacket(const std::int32_t index, const std::uint64_t uid, 
+								const std::uint32_t data_size, const char* p_data)
 	{
-		INT32 readPos = 0;
+		std::int32_t readPos = 0;
 		auto remainSize = data_size;
 
 		while (remainSize >= PACKET_HEADER_SIZE) {
