@@ -52,7 +52,6 @@ namespace c2rionet
 - 리팩토링
  - 코딩 스타일 지키기
  - modern c++ 20
-  - std::option 사용하기
  - 파일 분할
   - io_work 분할
  - c++의 정수 타입 사용하기  https://www.enseignement.polytechnique.fr/informatique/INF478/docs/Cpp/en/cpp/types/integer.html
@@ -62,4 +61,8 @@ namespace c2rionet
  - 채팅 서버
  - 오목 서버
  - 메타버스
+*/
+
+/*
+- 2021.10.24 std::option 이 VS 2019에서 성능 이슈가 있음. 사용하지 않은 것과 비교해서 10배 정도 느림. 그래서 여기서는 사용하지 않음.
 */
