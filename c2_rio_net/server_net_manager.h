@@ -1,14 +1,14 @@
 ﻿#pragma once
 
-#include <vector>
-#include <thread>
-#include <concurrent_queue.h>
-
 #include "i_net_event_manager.h"
+#include "define.h"
 #include ".\impl\server_net_manager.h"
 #include ".\impl\helper.h"
-#include "define.h"
 
+#include <vector>
+#include <thread>
+#include <cstdint>
+#include <concurrent_queue.h>
 
 
 namespace c2rionet
@@ -20,23 +20,29 @@ namespace c2rionet
 		~ServerNetManager() = default;
 		
 	
-		NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr) {
+		NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr) 
+		{
 			return impl_.Initialize(net_cfg, p_net_event_mgr);
 		}
 
-		void StartAndBlocking() { 
+		void StartAndBlocking() 
+		{
 			impl_.StartAndBlocking();
 		}
 		
-		void End() { 
+		void End() 
+		{ 
 			impl_.End(); 
 		}
 		
-		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, const UINT32 data_size, const char* p_data) {
+		NetErrorCode SendData(const std::int32_t session_index, const std::uint64_t session_uid, 
+								const std::uint32_t data_size, const char* p_data) 
+		{
 			return impl_.SendData(session_index, session_uid, data_size, p_data);
 		}
 
-		void ForcedClose(const INT32 session_index, const UINT64 session_uid) {
+		void ForcedClose(const std::int32_t session_index, const std::uint64_t session_uid) 
+		{
 			impl_.ForcedClose(session_index, session_uid);
 		}
 		

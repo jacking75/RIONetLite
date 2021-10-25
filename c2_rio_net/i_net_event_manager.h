@@ -2,6 +2,8 @@
 
 #include "define.h"
 
+#include <cstdint>
+
 
 namespace c2rionet
 {
@@ -11,20 +13,20 @@ namespace c2rionet
 		INetEventManager() = default;
 		virtual ~INetEventManager() = default;
 
-		virtual void OnConnect([[maybe_unused]] const INT32 index_, 
-			[[maybe_unused]] const UINT64 uniqueId_)
+		virtual void OnConnect([[maybe_unused]] const std::int32_t index_, 
+								[[maybe_unused]] const std::uint64_t uniqueId_)
 		{
 		}
 
-		virtual void OnClose([[maybe_unused]] const INT32 index_, 
-			[[maybe_unused]] const c2rionet::DisconnectReason reason_)
+		virtual void OnClose([[maybe_unused]] const std::int32_t index_, 
+							[[maybe_unused]] const c2rionet::DisconnectReason reason_)
 		{
 		}
 
-		virtual UINT32 OnReceive([[maybe_unused]] const INT32 index_, 
-			[[maybe_unused]] const UINT64 uniqueId_, 
-			[[maybe_unused]] const UINT32 dataSize_, 
-			[[maybe_unused]] const char* pData_)
+		virtual std::uint32_t OnReceive([[maybe_unused]] const std::int32_t index_,
+										[[maybe_unused]] const std::uint64_t uniqueId_,
+										[[maybe_unused]] const std::uint32_t dataSize_,
+										[[maybe_unused]] const char* pData_)
 		{
 			return 0;
 		}
