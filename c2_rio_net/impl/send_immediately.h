@@ -41,11 +41,11 @@ namespace c2rionet
 				send_contexts_.push_back(context);
 			}
 
-			send_rio_buffer_id_ = RIO.RIORegisterBuffer(send_buffer_.GetBuffer(), send_buffer_.EnableBufferSize());
+			send_rio_buffer_id_ = RIO.RIORegisterBuffer(send_buffer_.GetBuffer(),
+													send_buffer_.EnableBufferSize());
 			if (send_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
-				char logmsg[512] = { 0, };
-				sprintf_s(logmsg, "NetSenderImmediately::Init() - RIORegisterBuffer Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::kERROR, logmsg);
+				LogFuncPtr((int)LogLevel::kERROR, 
+					std::format("NetSenderImmediately::Init() - RIORegisterBuffer Error: {0}", GetLastError()).c_str());
 				return false;
 			}
 

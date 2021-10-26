@@ -39,20 +39,22 @@ namespace c2rionet
 		bool RioInitialize(const ConnectionNetConfig net_config)
 		{
 			max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
+			
 			io_sender_.Init(index_, net_config);
 			
-			if (auto [err_code, err_msg] = recv_buffer_.Create(false, net_config.max_recv_buffer_size_);
+			if (auto [err_code, err_msg] = recv_buffer_.Create(false, 
+											net_config.max_recv_buffer_size_);
 				err_code != (int)NetErrorCode::kNONE) {
 
 				LogFuncPtr((int)LogLevel::kERROR, std::format("Session::RioInitialize() - fail mRecvBuffer.Create. {0}, {1}", err_code, err_msg).c_str());
 				return false;
 			}
 
-			recv_rio_buffer_id_ = RIO.RIORegisterBuffer(recv_buffer_.GetBuffer(), recv_buffer_.EnableBufferSize());
+			recv_rio_buffer_id_ = RIO.RIORegisterBuffer(recv_buffer_.GetBuffer(), 
+														recv_buffer_.EnableBufferSize());
 			if (recv_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
-				char logmsg[256] = { 0, };
-				sprintf_s(logmsg, "Session::RioInitialize() - RIORegisterBuffer Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::kERROR, logmsg);
+				LogFuncPtr((int)LogLevel::kERROR, 
+					std::format("Session::RioInitialize() - RIORegisterBuffer Error: {0}", GetLastError()).c_str());
 
 				return false;
 			}
@@ -127,11 +129,13 @@ namespace c2rionet
 						
 			/// start async recv
 			DWORD flags = 0;
-			if (!RIO.RIOReceive(rio_rq_, (PRIO_BUF)&recv_context_, 1, flags, &recv_context_)) {
-				char logmsg[256] = { 0, };
-				sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
-				LogFuncPtr((int)LogLevel::kERROR, logmsg);
-
+			if (!RIO.RIOReceive(rio_rq_, 
+							(PRIO_BUF)&recv_context_, 
+							1, 
+							flags, 
+							&recv_context_)
+				) {
+				WriteLog_FailPostRecv();
 				return NetErrorCode::kRECV_RIO_FAIL;
 			}
 
@@ -139,11 +143,17 @@ namespace c2rionet
 		}
 		
 
-		void RecvCompletion(const std::uint32_t size) { recv_buffer_.Write(size); }
+		void RecvCompletion(const std::uint32_t size) 
+		{ 
+			recv_buffer_.Write(size); 
+		}
 
 		std::tuple<std::uint32_t, char*> ReadRecvBuffer() { return recv_buffer_.Read(); }
 
-		void IncremantReadPosRecvBuffer(const std::uint32_t size) { recv_buffer_.IncremantReadPos(size); }
+		void IncremantReadPosRecvBuffer(const std::uint32_t size) 
+		{ 
+			recv_buffer_.IncremantReadPos(size); 
+		}
 
 		
 		bool Disconnect(const std::uint64_t uid)
@@ -193,6 +203,12 @@ namespace c2rionet
 			memcpy(&client_addr_, &clientaddr, sizeof(SOCKADDR_IN));
 		}
 
+		void WriteLog_FailPostRecv()
+		{
+			char logmsg[256] = { 0, };
+			sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
+			LogFuncPtr((int)LogLevel::kERROR, logmsg);
+		}
 
 
 		

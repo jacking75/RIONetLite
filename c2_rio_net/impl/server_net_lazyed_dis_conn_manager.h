@@ -16,6 +16,7 @@ namespace c2rionet
 		ServerNetLazyedDisConnManager() = default;
 		~ServerNetLazyedDisConnManager() = default;
 
+
 		void AddSessionQueue()
 		{
 			lazyed_dis_connect_sessions_.emplace_back();
@@ -42,16 +43,19 @@ namespace c2rionet
 		{
 			while (true) {
 				if (auto disConnectInfo = FetchSession(thread_index);
-						disConnectInfo.unique_id_ <= 0) {
+						disConnectInfo.uid <= 0) {
 					break;
 				}
 				else {
-					if (auto pSession = p_session_mgr->GetSessionObj(disConnectInfo.session_index_,																		disConnectInfo.unique_id_);
-						pSession == nullptr
+					auto session_index = disConnectInfo.session_index_;
+					auto uid = disConnectInfo.uid;
+
+					if (auto pSession = p_session_mgr->GetSessionObj(session_index,	uid);
+							pSession != nullptr
 						) {
-						break;
+						DisConnectFunc(pSession, uid, disConnectInfo.reason_);
 					} else {
-						DisConnectFunc(pSession, disConnectInfo.unique_id_, disConnectInfo.reason_);
+						continue;
 					}					
 				}
 			}

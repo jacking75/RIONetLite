@@ -36,9 +36,15 @@ namespace c2rionet
 			GUID functionTableId = WSAID_MULTIPLE_RIO;
 			DWORD dwBytes = 0;
 
-			if (WSAIoctl(socket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER, &functionTableId, sizeof(GUID),
-						(void**)&rio_function_table_, sizeof(rio_function_table_),
-						&dwBytes, NULL, NULL)
+			if (WSAIoctl(socket, 
+				SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER, 
+				&functionTableId, 
+				sizeof(GUID),
+				(void**)&rio_function_table_, 
+				sizeof(rio_function_table_),
+				&dwBytes, 
+				NULL, 
+				NULL)
 				) {
 				return false;
 			}

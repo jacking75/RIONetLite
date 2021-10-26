@@ -82,7 +82,7 @@ namespace c2rionet
 	struct LazyedDisConnectSession
 	{
 		std::int32_t session_index_ = -1;
-		std::uint64_t unique_id_ = 0;
+		std::uint64_t uid = 0;
 		DisconnectReason reason_ = DisconnectReason::kNONE;
 	};
 				
