@@ -56,7 +56,10 @@ namespace c2rionet
 									net_config_.io_work_thread_count_,
 									rio_completion_queues_);
 		
-			accepter_.Run(net_config_.conn_cfg_, listen_socket_, rio_completion_queues_, session_mgr_, net_event_mgr_);
+			accepter_.Run(net_config_.conn_cfg_, 
+							listen_socket_, 
+							rio_completion_queues_, 
+							session_mgr_, net_event_mgr_);
 		}
 		
 		void End()
