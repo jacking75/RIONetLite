@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include "i_net_event_manager.h"
+#include "i_net_event.h"
 #include "define.h"
-#include ".\impl\server_net_manager.h"
+#include ".\impl\server_net.h"
 #include ".\impl\helper.h"
 
 #include <vector>
@@ -53,24 +53,9 @@ namespace c2rionet
 
 }
 
-//TODO 리팩토링 및 기능 추가
-/*
-- 리팩토링
- - 코딩 스타일 지키기
- - modern c++ 20
- - 파일 분할
-  - io_work 분할
- - c++의 정수 타입 사용하기  https://www.enseignement.polytechnique.fr/informatique/INF478/docs/Cpp/en/cpp/types/integer.html
-- 기능 개선
- - 스케일업에 대응
-- 샘플 프로젝트
- - 채팅 서버
- - 오목 서버
- - 메타버스
-*/
-
-/*
-- std::cout 처럼 성능에 아직 이슈가 있는 것은 성능이 중료한 부분에서는 사용하지 않는다
-- 억지로 최신 C++ 표준 기능을 사용하지는 않는다.
-- 2021.10.24 std::option 이 VS 2019에서 성능 이슈가 있음. 사용하지 않은 것과 비교해서 10배 정도 느림. 그래서 여기서는 사용하지 않음.
-*/
+//TODO 코드 확인: send는 애플리케이션에서 호출하면 즉시 보내나?
+//TODO 리팩토링: modern c++ 20 
+//TODO 기능 개선: 세션은 동일한 스레드에서 recv 요청과, recv, send의  완료 큐가 처리 되므로 lock을 걸리 않아도 되지 않나?
+//TODO 기능 개선: send를 즉시 보내기와, 전용 스레드 사용 2가지 같이 구현 가능하나? 
+//TODO 샘플 프로젝트: 채팅 서버
+//TODO 샘플 프로젝트: 오목 서버

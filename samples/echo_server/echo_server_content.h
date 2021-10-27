@@ -2,8 +2,8 @@
 
 #include "Packet.h"
 
-#include "../../c2_rio_net/i_net_event_manager.h"
-#include "../../c2_rio_net/server_net_manager.h"
+#include "../../c2_rio_net/i_net_event.h"
+#include "../../c2_rio_net/server_net.h"
 
 #include <cstdint>
 

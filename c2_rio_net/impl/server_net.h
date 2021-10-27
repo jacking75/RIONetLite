@@ -6,7 +6,7 @@
 #include "server_net_io_worker.h"
 #include "session_manager.h"
 #include "helper.h"
-#include "..\i_net_event_manager.h"
+#include "..\i_net_event.h"
 #include "..\define.h"
 
 #include <vector>
@@ -116,7 +116,7 @@ namespace c2rionet
 			auto sessionIndex = p_session->GetIndex();
 
 			if (reason == DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR ||
-				reason == DisconnectReason::kkACCEPT_LOOP_ON_CONNECT_ERROR) {
+				reason == DisconnectReason::kACCEPT_LOOP_FAIL_ON_CONNECT) {
 				p_session->DisConnectByAcceptFail();
 				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
 				return;

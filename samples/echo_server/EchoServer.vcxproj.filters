@@ -20,15 +20,8 @@
     <ClInclude Include="..\server_common\message_net_event_manager.h">
       <Filter>server_common</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\server_net_manager.h">
-      <Filter>c2_rio_net</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\server_net_manager_impl.h" />
     <ClInclude Include="..\..\c2_rio_net\define.h">
       <Filter>c2_rio_net</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_manager.h">
-      <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\circular_memory.h">
       <Filter>c2_rio_net\impl</Filter>
@@ -69,9 +62,6 @@
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_init.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\i_net_event_manager.h">
-      <Filter>c2_rio_net</Filter>
-    </ClInclude>
     <ClInclude Include="echo_server_content.h" />
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_lazyed_dis_conn_manager.h">
       <Filter>c2_rio_net\impl</Filter>
@@ -80,6 +70,15 @@
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\impl\server_net_io_worker.h">
+      <Filter>c2_rio_net\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\i_net_event.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\server_net.h">
+      <Filter>c2_rio_net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\c2_rio_net\impl\server_net.h">
       <Filter>c2_rio_net\impl</Filter>
     </ClInclude>
   </ItemGroup>

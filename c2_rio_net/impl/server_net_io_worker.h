@@ -4,7 +4,7 @@
 #include "session_manager.h"
 #include "server_net_lazyed_dis_conn_manager.h"
 #include "helper.h"
-#include "../i_net_event_manager.h"
+#include "../i_net_event.h"
 #include "../define.h"
 
 #include <vector>
@@ -33,26 +33,26 @@ namespace c2rionet
 
 
 		bool StartIoThreads(const std::uint32_t rio_thread_count,
-			const std::uint32_t max_send_count_per_1sec,
-			const std::uint32_t max_connection_count,
-			const std::uint32_t io_work_thread_count, 
-			std::vector<RIO_CQ>& rio_completion_queues)
+							const std::uint32_t max_send_count_per_1sec,
+							const std::uint32_t max_connection_count,
+							const std::uint32_t io_work_thread_count, 
+							std::vector<RIO_CQ>& rio_completion_queues)
 		{
-			auto session_count_per_rio_thread = max_connection_count / io_work_thread_count;
-
-			const unsigned int maxCQSizePerRIOThread = (1 + max_send_count_per_1sec) * session_count_per_rio_thread;
+			auto max_cq_count_per_thread = MaxCQCountPerThread(max_connection_count,
+												io_work_thread_count,
+												max_send_count_per_1sec);
 
 			for (std::uint32_t i = 0; i < rio_thread_count; ++i) {				
-				if (auto rioQueue = RIO.RIOCreateCompletionQueue(maxCQSizePerRIOThread, 0); 
-							rioQueue == RIO_INVALID_CQ) {
+				auto rioQueue = RIO.RIOCreateCompletionQueue(max_cq_count_per_thread, 0);
+				if (rioQueue == RIO_INVALID_CQ) {
 					return false;
 				} else {
 					rio_completion_queues.push_back(rioQueue);
 				}
 
 				auto threadIndex = i;
-				io_work_threads_.emplace_back([threadIndex, &rio_completion_queues, this]() {
-						IoWorkerThread(threadIndex, rio_completion_queues);
+				io_work_threads_.emplace_back([threadIndex, &rioQueue, this]() {
+						IoWorkerThread(threadIndex, rioQueue);
 					});
 
 				// mIOWorkThreads 내부에서 초기화 작업이 있어서 잠시 대기한다
@@ -73,7 +73,7 @@ namespace c2rionet
 			}
 		}
 
-		void IoWorkerThread(const int thread_index, std::vector<RIO_CQ>& rio_completion_queues)
+		void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues)
 		{
 			auto threadIndex = thread_index;
 			auto coreCount = Helper::GetNumberOfProcessors();
@@ -85,7 +85,7 @@ namespace c2rionet
 
 			while (is_run_) {
 				memset(results, 0, sizeof(results));
-				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues[threadIndex], results, coreCount);
+				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues, results, coreCount);
 
 				if (RIO_CORRUPT_CQ == numResults) {
 					LogFuncPtr((int)LogLevel::kFATAL, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
@@ -152,6 +152,17 @@ namespace c2rionet
 															readSize,
 															pReadData);
 			p_session->IncremantReadPosRecvBuffer(usedSize);
+		}
+
+
+		uint32_t MaxCQCountPerThread(const std::uint32_t max_connection_count,
+									const std::uint32_t io_work_thread_count,
+									const std::uint32_t max_send_count_per_1sec)
+		{
+			auto session_count_per_rio_thread = max_connection_count / io_work_thread_count;
+			auto max_cq_count_per_rio_thread = (1 + max_send_count_per_1sec) * session_count_per_rio_thread;
+
+			return max_cq_count_per_rio_thread;
 		}
 
 		// logs
