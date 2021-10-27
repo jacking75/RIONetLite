@@ -75,11 +75,10 @@ namespace c2rionet
 
 		void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues)
 		{
-			auto threadIndex = thread_index;
 			auto coreCount = Helper::GetNumberOfProcessors();
 			auto results = new RIORESULT[coreCount];
 
-			IoWorkerThread_startLog(threadIndex, coreCount);
+			IoWorkerThread_startLog(thread_index, coreCount);
 
 			pref_lazyed_dis_conn_mgr_->AddSessionQueue();
 
@@ -100,7 +99,7 @@ namespace c2rionet
 					IoWorkerThread_ProceRIORequest(transferred, context, pSession);
 				}
 
-				pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(threadIndex, pref_session_mgr_);
+				pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(thread_index, pref_session_mgr_);
 
 				if (0 == numResults) { 
 					Sleep(1); ///< for low cpu-usage
@@ -109,7 +108,7 @@ namespace c2rionet
 
 			delete results;
 
-			IoWorkerThread_endLog(threadIndex);
+			IoWorkerThread_endLog(thread_index);
 			return;
 		}
 
@@ -165,6 +164,9 @@ namespace c2rionet
 			return max_cq_count_per_rio_thread;
 		}
 
+
+
+	private:
 		// logs
 		void IoWorkerThread_startLog(const int thread_index, const int core_count)
 		{
@@ -181,7 +183,7 @@ namespace c2rionet
 		}
 
 
-	private:
+	
 		bool is_run_ = false;
 
 		ServerNetLazyedDisConnManager* pref_lazyed_dis_conn_mgr_ = nullptr;
