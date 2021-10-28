@@ -4,6 +4,7 @@
 #include "ring_buffer.h"
 #include "fast_spin_lock.h"
 #include "rio_context.h"
+#include "../define.h"
 
 #include <vector>
 #include <format>
@@ -98,21 +99,28 @@ namespace c2rionet
 
 		bool PostSend(const UINT32 data_size, const char* p_data)
 		{
-			FastSpinlockGuard criticalSection(session_lock_);
+			if (IsConnected() == false) {
+				return false;
+			}
 
+			FastSpinlockGuard criticalSection(send_lock_);
 			auto result = io_sender_.PostSend(GetUniqueId(), data_size, p_data);
 			return result;
 		}
 
 		void SendCompletion(RioIoContext* p_send_context)
 		{
-			FastSpinlockGuard criticalSection(session_lock_);
+			if (IsConnected() == false) {
+				return;
+			}
+			
+			FastSpinlockGuard criticalSection(send_lock_);
 			io_sender_.Completed(p_send_context);
 		}
 
 		NetErrorCode PostRecv()
 		{
-			FastSpinlockGuard criticalSection(session_lock_);
+			//FastSpinlockGuard criticalSection(session_lock_);
 
 			if (IsConnected() == false) { 
 				return NetErrorCode::kRECV_CLOSED_STATUS; 
@@ -166,7 +174,7 @@ namespace c2rionet
 				return false;
 			}
 
-			FastSpinlockGuard criticalSection(session_lock_);
+			//FastSpinlockGuard criticalSection(session_lock_);
 
 			LINGER lingerOption;
 			lingerOption.l_onoff = 1;
@@ -212,7 +220,7 @@ namespace c2rionet
 
 
 		
-		FastSpinlock session_lock_;
+		FastSpinlock send_lock_;
 
 		int				index_ = -1;
 		std::uint32_t	max_try_1recv_buffer_size_ = 0;

@@ -10,6 +10,7 @@
 #include <vector>
 #include <functional>
 #include <thread>
+#include <format>
 #include <cstdint>
 
 namespace c2rionet
@@ -96,7 +97,7 @@ namespace c2rionet
 					auto pSession = pref_session_mgr_->GetSessionObj(context->session_index_);
 					auto transferred = results[i].BytesTransferred;
 
-					IoWorkerThread_ProceRIORequest(transferred, context, pSession);
+					ProcessRIOCQ(transferred, context, pSession);
 				}
 
 				pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(thread_index, pref_session_mgr_);
@@ -112,31 +113,28 @@ namespace c2rionet
 			return;
 		}
 
-		void IoWorkerThread_ProceRIORequest(const ULONG transferred, RioIoContext* p_context, TcpSession* p_session)
+		void ProcessRIOCQ(const ULONG transferred, RioIoContext* p_context, TcpSession* p_session)
 		{
-			auto sessionUniqueIdByRioConext = p_context->session_unique_Id_;
+			auto cq_session_uid = p_context->session_unique_Id_;
 
 			if (transferred == 0) {
-				DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kZERO_COMPLETION);
+				DisConnectFunc(p_session, cq_session_uid, DisconnectReason::kZERO_COMPLETION);
+
 			} else if (IOType::kRECV == p_context->io_type_) {
 				RecvCompletion(p_session, transferred);
 
-				if (auto result = p_session->PostRecv(); result != NetErrorCode::kNONE) {
-					if (result == NetErrorCode::kRECV_RIO_FAIL) {
-						DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kIO_REQUEST_RECV_ERROR);
-					}
-				}
-			} else if (IOType::kSEND == p_context->io_type_) {
-				auto postDataLen = p_context->Length;
-				p_session->SendCompletion(p_context);
+				PostRecv(cq_session_uid, p_session);
 
-				if (postDataLen != transferred) {
-					DisConnectFunc(p_session, sessionUniqueIdByRioConext, DisconnectReason::kPARITAL_SEND_COMPLETION);
+			} else if (IOType::kSEND == p_context->io_type_) {
+				if (p_context->Length == transferred) {
+					p_session->SendCompletion(p_context);
+				}else {
+					DisConnectFunc(p_session, cq_session_uid, DisconnectReason::kPARITAL_SEND_COMPLETION);
 				}
+
 			} else {
-				char logmsg[256] = { 0, };
-				sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Unknown I/O Type: %d", p_context->io_type_);
-				LogFuncPtr((int)LogLevel::kERROR, logmsg);
+				LogFuncPtr((int)LogLevel::kERROR, 
+					std::format("ServerNetIOWorker::ProcessRIOCQ() - Unknown I/O Type: {0}", (int)p_context->io_type_).c_str());
 			}
 		}
 
@@ -153,6 +151,17 @@ namespace c2rionet
 			p_session->IncremantReadPosRecvBuffer(usedSize);
 		}
 
+		bool PostRecv(uint64_t cq_session_uid, TcpSession* p_session)
+		{
+			if (auto result = p_session->PostRecv(); result != NetErrorCode::kNONE) {
+				if (result == NetErrorCode::kRECV_RIO_FAIL) {
+					DisConnectFunc(p_session, cq_session_uid, DisconnectReason::kIO_REQUEST_RECV_ERROR);
+				}
+				return false;
+			}
+
+			return true;
+		}
 
 		uint32_t MaxCQCountPerThread(const std::uint32_t max_connection_count,
 									const std::uint32_t io_work_thread_count,

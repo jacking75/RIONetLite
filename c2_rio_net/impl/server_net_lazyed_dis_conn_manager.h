@@ -10,6 +10,8 @@
 
 namespace c2rionet
 {
+	// 주로 서버에거 강제로 접속을 짜를 때 사용된다. 
+	// 접속을 짜를 세션을 처리하는 i/o 스레드에서 접속을 짜르도록 한다.
 	class ServerNetLazyedDisConnManager
 	{
 	public:
@@ -29,14 +31,6 @@ namespace c2rionet
 			lazyed_dis_connect_sessions_[thread_index].push({
 					session_index, session_uid, reason
 				});
-		}
-
-		LazyedDisConnectSession FetchSession(const int thread_index)
-		{
-			LazyedDisConnectSession disConnectInfo;
-			lazyed_dis_connect_sessions_[thread_index].try_pop(disConnectInfo);
-			return disConnectInfo;
-			
 		}
 
 		void ProcessLazyedDisConnectSession(const int thread_index, SessionManager* p_session_mgr)
@@ -65,7 +59,17 @@ namespace c2rionet
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
 
 
+
 	private:
+		LazyedDisConnectSession FetchSession(const int thread_index)
+		{
+			LazyedDisConnectSession disConnectInfo;
+			lazyed_dis_connect_sessions_[thread_index].try_pop(disConnectInfo);
+			return disConnectInfo;
+
+		}
+
+
 		std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>> lazyed_dis_connect_sessions_;
 	};
 
