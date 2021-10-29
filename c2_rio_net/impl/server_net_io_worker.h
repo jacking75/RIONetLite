@@ -151,7 +151,7 @@ namespace c2rionet
 
 			auto [readSize, pReadData] = p_session->ReadRecvBuffer();
 			auto usedSize = pref_net_event_mgr_->OnReceive(p_session->GetIndex(),
-															p_session->GetUniqueId(),
+															p_session->GetUID(),
 															readSize,
 															pReadData);
 			p_session->IncremantReadPosRecvBuffer(usedSize);

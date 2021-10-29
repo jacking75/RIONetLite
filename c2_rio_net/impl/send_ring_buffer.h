@@ -21,18 +21,14 @@ namespace c2rionet
 
 		std::uint32_t GetReadPos() { return read_pos_; }
 
-		bool Create(const std::uint32_t ring_buffer_size)
+		//ring_buffer_size 사이즈는 가급적 크게 하는 것이 좋다
+		void Create(const std::uint32_t ring_buffer_size)
 		{
 			ring_buffer_size_ = ring_buffer_size;
 			ring_buffer_ = new char[ring_buffer_size_];
 			ring_buffer_half_size_ = ring_buffer_size_ / 2;
-
-			if (ring_buffer_ == nullptr) { 
-				return false; 
-			}
-
+				
 			Clear();
-			return true;
 		}
 
 		void Clear()
@@ -60,6 +56,7 @@ namespace c2rionet
 		{
 			auto remainData = write_pos_ - read_pos_;
 
+			//대체적으로 버퍼의 50%를 사용하기 전에 send가 다 완료 되므로remainData == 0 조건이 호출될 확률이 아주 높다
 			if (remainData == 0) {
 				read_pos_ = 0;
 				write_pos_ = 0;
@@ -71,6 +68,7 @@ namespace c2rionet
 				}
 			}
 		}
+
 
 	private:
 		bool IsMoveWrittenDataForward(const std::uint32_t remain_data)
@@ -85,9 +83,9 @@ namespace c2rionet
 
 
 		std::uint32_t ring_buffer_size_ = 0;
-
 		std::uint32_t ring_buffer_half_size_ = 0;
 		char* ring_buffer_ = nullptr;
+
 		std::uint32_t write_pos_ = 0;
 		std::uint32_t read_pos_ = 0;
 	};

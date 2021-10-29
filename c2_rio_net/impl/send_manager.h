@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <thread>
+#include <functional>
 
 namespace c2rionet
 {
@@ -13,6 +14,8 @@ namespace c2rionet
 		SendManager() = default;
 		~SendManager() = default;
 		
+		std::function<void(const int32_t, const uint64_t, const DisconnectReason)> DisConnectFunc;
+
 
 		bool Start(const NetSendConfig net_config)
 		{
@@ -54,11 +57,11 @@ namespace c2rionet
 		}
 
 		// 세션 객체의 재 사용은 이전 연결에서 최소한 몇초 이상은 지난 후라는 전제가 꼭 필요하다
-		void OnConnectSession(const std::uint32_t session_index, 
-								RIO_RQ request_queue)
+		void OnConnectSession(const std::uint32_t session_index, const std::uint64_t session_uid,
+						RIO_RQ request_queue)
 		{
 			// sessionIndex는 절대 범위를 벗어나지 않는다. 만약 벗어난다면 초기부터 모두 잘 못된 것임.
-			sessions_[session_index]->OnConnect(request_queue);
+			sessions_[session_index]->OnConnect(session_uid, request_queue);
 		}
 
 		void OnCloseSession(const std::uint32_t session_index)
@@ -106,13 +109,15 @@ namespace c2rionet
 		{
 			while (is_run_work_thread_) {
 				for (std::uint32_t i = begin_session_index; i < end_session_index; ++i) {
-					auto* pSession = sessions_[i];
+					auto p_session = sessions_[i];
 
-					if (pSession->IsConnected() == false) { 
+					if (p_session->IsConnected() == false) {
 						continue; 
 					}
 
-					pSession->RealSend();
+					if (p_session->RealSend() == false) {
+						DisConnectFunc(p_session->GetIndex(), p_session->GetUID(), DisconnectReason::kSEND_THREAD_REAL_SEND_ERROR);
+					}
 				}
 			}
 		}

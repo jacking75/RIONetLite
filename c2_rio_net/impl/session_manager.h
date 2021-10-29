@@ -62,7 +62,7 @@ namespace c2rionet
 
 			for (auto pSession : sessions_) {
 				if (pSession->IsConnected()) {
-					auto uniqueId = pSession->GetUniqueId();
+					auto uniqueId = pSession->GetUID();
 					pSession->Disconnect(uniqueId); // 네트워크 라이브러리 종료 시에 호출
 				}
 
@@ -88,7 +88,7 @@ namespace c2rionet
 				return nullptr; 
 			}
 			
-			if (sessions_[session_index]->GetUniqueId() != session_uid) { 
+			if (sessions_[session_index]->GetUID() != session_uid) { 
 				return nullptr; 
 			}
 

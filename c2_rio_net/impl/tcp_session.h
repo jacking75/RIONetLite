@@ -23,7 +23,7 @@ namespace c2rionet
 		
 		int GetIndex() { return index_; }
 
-		std::uint64_t GetUniqueId() { return uid_; }
+		std::uint64_t GetUID() { return uid_; }
 
 		RIO_RQ GetRIORQ() {	return rio_rq_;	}
 
@@ -107,7 +107,7 @@ namespace c2rionet
 			}
 
 			FastSpinlockGuard criticalSection(send_lock_);
-			auto result = io_sender_.PostSend(GetUniqueId(), data_size, p_data);
+			auto result = io_sender_.PostSend(GetUID(), data_size, p_data);
 			return result;
 		}
 
@@ -133,7 +133,7 @@ namespace c2rionet
 				return NetErrorCode::kRECV_DISABLE_NETWORK_STATUS; 
 			}
 
-			recv_context_.session_unique_Id_ = GetUniqueId();
+			recv_context_.session_unique_Id_ = GetUID();
 			recv_context_.BufferId = recv_rio_buffer_id_;
 			recv_context_.Length = max_try_1recv_buffer_size_;
 			recv_context_.Offset = recv_buffer_.GetWriteablePos();
@@ -173,7 +173,7 @@ namespace c2rionet
 				return false; 
 			}
 
-			if (GetUniqueId() != uid) {
+			if (GetUID() != uid) {
 				return false;
 			}
 

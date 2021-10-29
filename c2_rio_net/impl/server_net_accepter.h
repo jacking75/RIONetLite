@@ -60,10 +60,10 @@ namespace c2rionet
 				}
 
 #ifdef __USE_SEND_THREAD__
-				p_send_mgr->OnConnectSession(p_session->GetIndex(), p_session->GetRIORQ());
+				p_send_mgr->OnConnectSession(p_session->GetIndex(), p_session->GetUID(), p_session->GetRIORQ());
 #endif
 
-				net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUniqueId());
+				net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUID());
 			}
 
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - End!!!");

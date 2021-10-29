@@ -39,13 +39,8 @@ namespace c2rionet
 								&send_mgr_);
 
 
-			auto dis_connect_func = [&](TcpSession* p_session, const uint64_t session_uid, const DisconnectReason reason)
-			{
-				Disconnect(p_session, session_uid, reason);
-			};
-			io_worker_.DisConnectFunc = dis_connect_func;
-			accepter_.DisConnectFunc = dis_connect_func;
-			lazyed_dis_conn_mgr_.DisConnectFunc = dis_connect_func;
+			SetDelegateDisConnect();
+			
 
 			net_config_ = net_cfg;
 			net_event_mgr_ = p_net_event_mgr;
@@ -140,7 +135,15 @@ namespace c2rionet
 			return send_mgr_.Start(net_cfg.GetSendConfig());
 		}
 
-		void Disconnect(TcpSession* p_session, const UINT64 session_uid, const DisconnectReason reason)
+		void DisConnect(const std::int32_t session_index, const std::uint64_t session_uid, const DisconnectReason reason)
+		{
+			if (auto p_session = session_mgr_.GetSessionObj(session_index);
+				p_session != nullptr) {
+				DisConnect(p_session, session_uid, reason);
+			}
+		}
+
+		void DisConnect(TcpSession* p_session, const UINT64 session_uid, const DisconnectReason reason)
 		{
 			auto cur_time_sec = Helper::CurrentSecond();
 			auto session_index = p_session->GetIndex();
@@ -169,8 +172,26 @@ namespace c2rionet
 			p_session->SetDisableNetwork();
 						
 			lazyed_dis_conn_mgr_.AddSession(p_session->GetRioThreadId(), 
-									p_session->GetIndex(), p_session->GetUniqueId(), 
+									p_session->GetIndex(), p_session->GetUID(), 
 									reason);
+		}
+
+		void SetDelegateDisConnect()
+		{
+			auto dis_connect_func = [&](TcpSession* p_session, const uint64_t session_uid, const DisconnectReason reason)
+			{
+				DisConnect(p_session, session_uid, reason);
+			};
+			io_worker_.DisConnectFunc = dis_connect_func;
+			accepter_.DisConnectFunc = dis_connect_func;
+			lazyed_dis_conn_mgr_.DisConnectFunc = dis_connect_func;
+
+
+			auto dis_connect_func2 = [&](const int32_t session_index, const uint64_t session_uid, const DisconnectReason reason)
+			{
+				DisConnect(session_index, session_uid, reason);
+			};
+			send_mgr_.DisConnectFunc = dis_connect_func2;
 		}
 
 				
