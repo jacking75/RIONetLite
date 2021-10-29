@@ -2,6 +2,7 @@
 
 #include "tcp_session.h"
 #include "session_manager.h"
+#include "send_manager.h"
 #include "helper.h"
 #include "../i_net_event.h"
 #include "../define.h"
@@ -21,11 +22,12 @@ namespace c2rionet
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
 
 
-		void Run(ConnectionNetConfig net_cfg, 
+		void Run(SessionNetConfig net_cfg, 
 				SOCKET listen_socket, 
 				std::vector<RIO_CQ>& rio_completion_queues,
 				SessionManager& session_mgr, 
-				INetEventManager* net_event_mgr)
+				INetEventManager* net_event_mgr, 
+				SendManager* p_send_mgr)
 		{
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
 
@@ -56,7 +58,11 @@ namespace c2rionet
 								rio_completion_queue) == false) {
 					continue;
 				}
-								
+
+#ifdef __USE_SEND_THREAD__
+				p_send_mgr->OnConnectSession(p_session->GetIndex(), p_session->GetRIORQ());
+#endif
+
 				net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUniqueId());
 			}
 

@@ -68,56 +68,56 @@ c2rionet::NetConfig GetConfig(int argc, char* argv[])
 		std::cerr << "No MaxConnectionCount. :(" << std::endl;
 		return config;
 	}
-	config.max_connection_count_ = *max_connection_count;
+	config.max_session_count_ = *max_connection_count;
 
 	const auto max_recv_packet_size = args.get<UINT16>("MaxRecvPacketSize");
 	if (!max_recv_packet_size) {
 		std::cerr << "No MaxRecvPacketSize. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_recv_packet_size_ = *max_recv_packet_size;
+	config.session_cfg_.max_recv_packet_size_ = *max_recv_packet_size;
 
 	const auto max_try_1recv_buffer_size = args.get<UINT16>("MaxTry1RecvBufferSize");
 	if (!max_try_1recv_buffer_size) {
 		std::cerr << "No MaxTry1RecvBufferSize. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_try_1recv_buffer_size = *max_try_1recv_buffer_size;
+	config.session_cfg_.max_try_1recv_buffer_size = *max_try_1recv_buffer_size;
 
 	const auto max_recv_count_per_1sec = args.get<UINT16>("MAXRecvCountPer1Sec");
 	if (!max_recv_count_per_1sec) {
 		std::cerr << "No MAXRecvCountPer1Sec. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_recv_count_per_1sec_ = *max_recv_count_per_1sec;
+	config.session_cfg_.max_recv_count_per_1sec_ = *max_recv_count_per_1sec;
 
 	const auto max_recv_buffer_size = args.get<UINT16>("MaxRecvBufferSize");
 	if (!max_recv_count_per_1sec) {
 		std::cerr << "No MaxRecvBufferSize. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_recv_buffer_size_ = *max_recv_buffer_size;
+	config.session_cfg_.max_recv_buffer_size_ = *max_recv_buffer_size;
 
 	const auto max_send_packet_size = args.get<UINT16>("MaxSendPacketSize");
 	if (!max_recv_count_per_1sec) {
 		std::cerr << "No MaxSendPacketSize. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_send_packet_size_ = *max_send_packet_size;
+	config.session_cfg_.max_send_packet_size_ = *max_send_packet_size;
 
 	const auto max_send_count_per_1sec = args.get<UINT16>("MAXSendCountPer1Sec");
 	if (!max_send_count_per_1sec) {
 		std::cerr << "No MAXSendCountPer1Sec. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_send_count_per_1sec_ = *max_send_count_per_1sec;
+	config.session_cfg_.max_send_count_per_1sec_ = *max_send_count_per_1sec;
 
 	const auto max_send_buffer_size = args.get<UINT16>("MaxSendBufferSize");
 	if (!max_send_buffer_size) {
 		std::cerr << "No MaxSendBufferSize. :(" << std::endl;
 		return config;
 	}
-	config.conn_cfg_.max_send_buffer_size_ = *max_send_buffer_size;
+	config.session_cfg_.max_send_buffer_size_ = *max_send_buffer_size;
 
 	return config;
 }

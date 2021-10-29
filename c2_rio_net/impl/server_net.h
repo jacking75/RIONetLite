@@ -5,6 +5,7 @@
 #include "server_net_accepter.h"
 #include "server_net_io_worker.h"
 #include "session_manager.h"
+#include "send_manager.h"
 #include "helper.h"
 #include "..\i_net_event.h"
 #include "..\define.h"
@@ -31,7 +32,12 @@ namespace c2rionet
 				return NetErrorCode::kPREPARE_SESSION_POOL_FAIL;
 			}
 
-			io_worker_.Init(&lazyed_dis_conn_mgr_, &session_mgr_, p_net_event_mgr);
+
+			io_worker_.Init(&lazyed_dis_conn_mgr_, 
+								&session_mgr_, 
+								p_net_event_mgr, 
+								&send_mgr_);
+
 
 			auto dis_connect_func = [&](TcpSession* p_session, const uint64_t session_uid, const DisconnectReason reason)
 			{
@@ -44,22 +50,30 @@ namespace c2rionet
 			net_config_ = net_cfg;
 			net_event_mgr_ = p_net_event_mgr;
 
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::Initialize() - Success!");
+			LogFuncPtr((int)LogLevel::kINFO, "ServerNetManagerImpl::Initialize() - Success!");
 			return NetErrorCode::kNONE;
 		}
 
 		void StartAndBlocking() 
 		{ 
 			io_worker_.StartIoThreads(net_config_.io_work_thread_count_,
-									net_config_.conn_cfg_.max_send_count_per_1sec_,
-									net_config_.max_connection_count_,
+									net_config_.session_cfg_.max_send_count_per_1sec_,
+									net_config_.max_session_count_,
 									net_config_.io_work_thread_count_,
 									rio_completion_queues_);
-		
-			accepter_.Run(net_config_.conn_cfg_, 
+#ifdef __USE_SEND_THREAD__
+			if (StartSendThread(net_config_) == false) {
+				LogFuncPtr((int)LogLevel::kFATAL, "ServerNetManagerImpl::StartAndBlocking() - Fail StartSendThread");
+				::abort();
+			}
+#endif // __USE_SEND_THREAD__
+
+			accepter_.Run(net_config_.session_cfg_, 
 							listen_socket_, 
 							rio_completion_queues_, 
-							session_mgr_, net_event_mgr_);
+							session_mgr_, 
+							net_event_mgr_,
+							&send_mgr_);
 		}
 		
 		void End()
@@ -73,6 +87,10 @@ namespace c2rionet
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Stop IOThreads");
 			io_worker_.Stop();
 
+#ifdef __USE_SEND_THREAD__
+			send_mgr_.End();
+#endif
+
 			session_mgr_.Dispose();
 
 			WSACleanup();
@@ -83,14 +101,21 @@ namespace c2rionet
 		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, 
 							const UINT32 data_size, const char* p_data)
 		{
+#ifndef __USE_SEND_THREAD__
 			if (auto ret = session_mgr_.SendData(session_index, session_uid, data_size, p_data);
-						ret != NetErrorCode::kNONE) {
+				ret != NetErrorCode::kNONE) {
 				if (ret == NetErrorCode::kSEND_IO_FAIL) {
 					ForcedClose(session_index, DisconnectReason::kSEND_ERROR);
 				}
 				return ret;
 			}
-			
+#else // !__USE_SEND_THREAD__
+
+			if (send_mgr_.PostSendSession(session_index, session_uid, 
+									data_size, p_data) == false) {
+				return NetErrorCode::kSEND_THREAD_BUFFER_FULL;
+			}
+#endif
 			return NetErrorCode::kNONE;
 		}
 
@@ -109,22 +134,31 @@ namespace c2rionet
 
 
 
-	private:		
+	private:	
+		bool StartSendThread(NetConfig net_cfg)
+		{
+			return send_mgr_.Start(net_cfg.GetSendConfig());
+		}
+
 		void Disconnect(TcpSession* p_session, const UINT64 session_uid, const DisconnectReason reason)
 		{
-			auto curTimeSec = Helper::CurrentSecond();
-			auto sessionIndex = p_session->GetIndex();
+			auto cur_time_sec = Helper::CurrentSecond();
+			auto session_index = p_session->GetIndex();
 
 			if (reason == DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR ||
 				reason == DisconnectReason::kACCEPT_LOOP_FAIL_ON_CONNECT) {
 				p_session->DisConnectByAcceptFail();
-				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
+				session_mgr_.ReturnSession(session_index, cur_time_sec);
 				return;
 			}
 
 			if (p_session->Disconnect(session_uid)) {
-				net_event_mgr_->OnClose(sessionIndex, reason);
-				session_mgr_.ReturnSession(sessionIndex, curTimeSec);
+				net_event_mgr_->OnClose(session_index, reason);
+				session_mgr_.ReturnSession(session_index, cur_time_sec);
+
+#ifdef __USE_SEND_THREAD__
+				send_mgr_.OnCloseSession(session_index);
+#endif
 			}
 		}
 
@@ -157,6 +191,8 @@ namespace c2rionet
 		SOCKET	listen_socket_ = INVALID_SOCKET;
 
 		SessionManager session_mgr_;
+
+		SendManager send_mgr_;
 
 		UINT64 connect_sequence_id_ = 0;
 	};

@@ -12,7 +12,7 @@ namespace c2rionet
 	{
 		static NetErrorCode Initialize(SOCKET& listen_socket, NetConfig net_cfg)
 		{
-			if ((net_cfg.max_connection_count_ % net_cfg.io_work_thread_count_) != 0) {
+			if ((net_cfg.max_session_count_ % net_cfg.io_work_thread_count_) != 0) {
 				return NetErrorCode::kSESSION_COUNT_PER_THREAD_INCORRECT;
 			}
 			

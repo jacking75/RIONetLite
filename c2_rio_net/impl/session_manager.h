@@ -32,7 +32,7 @@ namespace c2rionet
 		{
 			std::uint32_t client_index = 0;
 			auto rioThreadCount = net_cfg.io_work_thread_count_;
-			auto session_count_per_rio_thread = net_cfg.max_connection_count_ / net_cfg.io_work_thread_count_;
+			auto session_count_per_rio_thread = net_cfg.max_session_count_ / net_cfg.io_work_thread_count_;
 
 			for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i) {
 				for (decltype(session_count_per_rio_thread) j = 0; j < session_count_per_rio_thread; ++j) {
@@ -40,7 +40,7 @@ namespace c2rionet
 
 					client->Init(client_index, i);
 
-					if (client->RioInitialize(net_cfg.conn_cfg_) == false) { 
+					if (client->RioInitialize(net_cfg.session_cfg_) == false) { 
 						return false; 
 					}
 

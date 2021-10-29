@@ -2,6 +2,7 @@
 
 #include "tcp_session.h"
 #include "session_manager.h"
+#include "send_manager.h"
 #include "server_net_lazyed_dis_conn_manager.h"
 #include "helper.h"
 #include "../i_net_event.h"
@@ -25,11 +26,13 @@ namespace c2rionet
 
 		void Init(ServerNetLazyedDisConnManager* p_lazyed_dis_conn_mgr, 
 					SessionManager* p_session_mgr, 
-					INetEventManager* p_net_event_mgr)
+					INetEventManager* p_net_event_mgr,
+				SendManager* p_send_mgr)
 		{
 			pref_lazyed_dis_conn_mgr_ = p_lazyed_dis_conn_mgr;
 			pref_session_mgr_ = p_session_mgr;
 			pref_net_event_mgr_ = p_net_event_mgr;
+			pref_send_mgr_ = p_send_mgr;
 		}
 
 
@@ -126,12 +129,15 @@ namespace c2rionet
 				PostRecv(cq_session_uid, p_session);
 
 			} else if (IOType::kSEND == p_context->io_type_) {
+#ifndef __USE_SEND_THREAD__
 				if (p_context->Length == transferred) {
 					p_session->SendCompletion(p_context);
-				}else {
+				} else {
 					DisConnectFunc(p_session, cq_session_uid, DisconnectReason::kPARITAL_SEND_COMPLETION);
 				}
-
+#else
+				pref_send_mgr_->SendCompletedSession(p_session->GetIndex(), transferred);
+#endif			
 			} else {
 				LogFuncPtr((int)LogLevel::kERROR, 
 					std::format("ServerNetIOWorker::ProcessRIOCQ() - Unknown I/O Type: {0}", (int)p_context->io_type_).c_str());
@@ -198,6 +204,7 @@ namespace c2rionet
 		ServerNetLazyedDisConnManager* pref_lazyed_dis_conn_mgr_ = nullptr;
 		SessionManager* pref_session_mgr_ = nullptr;
 		INetEventManager* pref_net_event_mgr_ = nullptr;
+		SendManager* pref_send_mgr_ = nullptr;
 
 		std::vector<std::thread> io_work_threads_;
 	};

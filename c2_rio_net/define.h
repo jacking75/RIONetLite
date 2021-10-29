@@ -8,7 +8,16 @@
 
 namespace c2rionet
 {
-	struct ConnectionNetConfig
+	struct NetSendConfig
+	{
+		std::uint32_t max_session_count_ = 0;
+		std::uint32_t max_worker_thread_count_ = 0;
+		std::uint32_t max_send_packet_size_ = 0;
+		std::uint32_t max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
+		std::uint32_t max_send_buffer_size_ = 0;
+	};
+
+	struct SessionNetConfig
 	{
 		std::int32_t max_recv_packet_size_ = 0;
 		std::uint32_t max_try_1recv_buffer_size = 0;
@@ -17,20 +26,31 @@ namespace c2rionet
 
 		std::int32_t max_send_packet_size_ = 0;
 		std::int32_t max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
-		std::int32_t max_send_buffer_size_ = 0;
-		
+		std::int32_t max_send_buffer_size_ = 0;		
 	};
 
 	struct NetConfig
 	{
 		std::uint16_t port_number_ = 0;
 		std::int32_t io_work_thread_count_ = 0;
+		std::int32_t io_send_thread_count_ = 0; // send 전용 스레드를 사용할 경우에는 꼭 1 이상 되어야 한다. 
 
-		std::int32_t max_connection_count_ = 0;
-		ConnectionNetConfig conn_cfg_;
+		std::int32_t max_session_count_ = 0;
+		SessionNetConfig session_cfg_;
+
+
+		NetSendConfig GetSendConfig()
+		{
+			NetSendConfig cfg;
+			cfg.max_session_count_ = max_session_count_;
+			cfg.max_worker_thread_count_ = io_send_thread_count_;
+			cfg.max_send_packet_size_ = session_cfg_.max_send_packet_size_;
+			cfg.max_send_count_per_1sec_ = session_cfg_.max_send_count_per_1sec_;
+			cfg.max_send_buffer_size_ = session_cfg_.max_send_buffer_size_;
+			return cfg;
+		}
 	};
 
-	
 
 	enum class DisconnectReason
 	{		
@@ -41,7 +61,7 @@ namespace c2rionet
 		kZERO_COMPLETION,
 		kIO_REQUEST_RECV_ERROR,
 		kPARITAL_SEND_COMPLETION,
-		kSEND_ERROR,
+		kSEND_ERROR,		
 		kFORCES_CLOSE_SERVER,
 		kFORCES_CLOSE_SEND_ERROR,
 		kEND
@@ -77,6 +97,7 @@ namespace c2rionet
 		kRECV_CLOSED_STATUS = 16,
 		kRECV_DISABLE_NETWORK_STATUS = 17,
 		kRECV_RIO_FAIL = 18,
+		kSEND_THREAD_BUFFER_FULL = 19,
 	};
 
 	struct LazyedDisConnectSession

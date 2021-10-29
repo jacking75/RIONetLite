@@ -10,16 +10,6 @@
 
 namespace c2rionet
 {
-	struct NetSendConfig
-	{
-		std::uint32_t max_session_count_ = 0;
-		std::uint32_t max_worker_thread_count_ = 0;
-		std::uint32_t max_send_packet_size_ = 0;
-		std::uint32_t max_send_count_per_1sec_ = 0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
-		std::uint32_t max_send_buffer_size_ = 0;
-
-	};
-
 	// 보낼 데이터를 모아서 주기적으로 한번에 보내기
 	class SendSession
 	{
@@ -40,7 +30,7 @@ namespace c2rionet
 
 			if (auto isResult = send_buffer_.Create(max_send_ring_buffer_size_);
 						isResult != 0) {
-				LogFuncPtr((int)LogLevel::kERROR, "Session::Init() - fail mSendBuffer.Create");
+				LogFuncPtr((int)LogLevel::kERROR, "SendSession::Init() - fail mSendBuffer.Create");
 				return false;
 			}
 
@@ -68,7 +58,7 @@ namespace c2rionet
 		void OnConnect(RIO_RQ request_queue)
 		{
 			is_connected_ = true;
-			rio_rq_ = request_queue;
+			ref_rio_rq_ = request_queue;
 			Clear();
 		}
 
@@ -107,7 +97,7 @@ namespace c2rionet
 				return true; 
 			}
 
-			if (sendSize > max_send_packet_size_) { 
+			if (sendSize > (uint32_t)max_send_packet_size_) { 
 				sendSize = max_send_packet_size_;	
 			}
 			
@@ -118,7 +108,7 @@ namespace c2rionet
 			
 			/// start async send
 			DWORD flags = 0;
-			if (!RIO.RIOSend(rio_rq_, (PRIO_BUF)&sendContext_, 1, flags, &sendContext_)) {
+			if (!RIO.RIOSend(ref_rio_rq_, (PRIO_BUF)&sendContext_, 1, flags, &sendContext_)) {
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "Session::RealSend() - RIOSend Error: %d", GetLastError());
 				LogFuncPtr((int)LogLevel::kERROR, logmsg);
@@ -146,7 +136,7 @@ namespace c2rionet
 
 		RioIoContext sendContext_;
 
-		RIO_RQ			rio_rq_ = NULL;
+		RIO_RQ			ref_rio_rq_ = NULL;
 		RIO_BUFFERID	send_rio_buffer_id_ = NULL;
 
 		FastSpinlock session_lock_;

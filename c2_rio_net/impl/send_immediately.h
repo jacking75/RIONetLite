@@ -20,7 +20,7 @@ namespace c2rionet
 		
 		char* GetBuffer() { return send_buffer_.GetBuffer(); }
 
-		bool Init(const std::int32_t session_index, ConnectionNetConfig net_cfg)
+		bool Init(const std::int32_t session_index, SessionNetConfig net_cfg)
 		{
 			session_index_ = session_index;
 			max_send_packet_size_ = net_cfg.max_send_packet_size_;

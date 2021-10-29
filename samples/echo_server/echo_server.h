@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#define __USE_SEND_THREAD__ 1
+
 #include "echo_server_content.h"
 
 #include <iostream>
@@ -61,28 +63,28 @@ public:
 		sprintf_s(logmsg, "NetConfig - IoWorkThreadCount: %d", netConfig.io_work_thread_count_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - MaxConnectionCount: %d", netConfig.max_connection_count_);
+		sprintf_s(logmsg, "NetConfig - MaxConnectionCount: %d", netConfig.max_session_count_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxRecvPacketSize: %d", netConfig.conn_cfg_.max_recv_packet_size_);
+		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxRecvPacketSize: %d", netConfig.session_cfg_.max_recv_packet_size_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxTry1RecvBufferSize: %d", netConfig.conn_cfg_.max_try_1recv_buffer_size);
+		sprintf_s(logmsg, "NetConfig - netConfig.Conn.MaxTry1RecvBufferSize: %d", netConfig.session_cfg_.max_try_1recv_buffer_size);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - Conn.MAXRecvCountPer1Sec: %d", netConfig.conn_cfg_.max_recv_count_per_1sec_);
+		sprintf_s(logmsg, "NetConfig - Conn.MAXRecvCountPer1Sec: %d", netConfig.session_cfg_.max_recv_count_per_1sec_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - Conn.MaxRecvBufferSize: %d", netConfig.conn_cfg_.max_recv_buffer_size_);
+		sprintf_s(logmsg, "NetConfig - Conn.MaxRecvBufferSize: %d", netConfig.session_cfg_.max_recv_buffer_size_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - Conn.MaxSendPacketSize: %d", netConfig.conn_cfg_.max_send_packet_size_);
+		sprintf_s(logmsg, "NetConfig - Conn.MaxSendPacketSize: %d", netConfig.session_cfg_.max_send_packet_size_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - Conn.MAXSendCountPer1Sec: %d", netConfig.conn_cfg_.max_send_count_per_1sec_);
+		sprintf_s(logmsg, "NetConfig - Conn.MAXSendCountPer1Sec: %d", netConfig.session_cfg_.max_send_count_per_1sec_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 
-		sprintf_s(logmsg, "NetConfig - Conn.MaxSendBufferSize: %d", netConfig.conn_cfg_.max_send_buffer_size_);
+		sprintf_s(logmsg, "NetConfig - Conn.MaxSendBufferSize: %d", netConfig.session_cfg_.max_send_buffer_size_);
 		WriteLog((int)c2rionet::LogLevel::kINFO, logmsg);
 	}
 

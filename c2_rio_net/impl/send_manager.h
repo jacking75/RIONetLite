@@ -16,16 +16,19 @@ namespace c2rionet
 
 		bool Start(const NetSendConfig net_config)
 		{
-			if ((net_config.max_session_count_ % net_config.max_session_count_) != 0) { 
+			if (net_config.max_worker_thread_count_ < 1 ||
+				((net_config.max_session_count_ % net_config.max_worker_thread_count_) != 0)) {
+				LogFuncPtr((int)LogLevel::kERROR, "SendManager::Start() - Fail Config");
 				return false; 
 			}
 
-			for (auto i = 0; i < net_config.max_session_count_; ++i) {
-				sessions_.emplace_back();
-
-				if (sessions_[i].Init(i, net_config) == false) { 
-					return false; 
+			for (uint32_t i = 0; i < net_config.max_session_count_; ++i) {
+				auto p_session = new SendSession;
+				if (p_session->Init(i, net_config) == false) {
+					return false;
 				}
+
+				sessions_.push_back(p_session);				
 			}
 
 			auto sessionCountPerThread = net_config.max_session_count_ / net_config.max_worker_thread_count_;
@@ -44,31 +47,36 @@ namespace c2rionet
 				}
 			}
 
-			for (auto& session : sessions_) {
-				session.Dispose();
+			for (auto session : sessions_) {
+				session->Dispose();
+				delete session;
 			}
 		}
 
 		// 세션 객체의 재 사용은 이전 연결에서 최소한 몇초 이상은 지난 후라는 전제가 꼭 필요하다
-		void ConnectSession(const std::uint32_t session_index, RIO_RQ request_queue)
+		void OnConnectSession(const std::uint32_t session_index, 
+								RIO_RQ request_queue)
 		{
 			// sessionIndex는 절대 범위를 벗어나지 않는다. 만약 벗어난다면 초기부터 모두 잘 못된 것임.
-			sessions_[session_index].OnConnect(request_queue);			
+			sessions_[session_index]->OnConnect(request_queue);
 		}
 
-		void DisConnectSession(const std::uint32_t session_index)
+		void OnCloseSession(const std::uint32_t session_index)
 		{
-			sessions_[session_index].OnDisConnect();
+			sessions_[session_index]->OnDisConnect();
 		}
 
-		bool PostSendSession(const std::uint32_t session_index, const std::uint32_t data_size, const char* p_data)
+		bool PostSendSession(const std::uint32_t session_index, 
+							[[maybe_unused]] const std::uint64_t session_uid,
+							const std::uint32_t data_size, const char* p_data)
 		{
-			return sessions_[session_index].PostSend(data_size, p_data);
+			return sessions_[session_index]->PostSend(data_size, p_data);
 		}
 
-		void SendCompletedSession(const std::uint32_t session_index, const std::uint32_t length)
+		void SendCompletedSession(const std::uint32_t session_index, 
+								const std::uint32_t length)
 		{
-			sessions_[session_index].SendCompleted(length);
+			sessions_[session_index]->SendCompleted(length);
 		}
 		
 				
@@ -98,7 +106,7 @@ namespace c2rionet
 		{
 			while (is_run_work_thread_) {
 				for (std::uint32_t i = begin_session_index; i < end_session_index; ++i) {
-					auto* pSession = &sessions_[i];
+					auto* pSession = sessions_[i];
 
 					if (pSession->IsConnected() == false) { 
 						continue; 
@@ -113,6 +121,6 @@ namespace c2rionet
 		bool is_run_work_thread_ = false;		
 		std::vector<std::thread> work_threads_;
 
-		std::vector<SendSession> sessions_;		
+		std::vector<SendSession*> sessions_;		
 	};
 }

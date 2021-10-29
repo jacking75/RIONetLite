@@ -25,6 +25,9 @@ namespace c2rionet
 
 		std::uint64_t GetUniqueId() { return uid_; }
 
+		RIO_RQ GetRIORQ() {	return rio_rq_;	}
+
+
 		bool IsEnableNetwork() { return enable_network_ == kENABLE_VALUE; }
 		
 		void SetDisableNetwork() { enable_network_ = 0; }
@@ -37,7 +40,7 @@ namespace c2rionet
 			memset(&client_addr_, 0, sizeof(SOCKADDR_IN));
 		}
 
-		bool RioInitialize(const ConnectionNetConfig net_config)
+		bool RioInitialize(const SessionNetConfig net_config)
 		{
 			max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
 			
