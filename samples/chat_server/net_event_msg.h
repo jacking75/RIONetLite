@@ -1,6 +1,8 @@
 #pragma once
 
+#include <span>
 #include <cstdint>
+
 
 enum class NetEventType : std::int8_t
 {
@@ -10,24 +12,11 @@ enum class NetEventType : std::int8_t
 	kONRECV
 };
 
-class NetEventMsg
+struct NetEventMsg
 {
-	int SessionIndex = -1;
-	NetEventType EventType = NetEventType::kNONE;
-	unsigned int DataSize = 0;
-	char* pData = nullptr;
-
-	void Set(const int session_index, const NetEventType type, const uint32_t data_size, char* p_data)
-	{
-		SessionIndex = session_index;
-		EventType = type;
-		DataSize = data_size;
-		pData = p_data;
-	}
-
-	void SetReceive(const unsigned int dataSize_, char* pData_)
-	{
-		DataSize = dataSize_;
-		pData = pData_;
-	}
+	int session_index_ = -1;
+	NetEventType event_type_ = NetEventType::kNONE;
+	std::span<char> data_;
+	//unsigned int DataSize = 0;
+	//char* pData = nullptr;
 };

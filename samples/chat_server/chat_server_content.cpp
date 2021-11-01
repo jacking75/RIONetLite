@@ -18,8 +18,8 @@ bool ChatServerContent::Init(c2rionet::ServerNetManager* p_net_mgr)
 	net_event_msg_pool_.Init(max_session_count, max_msg_count_per_session);
 
 
-	mLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
-	if (mLogicIOCP == INVALID_HANDLE_VALUE)
+	msg_queue_iocp_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
+	if (msg_queue_iocp_ == INVALID_HANDLE_VALUE)
 	{
 		return false;
 	}
@@ -33,9 +33,10 @@ void ChatServerContent::OnConnect(const std::int32_t index, const std::uint64_t 
 		std::format("[OnConnect] - SessionIndex({0}), UniqueId({1})", index, uid).c_str());
 	
 	auto p_event_msg = net_event_msg_pool_.Alloc(index);
-	//p_event_msg->
-	//printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uid);
-	//PostNetMessage();
+	p_event_msg->session_index_ = index;
+	p_event_msg->event_type_ = NetEventType::kCONNECTION;
+	
+	PostNetMessage(p_event_msg);
 }
 
 void ChatServerContent::OnClose(const std::int32_t index, const c2rionet::DisconnectReason reason) 
@@ -86,16 +87,16 @@ std::uint32_t ChatServerContent::OnReceive(const std::int32_t index, const std::
 	return 0;
 }
 
-BOOL ChatServerContent::PostNetMessage(NetEventType* pEvnet_)
+BOOL ChatServerContent::PostNetMessage(NetEventMsg* pEvnet_)
 {
+	// 오류는 절대 없다고 가정한다.
 	// Boost.Asio의 경우 다른 식으로 오류에 대해 방어하고 있다. 참고하자
 	//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
 
-	return PostQueuedCompletionStatus(
-		mLogicIOCP,
-		0,
-		NULL,
-		reinterpret_cast<LPOVERLAPPED>(pEvnet_));
+	return PostQueuedCompletionStatus(msg_queue_iocp_,
+										0,
+										NULL,
+										reinterpret_cast<LPOVERLAPPED>(pEvnet_));
 }
 
 // std::span

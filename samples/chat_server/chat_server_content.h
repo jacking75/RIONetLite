@@ -32,12 +32,12 @@ private:
 		if (mLogicIOCP != INVALID_HANDLE_VALUE) { CloseHandle(mLogicIOCP); }
 	}*/
 
-	BOOL PostNetMessage(NetEventType* pEvnet_);
+	BOOL PostNetMessage(NetEventMsg* pEvnet_);
 
 	/*
 		bool ProcessNetworkMessage(OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const INT32 waitTimeMillisec)
 		{
-			Message* pMsg = nullptr;
+			NetEventMsg* pMsg = nullptr;
 			Connection* pConnection = nullptr;
 			DWORD ioSize = 0;
 			auto waitTime = waitTimeMillisec;
@@ -90,5 +90,5 @@ private:
 
 	NetEventMsgObjectPool net_event_msg_pool_;
 
-	HANDLE mLogicIOCP = INVALID_HANDLE_VALUE;
+	HANDLE msg_queue_iocp_ = INVALID_HANDLE_VALUE;
 };
