@@ -4,7 +4,7 @@
 
 namespace c2rionet
 {
-	LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
+	inline LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
 	{
 		if (IsDebuggerPresent()) { return EXCEPTION_CONTINUE_SEARCH; }
 		

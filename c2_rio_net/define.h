@@ -67,7 +67,7 @@ namespace c2rionet
 		kFORCES_CLOSE_SEND_ERROR,
 		kEND
 	};
-	char DisconnectReasonStr[(int)DisconnectReason::kEND][32] = { "none", "active", "accept_loop_request_queue_error", "accept_loop_on_connect_rrror", "zero_completion", "io_request_recv_error", "partial_send_completion", "send_error", "forces_close_server", "forces_close_send_error"  };
+	inline char DisconnectReasonStr[(int)DisconnectReason::kEND][32] = { "none", "active", "accept_loop_request_queue_error", "accept_loop_on_connect_rrror", "zero_completion", "io_request_recv_error", "partial_send_completion", "send_error", "forces_close_server", "forces_close_send_error"  };
 	
 	enum class LogLevel
 	{
@@ -79,7 +79,7 @@ namespace c2rionet
 		kFATAL,
 		kEND
 	};
-	char LogLevelStr[(int)LogLevel::kEND][6] = { "trace", "debug", "info", "warn", "error", "fetal"  };
+	inline char LogLevelStr[(int)LogLevel::kEND][6] = { "trace", "debug", "info", "warn", "error", "fetal"  };
 
 
 	enum class NetErrorCode : std::int16_t
