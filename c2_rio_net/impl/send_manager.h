@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <thread>
+#include <format>
 #include <functional>
 
 namespace c2rionet
@@ -42,7 +43,7 @@ namespace c2rionet
 
 		void End()
 		{
-			is_run_work_thread_ = false;
+			is_run_ = false;
 
 			for (auto& thread : work_threads_) {
 				if (thread.joinable()) {
@@ -86,7 +87,7 @@ namespace c2rionet
 	private:
 		void StartThread(const std::uint32_t thread_count, const std::uint32_t session_count_per_thread)
 		{
-			is_run_work_thread_ = true;
+			is_run_ = true;
 			
 			std::uint32_t beginSessionIndex = 0;
 			std::uint32_t endSessionIndex = session_count_per_thread;
@@ -107,7 +108,9 @@ namespace c2rionet
 
 		void SendThread(const std::uint32_t begin_session_index, const std::uint32_t end_session_index)
 		{
-			while (is_run_work_thread_) {
+			LogFuncPtr((int)LogLevel::kINFO, std::format("SendManager::SendThread() - Start. [begin_session_index:{0}] ~ (end_session_index:{1})", begin_session_index, end_session_index).c_str());
+
+			while (is_run_) {
 				for (std::uint32_t i = begin_session_index; i < end_session_index; ++i) {
 					auto p_session = sessions_[i];
 
@@ -119,11 +122,15 @@ namespace c2rionet
 						DisConnectFunc(p_session->GetIndex(), p_session->GetUID(), DisconnectReason::kSEND_THREAD_REAL_SEND_ERROR);
 					}
 				}
+
+				Sleep(1); ///< for low cpu-usage
 			}
+
+			LogFuncPtr((int)LogLevel::kINFO, std::format("SendManager::SendThread() - End. [begin_session_index:{0}] ~ (end_session_index:{1})", begin_session_index, end_session_index).c_str());
 		}
 
 				
-		bool is_run_work_thread_ = false;		
+		bool is_run_ = false;		
 		std::vector<std::thread> work_threads_;
 
 		std::vector<SendSession*> sessions_;		

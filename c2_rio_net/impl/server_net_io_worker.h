@@ -86,23 +86,24 @@ namespace c2rionet
 	private:
 		void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues)
 		{
-			auto coreCount = Helper::GetNumberOfProcessors();
-			auto results = new RIORESULT[coreCount];
+			auto core_count = Helper::GetNumberOfProcessors();
+			auto results = new RIORESULT[core_count];
 
-			IoWorkerThread_startLog(thread_index, coreCount);
+			LogFuncPtr((int)LogLevel::kINFO, std::format("ServerNetIOWorker::IoWorkerThread() - Start. threadIndex: {0}, coreCount: {1}", thread_index, core_count).c_str());
+
 
 			pref_lazyed_dis_conn_mgr_->AddSessionQueue();
 
 			while (is_run_) {
 				memset(results, 0, sizeof(results));
-				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues, results, coreCount);
+				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues, results, core_count); // 대기가 없다
 
 				if (RIO_CORRUPT_CQ == numResults) {
 					if (is_run_ == false) {
 						break;
 					}
 
-					LogFuncPtr((int)LogLevel::kFATAL, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
+					LogFuncPtr((int)LogLevel::kFATAL, "ServerNetIOWorker::IoWorkerThread() - RIO CORRUPT CQ");
 					continue;
 				}
 
@@ -123,7 +124,7 @@ namespace c2rionet
 
 			delete results;
 
-			IoWorkerThread_endLog(thread_index);
+			LogFuncPtr((int)LogLevel::kINFO, std::format("ServerNetIOWorker::IoWorkerThread() - End. threadIndex: %d", thread_index).c_str());
 			return;
 		}
 
@@ -190,23 +191,7 @@ namespace c2rionet
 			return max_cq_count_per_rio_thread;
 		}
 
-
-		// logs
-		void IoWorkerThread_startLog(const int thread_index, const int core_count)
-		{
-			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - Start. threadIndex: %d, coreCount: %d", thread_index, core_count);
-			LogFuncPtr((int)LogLevel::kINFO, logmsg);
-		}
-
-		void IoWorkerThread_endLog(const int threadIndex_)
-		{
-			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "RIONetManager::IoWorkerThread() - End. threadIndex: %d", threadIndex_);
-			LogFuncPtr((int)LogLevel::kINFO, logmsg);
-		}
-
-
+				
 	
 		bool is_run_ = false;
 
