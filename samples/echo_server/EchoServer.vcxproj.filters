@@ -4,9 +4,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="server_common">
-      <UniqueIdentifier>{e7dd0815-fdb4-4d9d-a849-2f0f5a465c6f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="c2_rio_net">
       <UniqueIdentifier>{f1f03037-378e-499a-98ec-964555c82b0f}</UniqueIdentifier>
     </Filter>
@@ -17,9 +14,6 @@
   <ItemGroup>
     <ClInclude Include="packet.h" />
     <ClInclude Include="echo_server.h" />
-    <ClInclude Include="..\server_common\message_net_event_manager.h">
-      <Filter>server_common</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\c2_rio_net\define.h">
       <Filter>c2_rio_net</Filter>
     </ClInclude>

@@ -154,7 +154,6 @@
     <ClInclude Include="..\..\c2_rio_net\impl\tcp_session.h" />
     <ClInclude Include="..\..\c2_rio_net\i_net_event.h" />
     <ClInclude Include="..\..\c2_rio_net\server_net.h" />
-    <ClInclude Include="..\server_common\message_net_event_manager.h" />
     <ClInclude Include="echo_server_content.h" />
     <ClInclude Include="echo_server.h" />
     <ClInclude Include="packet.h" />
