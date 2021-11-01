@@ -23,6 +23,7 @@ namespace c2rionet
 		~ServerNetIOWorker() = default;
 
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
+		std::function<void()> CloseRIOQueues;
 
 		void Init(ServerNetLazyedDisConnManager* p_lazyed_dis_conn_mgr, 
 					SessionManager* p_session_mgr, 
@@ -42,6 +43,8 @@ namespace c2rionet
 							const std::uint32_t io_work_thread_count, 
 							std::vector<RIO_CQ>& rio_completion_queues)
 		{
+			is_run_ = true;
+
 			auto max_cq_count_per_thread = MaxCQCountPerThread(max_connection_count,
 												io_work_thread_count,
 												max_send_count_per_1sec);
@@ -68,8 +71,10 @@ namespace c2rionet
 
 		void Stop()
 		{
-			is_run_ = true;
+			is_run_ = false;
 
+			CloseRIOQueues();
+			
 			for (auto& thread : io_work_threads_) {
 				if (thread.joinable()) {
 					thread.join();
@@ -77,6 +82,8 @@ namespace c2rionet
 			}
 		}
 
+
+	private:
 		void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues)
 		{
 			auto coreCount = Helper::GetNumberOfProcessors();
@@ -91,6 +98,10 @@ namespace c2rionet
 				ULONG numResults = RIO.RIODequeueCompletion(rio_completion_queues, results, coreCount);
 
 				if (RIO_CORRUPT_CQ == numResults) {
+					if (is_run_ == false) {
+						break;
+					}
+
 					LogFuncPtr((int)LogLevel::kFATAL, "RIONetManager::IoWorkerThread() - RIO CORRUPT CQ");
 					continue;
 				}
@@ -180,8 +191,6 @@ namespace c2rionet
 		}
 
 
-
-	private:
 		// logs
 		void IoWorkerThread_startLog(const int thread_index, const int core_count)
 		{

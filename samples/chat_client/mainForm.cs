@@ -24,7 +24,9 @@ namespace csharp_test_client
         Queue<PacketData> RecvPacketQueue = new Queue<PacketData>();
         Queue<byte[]> SendPacketQueue = new Queue<byte[]>();
 
-        System.Windows.Threading.DispatcherTimer dispatcherUITimer;
+        System.Windows.Forms.Timer dispatcherUITimer;
+
+        string RandomEchoData = "";
 
 
         public mainForm()
@@ -43,9 +45,9 @@ namespace csharp_test_client
             NetworkSendThread.Start();
 
             IsBackGroundProcessRunning = true;
-            dispatcherUITimer = new System.Windows.Threading.DispatcherTimer();
+            dispatcherUITimer = new System.Windows.Forms.Timer();
             dispatcherUITimer.Tick += new EventHandler(BackGroundProcess);
-            dispatcherUITimer.Interval = new TimeSpan(0, 0, 0, 0, 100);
+            dispatcherUITimer.Interval = 100;
             dispatcherUITimer.Start();
 
             btnDisconnect.Enabled = false;
@@ -62,54 +64,7 @@ namespace csharp_test_client
             Network.Close();
         }
 
-        private void btnConnect_Click(object sender, EventArgs e)
-        {
-            string address = textBoxIP.Text;
-
-            if (checkBoxLocalHostIP.Checked)
-            {
-                address = "127.0.0.1";
-            }
-
-            int port = Convert.ToInt32(textBoxPort.Text);
-
-            if (Network.Connect(address, port))
-            {
-                labelStatus.Text = string.Format("{0}. 서버에 접속 중", DateTime.Now);
-                btnConnect.Enabled = false;
-                btnDisconnect.Enabled = true;
-
-                DevLog.Write($"서버에 접속 중", LOG_LEVEL.INFO);
-            }
-            else
-            {
-                labelStatus.Text = string.Format("{0}. 서버에 접속 실패", DateTime.Now);
-            }
-        }
-
-        private void btnDisconnect_Click(object sender, EventArgs e)
-        {
-            SetDisconnectd();
-            Network.Close();
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(textSendText.Text))
-            {
-                MessageBox.Show("보낼 텍스트를 입력하세요");
-                return;
-            }
-
-            var body = Encoding.UTF8.GetBytes(textSendText.Text);
-
-            PostSendPacket(PACKET_ID.PACKET_ID_ECHO, body);
-
-            DevLog.Write($"Echo 요청:  {textSendText.Text}, {body.Length}");
-        }
-
-
-
+        
         void NetworkReadProcess()
         {
             const Int16 PacketHeaderSize = PacketDef.PACKET_HEADER_SIZE;
@@ -276,8 +231,8 @@ namespace csharp_test_client
             var packetSize = bodyDataSize + PacketDef.PACKET_HEADER_SIZE;
 
             List<byte> dataSource = new List<byte>();
-            dataSource.AddRange(BitConverter.GetBytes((Int16)packetSize));
-            dataSource.AddRange(BitConverter.GetBytes((Int16)packetID));
+            dataSource.AddRange(BitConverter.GetBytes((UInt16)packetSize));
+            dataSource.AddRange(BitConverter.GetBytes((UInt16)packetID));
             dataSource.AddRange(new byte[] { (byte)0 });
             
             if (bodyData != null)
@@ -312,6 +267,73 @@ namespace csharp_test_client
             {
                 listBoxRoomUserList.Items.Remove(removeItem);
             }
+        }
+                
+        public string RandomString(int length)
+        {
+            Random random = new Random();
+
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(chars, length)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+
+        private void btnConnect_Click(object sender, EventArgs e)
+        {
+            string address = textBoxIP.Text;
+
+            if (checkBoxLocalHostIP.Checked)
+            {
+                address = "127.0.0.1";
+            }
+
+            int port = Convert.ToInt32(textBoxPort.Text);
+
+            if (Network.Connect(address, port))
+            {
+                labelStatus.Text = string.Format("{0}. 서버에 접속 중", DateTime.Now);
+                btnConnect.Enabled = false;
+                btnDisconnect.Enabled = true;
+
+                DevLog.Write($"서버에 접속 중", LOG_LEVEL.INFO);
+            }
+            else
+            {
+                labelStatus.Text = string.Format("{0}. 서버에 접속 실패", DateTime.Now);
+            }
+        }
+
+        private void btnDisconnect_Click(object sender, EventArgs e)
+        {
+            SetDisconnectd();
+            Network.Close();
+        }
+
+        // 에코 보내기
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(textSendText.Text))
+            {
+                MessageBox.Show("보낼 텍스트를 입력하세요");
+                return;
+            }
+
+            var body = Encoding.UTF8.GetBytes(textSendText.Text);
+
+            PostSendPacket(PACKET_ID.PACKET_ID_ECHO, body);
+
+            DevLog.Write($"Echo 요청:  {textSendText.Text}, {body.Length}");
+        }
+
+        // 지정되 크기의 에코 보내기
+        private void button3_Click(object sender, EventArgs e)
+        {
+            RandomEchoData = RandomString(textBox1.Text.ToInt32());
+            var body = Encoding.UTF8.GetBytes(RandomEchoData);
+
+            PostSendPacket(PACKET_ID.PACKET_ID_ECHO, body);
+            DevLog.Write($"{body.Length} 크기의 Echo 요청");
         }
 
 
@@ -367,5 +389,7 @@ namespace csharp_test_client
             PostSendPacket(PACKET_ID.PACKET_ID_ROOM_RELAY_REQ, bodyData);
             DevLog.Write($"방 릴레이 요청");
         }
+
+        
     }
 }

@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-// EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
+// EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4 --IoWorkThreadCount=2 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
 c2rionet::NetConfig GetConfig(int argc, char* argv[])
 {
 	c2rionet::NetConfig config;
@@ -62,6 +62,14 @@ c2rionet::NetConfig GetConfig(int argc, char* argv[])
 		return config;
 	}
 	config.io_work_thread_count_ = *io_work_thread_count;
+
+	const auto io_send_thread_count = args.get<UINT16>("IoWorkThreadCount");
+	if (!io_send_thread_count) {
+		std::cerr << "No IoSendThreadCount. :(" << std::endl;
+		return config;
+	}
+	config.io_send_thread_count_ = *io_send_thread_count;
+
 
 	const auto max_connection_count = args.get<UINT16>("MaxConnectionCount");
 	if (!max_connection_count) {

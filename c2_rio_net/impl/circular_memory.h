@@ -77,7 +77,7 @@ namespace c2rionet
 
 			// bufferSize의 크기는 4096의 배수이어야 한다!!!
 			if ((buffer_size % sysInfo.dwPageSize) != 0) {
-				return { nullptr, 6, "size of bufferSize is not a multiple of page size" };
+				return { nullptr, 6, "size of bufferSize is not a multiple of page size. must be a multiple of 4096" };
 			}
 
 			placeholder1 = (PCHAR)VirtualAlloc2(

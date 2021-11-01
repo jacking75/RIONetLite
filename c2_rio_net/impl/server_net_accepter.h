@@ -27,7 +27,7 @@ namespace c2rionet
 				std::vector<RIO_CQ>& rio_completion_queues,
 				SessionManager& session_mgr, 
 				INetEventManager* net_event_mgr, 
-				SendManager* p_send_mgr)
+			[[maybe_unused]] SendManager* p_send_mgr)
 		{
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
 

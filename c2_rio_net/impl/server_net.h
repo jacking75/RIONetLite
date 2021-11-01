@@ -81,6 +81,8 @@ namespace c2rionet
 
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Stop IOThreads");
 			io_worker_.Stop();
+			//CloseRIOQueue();
+			//Sleep(100);
 
 #ifdef __USE_SEND_THREAD__
 			send_mgr_.End();
@@ -92,6 +94,7 @@ namespace c2rionet
 
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Complete");
 		}
+
 						
 		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, 
 							const UINT32 data_size, const char* p_data)
@@ -192,8 +195,21 @@ namespace c2rionet
 				DisConnect(session_index, session_uid, reason);
 			};
 			send_mgr_.DisConnectFunc = dis_connect_func2;
+
+
+			auto close_rioqueues_func = [&]()
+			{
+				CloseRIOQueues();
+			};
+			io_worker_.CloseRIOQueues = close_rioqueues_func;
 		}
 
+		void CloseRIOQueues()
+		{
+			for (auto i = 0; i < rio_completion_queues_.size(); ++i) {
+				RIO.RIOCloseCompletionQueue(rio_completion_queues_[i]);
+			}
+		}
 				
 
 	private:	

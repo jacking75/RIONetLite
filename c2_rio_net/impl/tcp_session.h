@@ -44,13 +44,16 @@ namespace c2rionet
 		{
 			max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
 			
-			io_sender_.Init(index_, net_config);
+			if (io_sender_.Init(index_, net_config) == false) {
+				LogFuncPtr((int)LogLevel::kERROR, "TcpSession::RioInitialize() - fail io_sender_.Init");
+				return false;
+			}
 			
 			if (auto [err_code, err_msg] = recv_buffer_.Create(false, 
 											net_config.max_recv_buffer_size_);
 				err_code != (int)NetErrorCode::kNONE) {
 
-				LogFuncPtr((int)LogLevel::kERROR, std::format("Session::RioInitialize() - fail mRecvBuffer.Create. {0}, {1}", err_code, err_msg).c_str());
+				LogFuncPtr((int)LogLevel::kERROR, std::format("TcpSession::RioInitialize() - fail mRecvBuffer.Create. {0}, {1}", err_code, err_msg).c_str());
 				return false;
 			}
 
@@ -58,7 +61,7 @@ namespace c2rionet
 														recv_buffer_.EnableBufferSize());
 			if (recv_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
 				LogFuncPtr((int)LogLevel::kERROR, 
-					std::format("Session::RioInitialize() - RIORegisterBuffer Error: {0}", GetLastError()).c_str());
+					std::format("TcpSession::RioInitialize() - RIORegisterBuffer Error: {0}", GetLastError()).c_str());
 
 				return false;
 			}
@@ -217,7 +220,7 @@ namespace c2rionet
 		void WriteLog_FailPostRecv()
 		{
 			char logmsg[256] = { 0, };
-			sprintf_s(logmsg, "Session::PostRecv() - RIOReceive Error: %d", GetLastError());
+			sprintf_s(logmsg, "TcpSession::PostRecv() - RIOReceive Error: %d", GetLastError());
 			LogFuncPtr((int)LogLevel::kERROR, logmsg);
 		}
 

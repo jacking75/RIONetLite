@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#define __USE_SEND_THREAD__ 1
+//#define __USE_SEND_THREAD__ 1
 
 #include "echo_server_content.h"
 
