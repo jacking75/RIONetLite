@@ -35,9 +35,7 @@ public:
 
 	void Start()
 	{
-		logic_thread_ = std::thread([&]() { 
-				net_mgr_.StartAndBlocking(); 
-			});
+		net_mgr_.Start();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(256));
 	}
@@ -45,11 +43,7 @@ public:
 	void End()
 	{
 		net_mgr_.End();
-
-		if (logic_thread_.joinable()) {
-			logic_thread_.join();
-		}
-
+				
 		WriteLog((int)c2rionet::LogLevel::kINFO, "End Server");
 	}
 
@@ -105,5 +99,4 @@ public:
 private:
 	EchoServerContent content_;
 	c2rionet::ServerNetManager net_mgr_;
-	std::thread logic_thread_;
 };

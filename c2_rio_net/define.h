@@ -82,6 +82,7 @@ namespace c2rionet
 	inline char LogLevelStr[(int)LogLevel::kEND][6] = { "trace", "debug", "info", "warn", "error", "fetal"  };
 
 
+	// 0 ~ 100
 	enum class NetErrorCode : std::int16_t
 	{
 		kNONE = 0,

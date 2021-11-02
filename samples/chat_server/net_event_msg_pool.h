@@ -42,6 +42,7 @@ public:
 		auto p_data = &session_buffers_[session_index][index];
 		++session_cur_pos_[session_index];
 
+		p_data->session_index_ = session_index;
 		return p_data;
 	}
 

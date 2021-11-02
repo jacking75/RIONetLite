@@ -30,7 +30,7 @@ namespace c2rionet
 		virtual std::uint32_t OnReceive([[maybe_unused]] const std::int32_t index_,
 										[[maybe_unused]] const std::uint64_t uniqueId_,
 										[[maybe_unused]] const std::uint32_t dataSize_,
-										[[maybe_unused]] const char* pData_)
+										[[maybe_unused]] char* pData_)
 		{
 			return 0;
 		}

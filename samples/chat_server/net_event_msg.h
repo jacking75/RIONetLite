@@ -1,6 +1,5 @@
 #pragma once
 
-#include <span>
 #include <cstdint>
 
 
@@ -16,7 +15,6 @@ struct NetEventMsg
 {
 	int session_index_ = -1;
 	NetEventType event_type_ = NetEventType::kNONE;
-	std::span<char> data_;
-	//unsigned int DataSize = 0;
-	//char* pData = nullptr;
+	uint32_t data_size_ = 0;
+	char* p_data_ = nullptr;
 };

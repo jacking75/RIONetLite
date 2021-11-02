@@ -25,9 +25,9 @@ namespace c2rionet
 			return impl_.Initialize(net_cfg, p_net_event_mgr);
 		}
 
-		void StartAndBlocking() 
+		void Start() 
 		{
-			impl_.StartAndBlocking();
+			impl_.Start();
 		}
 		
 		void End() 

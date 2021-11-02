@@ -21,6 +21,22 @@ namespace c2rionet
 
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
 
+		void Start(SessionNetConfig net_cfg,
+					SOCKET listen_socket,
+					std::vector<RIO_CQ>& rio_completion_queues,
+					SessionManager& session_mgr,
+					INetEventManager* net_event_mgr,
+					[[maybe_unused]] SendManager* p_send_mgr)
+		{
+			work_thread_ = std::thread([&]() {
+					Run(net_cfg,
+						listen_socket,
+						rio_completion_queues,
+						session_mgr,
+						net_event_mgr,
+						p_send_mgr);
+				});
+		}
 
 		void Run(SessionNetConfig net_cfg, 
 				SOCKET listen_socket, 
@@ -31,6 +47,7 @@ namespace c2rionet
 		{
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
 
+			listen_socket_ = listen_socket;
 			is_run_ = true;
 			while (is_run_) {
 				SOCKET accepted_sock = accept(listen_socket, NULL, NULL);
@@ -71,7 +88,17 @@ namespace c2rionet
 
 		void Stop() 
 		{
+			LogFuncPtr((int)LogLevel::kINFO, "Accepter::Stop - Start");
+
 			is_run_ = false;
+
+			closesocket(listen_socket_);
+
+			if (work_thread_.joinable()) {
+				work_thread_.join();
+			}
+
+			LogFuncPtr((int)LogLevel::kINFO, "Accepter::Stop - End");
 		}
 
 
@@ -114,6 +141,11 @@ namespace c2rionet
 
 
 		bool is_run_;
+
 		uint64_t connect_sequence_id_;
+
+		SOCKET listen_socket_;
+
+		std::thread work_thread_;
 	};
 }

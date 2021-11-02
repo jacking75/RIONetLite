@@ -22,7 +22,6 @@ public:
 		
 		WriteLogNetConfig(netConfig);
 
-
 		content_.Init(&net_mgr_);
 		
 		if (auto result = net_mgr_.Initialize(netConfig, &content_); result != netErrorCode::kNONE) {
@@ -35,9 +34,7 @@ public:
 
 	void Start()
 	{
-		net_io_thread_ = std::thread([&]() { 
-				net_mgr_.StartAndBlocking(); 
-			});
+		net_mgr_.Start();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(256));
 	}
@@ -45,10 +42,6 @@ public:
 	void End()
 	{
 		net_mgr_.End();
-
-		if (net_io_thread_.joinable()) {
-			net_io_thread_.join();
-		}
 
 		Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "End Server");
 	}
@@ -92,5 +85,4 @@ public:
 private:
 	ChatServerContent content_;
 	c2rionet::ServerNetManager net_mgr_;
-	std::thread net_io_thread_;
 };

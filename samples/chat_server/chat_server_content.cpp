@@ -4,6 +4,7 @@
 
 #include "Packet.h"
 
+#include <thread>
 #include <format>
 
 
@@ -27,64 +28,159 @@ bool ChatServerContent::Init(c2rionet::ServerNetManager* p_net_mgr)
 	return true;
 }
 
+void  ChatServerContent::Start()
+{
+	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Start");
+
+	work_thread_ = std::thread([&]() {
+			Update();
+		});
+}
+
+void ChatServerContent::Stop()
+{
+	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Stop - Start");
+
+	is_run_ = false;
+
+	if (msg_queue_iocp_ != INVALID_HANDLE_VALUE) { 
+		CloseHandle(msg_queue_iocp_); 
+	}
+
+	if (work_thread_.joinable()) {
+		work_thread_.join();
+	}
+
+	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Stop - End");
+}
+
+void ChatServerContent::Update()
+{
+	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Update - Start");
+
+	int fail_count = 0;
+
+	while (is_run_) {
+		NetEventMsg* p_msg = nullptr;
+		DWORD dummy1 = 0;
+		auto wait_time = INFINITE;
+
+		if (auto result = GetQueuedCompletionStatus(
+			msg_queue_iocp_,
+			&dummy1,
+			NULL,
+			reinterpret_cast<LPOVERLAPPED*>(&p_msg),
+			wait_time);
+			result == false) {
+			++fail_count;
+
+			if (fail_count < 3) {
+				Logger::WriteLog((int)c2rionet::LogLevel::kERROR, "ChatServerContent::Update - fail GetQueuedCompletionStatus");
+				break;
+			}
+			continue;
+		}
+		else {
+			fail_count = 0;
+		}
+
+		switch (p_msg->event_type_)
+		{
+		case NetEventType::kCONNECTION:
+		{
+			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kCONNECTION");
+		}
+		break;
+		case NetEventType::kCLOSE:
+		{
+			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kCLOSE");
+		}
+		break;
+		case NetEventType::kONRECV:
+		{
+			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kONRECV");
+		}
+		break;
+		}
+	}
+
+	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Update - End");
+}
+
 void ChatServerContent::OnConnect(const std::int32_t index, const std::uint64_t uid)
 {
-	Logger::WriteLog((int)c2rionet::LogLevel::kINFO,
+	Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG,
 		std::format("[OnConnect] - SessionIndex({0}), UniqueId({1})", index, uid).c_str());
 	
 	auto p_event_msg = net_event_msg_pool_.Alloc(index);
-	p_event_msg->session_index_ = index;
 	p_event_msg->event_type_ = NetEventType::kCONNECTION;
 	
 	PostNetMessage(p_event_msg);
 }
 
-void ChatServerContent::OnClose(const std::int32_t index, const c2rionet::DisconnectReason reason) 
+void ChatServerContent::OnClose(const std::int32_t index, 
+								const c2rionet::DisconnectReason reason) 
 {
-	printf("[OnClose] - SessionIndex(%d), Reason(%s)\n", index, c2rionet::DisconnectReasonStr[(int)reason]);
+	Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, 
+		std::format("[OnClose] - SessionIndex({0}), Reason({1})", index, c2rionet::DisconnectReasonStr[(int)reason]).c_str());
+
+	auto p_event_msg = net_event_msg_pool_.Alloc(index);
+	p_event_msg->event_type_ = NetEventType::kCLOSE;
+
+	PostNetMessage(p_event_msg);
 }
 
-std::uint32_t ChatServerContent::OnReceive(const std::int32_t index, const std::uint64_t uid,
-	const std::uint32_t data_size, const char* p_data) 
+std::uint32_t ChatServerContent::OnReceive(const std::int32_t index, 
+							[[maybe_unused]] const std::uint64_t uid,
+							const std::uint32_t data_size, char* p_data) 
 {
-	// 이 데이터는 방금 받은 데이터로 여기서 사용 도중 세션이 끊어져서 이 세션이 재 사용되면 버퍼의 값이 이상해질 수 있다. 이 이벤트 발생 후 RE_USE_SESSION_WAITE_TIMESEC는 보장한다
 	//printf("[OnReceive] - SessionIndex(%d), size(%d)\n", index_, (int)dataSize_);
 	//auto usedDataSize = ProcessPacket(index, uid, data_size, p_data);
 	//return usedDataSize;
-
-	const int MAX_PACKET_BODY_SIZE = 1024; //TODO config의 값을 사용하도록 변경 필요
+	const int max_packet_size = 1024; //TODO config의 값을 사용하도록 변경 필요
 	auto readPos = 0;
-	PacketHeader* pPktHeader;
+	auto remainSize = data_size;
 
-	while ((data_size - readPos) >= PACKET_HEADER_SIZE)
-	{
-		pPktHeader = (PacketHeader*)p_data[readPos];
-		readPos += PACKET_HEADER_SIZE;
-		auto bodySize = (int16_t)(pPktHeader->length_ - PACKET_HEADER_SIZE);
+	while (remainSize >= PACKET_HEADER_SIZE) {
 
-		if (bodySize > 0)
-		{
-			if (bodySize > (data_size - readPos))
-			{
-				readPos -= PACKET_HEADER_SIZE;
-				break;
+		auto [p_msg, err] = GenerateNetEventMsg(index, remainSize, &p_data[readPos], max_packet_size);
+
+		if (p_msg == nullptr) {
+			if (err != ErrorCode::kNONE) {
+				Logger::WriteLog((int)c2rionet::LogLevel::kERROR,
+					std::format("[OnReceive] - SessionIndex({0}), error({1})", index, (int)err).c_str());
 			}
-
-			if (bodySize > MAX_PACKET_BODY_SIZE)
-			{
-				// 더 이상 이 세션과는 작업을 하지 않을 예정. 클라이언트 보고 나가라고 하던가 직접 짤라야 한다.
-				return readPos;
-			}
+			break;
 		}
 
-		//AddPacketQueue(sessionIndex, pPktHeader->Id, bodySize, &session.pRecvBuffer[readPos]);
-		readPos += bodySize;
+		PostNetMessage(p_msg);
+
+		readPos += (int)p_msg->data_size_;
+		remainSize -= (int)p_msg->data_size_;
+	}
+		
+	return readPos;
+}
+
+std::tuple<NetEventMsg*, ErrorCode> ChatServerContent::GenerateNetEventMsg(const int32_t session_index,
+	const int packet_data_size, char* p_packet_data,
+	const int max_packet_size)
+{
+	auto pPktHeader = (PacketHeader*)p_packet_data;
+
+	if (max_packet_size < pPktHeader->length_) {
+		return { nullptr, ErrorCode::kPACKET_SIZE_TOO_LARGE };
 	}
 
-	//session.RemainingDataSize -= readPos;
-	//session.PrevReadPosInRecvBuffer = readPos;
+	if (packet_data_size < pPktHeader->length_) {
+		return { nullptr, ErrorCode::kNONE };
+	}
 
-	return 0;
+	auto p_event_msg = net_event_msg_pool_.Alloc(session_index);
+	p_event_msg->event_type_ = NetEventType::kONRECV;
+	p_event_msg->data_size_ = pPktHeader->length_;
+	p_event_msg->p_data_ = p_packet_data;
+	return { p_event_msg, ErrorCode::kNONE };
 }
 
 BOOL ChatServerContent::PostNetMessage(NetEventMsg* pEvnet_)

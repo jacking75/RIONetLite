@@ -71,6 +71,8 @@ namespace c2rionet
 
 		void Stop()
 		{
+			LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - Start");
+
 			is_run_ = false;
 
 			CloseRIOQueues();
@@ -80,6 +82,8 @@ namespace c2rionet
 					thread.join();
 				}
 			}
+
+			LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - End");
 		}
 
 

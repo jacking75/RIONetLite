@@ -49,7 +49,7 @@ namespace c2rionet
 			return NetErrorCode::kNONE;
 		}
 
-		void StartAndBlocking() 
+		void Start() 
 		{ 
 			io_worker_.StartIoThreads(net_config_.io_work_thread_count_,
 									net_config_.session_cfg_.max_send_count_per_1sec_,
@@ -63,7 +63,7 @@ namespace c2rionet
 			}
 #endif // __USE_SEND_THREAD__
 
-			accepter_.Run(net_config_.session_cfg_, 
+			accepter_.Start(net_config_.session_cfg_,
 							listen_socket_, 
 							rio_completion_queues_, 
 							session_mgr_, 
@@ -74,16 +74,11 @@ namespace c2rionet
 		void End()
 		{
 			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Start");
-			accepter_.Stop();
 			
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Close mListenSocket");
-			closesocket(listen_socket_);
-
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::End - Stop IOThreads");
+			accepter_.Stop();
+						
 			io_worker_.Stop();
-			//CloseRIOQueue();
-			//Sleep(100);
-
+			
 #ifdef __USE_SEND_THREAD__
 			send_mgr_.End();
 #endif

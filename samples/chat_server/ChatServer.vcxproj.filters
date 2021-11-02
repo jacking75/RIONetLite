@@ -80,5 +80,6 @@
     <ClInclude Include="net_event_msg.h" />
     <ClInclude Include="net_event_msg_pool.h" />
     <ClInclude Include="logger.h" />
+    <ClInclude Include="error_code.h" />
   </ItemGroup>
 </Project>
