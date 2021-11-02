@@ -135,6 +135,8 @@
   <ItemGroup>
     <ClCompile Include="chat_server_content.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="packet_manager.cpp" />
+    <ClCompile Include="room.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\c2_rio_net\define.h" />
@@ -160,11 +162,15 @@
     <ClInclude Include="chat_server_content.h" />
     <ClInclude Include="chat_server.h" />
     <ClInclude Include="client_session.h" />
+    <ClInclude Include="client_session_manager.h" />
     <ClInclude Include="error_code.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="net_event_msg.h" />
     <ClInclude Include="net_event_msg_pool.h" />
     <ClInclude Include="packet.h" />
+    <ClInclude Include="packet_manager.h" />
+    <ClInclude Include="room.h" />
+    <ClInclude Include="room_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

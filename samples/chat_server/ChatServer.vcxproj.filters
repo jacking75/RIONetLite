@@ -3,6 +3,8 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="chat_server_content.cpp" />
+    <ClCompile Include="packet_manager.cpp" />
+    <ClCompile Include="room.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="c2_rio_net">
@@ -81,5 +83,9 @@
     <ClInclude Include="net_event_msg_pool.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="error_code.h" />
+    <ClInclude Include="client_session_manager.h" />
+    <ClInclude Include="packet_manager.h" />
+    <ClInclude Include="room.h" />
+    <ClInclude Include="room_manager.h" />
   </ItemGroup>
 </Project>
