@@ -1,76 +1,79 @@
 #pragma once
+
 #include "Room.h"
+#include "error_code.h"
 
-namespace ChatServerLib
+#include <cstdint>
+
+
+class RoomManager
 {
-	class RoomManager
+public:
+	RoomManager() = default;
+	~RoomManager() = default;
+
+
+	void Init(const std::int32_t beginRoomNumber, const std::int32_t maxRoomCount, const std::int32_t maxRoomUserCount)
 	{
-	public:
-		RoomManager() = default;
-		~RoomManager() = default;
+		m_BeginRoomNumber = beginRoomNumber;
+		m_MaxRoomCount = maxRoomCount;
+		m_EndRoomNumber = beginRoomNumber + maxRoomCount;
 
-		void Init(const INT32 beginRoomNumber, const INT32 maxRoomCount, const INT32 maxRoomUserCount)
+		m_RoomList = std::vector<Room*>(maxRoomCount);
+
+		for (auto i = 0; i < maxRoomCount; i++)
 		{
-			m_BeginRoomNumber = beginRoomNumber;
-			m_MaxRoomCount = maxRoomCount;
-			m_EndRoomNumber = beginRoomNumber + maxRoomCount;
+			m_RoomList[i] = new Room();
+			m_RoomList[i]->SendPacketFunc = SendPacketFunc;
+			m_RoomList[i]->Init((i+ beginRoomNumber), maxRoomUserCount);
+		}
+	}
 
-			m_RoomList = std::vector<Room*>(maxRoomCount);
-
-			for (auto i = 0; i < maxRoomCount; i++)
-			{
-				m_RoomList[i] = new Room();
-				m_RoomList[i]->SendPacketFunc = SendPacketFunc;
-				m_RoomList[i]->Init((i+ beginRoomNumber), maxRoomUserCount);
-			}
+	std::int32_t GetMaxRoomCount() { return m_MaxRoomCount; }
+		
+	std::uint16_t EnterUser(std::int32_t roomNumber, ClientSession* pUser)
+	{
+		auto pRoom = GetRoomByNumber(roomNumber);
+		if (pRoom == nullptr)
+		{
+			return (std::uint16_t)ErrorCode::kROOM_INVALID_INDEX;
 		}
 
-		UINT GetMaxRoomCount() { return m_MaxRoomCount; }
+
+		return pRoom->EnterUser(pUser);
+	}
 		
-		UINT16 EnterUser(INT32 roomNumber, User* pUser)
+	std::uint16_t LeaveUser(std::int32_t roomNumber, ClientSession* pUser)
+	{
+		auto pRoom = GetRoomByNumber(roomNumber);
+		if (pRoom == nullptr)
 		{
-			auto pRoom = GetRoomByNumber(roomNumber);
-			if (pRoom == nullptr)
-			{
-				return (UINT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
-			}
-
-
-			return pRoom->EnterUser(pUser);
+			return (std::uint16_t)ErrorCode::kROOM_INVALID_INDEX;
 		}
-		
-		INT16 LeaveUser(INT32 roomNumber, User* pUser)
-		{
-			auto pRoom = GetRoomByNumber(roomNumber);
-			if (pRoom == nullptr)
-			{
-				return (INT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
-			}
 			
-			pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
-			pRoom->LeaveUser(pUser);
-			return (INT16)Common::ERROR_CODE::NONE;
+		pUser->SetDomainState(ClientSession::DomainState::kLOGIN);
+		pRoom->LeaveUser(pUser);
+		return (std::uint16_t)ErrorCode::kNONE;
+	}
+
+	Room* GetRoomByNumber(std::int32_t number)
+	{ 
+		if (number < m_BeginRoomNumber || number >= m_EndRoomNumber)
+		{
+			return nullptr;
 		}
 
-		Room* GetRoomByNumber(INT32 number) 
-		{ 
-			if (number < m_BeginRoomNumber || number >= m_EndRoomNumber)
-			{
-				return nullptr;
-			}
-
-			auto index = (number - m_BeginRoomNumber);
-			return m_RoomList[index]; 
-		} 
+		auto index = (number - m_BeginRoomNumber);
+		return m_RoomList[index]; 
+	} 
 
 		
-		std::function<void(INT32, void*, INT16)> SendPacketFunc;
+	std::function<void(std::int32_t, void*, std::int16_t)> SendPacketFunc;
 		
 
-	private:
-		std::vector<Room*> m_RoomList;
-		INT32 m_BeginRoomNumber = 0;
-		INT32 m_EndRoomNumber = 0;
-		INT32 m_MaxRoomCount = 0;
-	};
-}
+private:
+	std::vector<Room*> m_RoomList;
+	std::int32_t m_BeginRoomNumber = 0;
+	std::int32_t m_EndRoomNumber = 0;
+	std::int32_t m_MaxRoomCount = 0;
+};

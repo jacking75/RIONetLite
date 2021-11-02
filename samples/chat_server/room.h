@@ -1,43 +1,45 @@
 #pragma once
 
+#include "client_session.h"
+
 #include <functional>
-#include "UserManager.h"
+#include <cstdint>
 
-namespace ChatServerLib
+
+class Room 
 {
-	class Room 
-	{
-	public:
-		Room() = default;
-		~Room() = default;
+public:
+	Room() = default;
+	~Room() = default;
 
-		void Init(const INT32 roomNum, const INT32 maxUserCount);
+	std::function<void(std::int32_t, void*, std::int16_t)> SendPacketFunc;
 
-		INT32 GetMaxUserCount() { return m_MaxUserCount; }
-		
-		INT32 GetCurrentUserCount() { return m_CurrentUserCount; }
-		
-		INT32 GetRoomNumber() { return m_RoomNum; }
 
-		UINT16 EnterUser(User* pUser);
+	void Init(const std::int32_t roomNum, const std::int32_t maxUserCount);
+
+	std::int32_t GetMaxUserCount() { return max_client_count_; }
 		
-		void LeaveUser(User* pUser);
+	std::int32_t GetCurrentUserCount() { return current_user_count; }
+		
+	std::int32_t GetRoomNumber() { return room_num_; }
+
+	std::uint16_t EnterUser(ClientSession* pUser);
+		
+	void LeaveUser(ClientSession* pUser);
 						
-		void NotifyChat(INT32 connIndex, const char* UserID, const char* Msg);
+	void NotifyChat(std::int32_t connIndex, const char* UserID, const char* Msg);
 		
 		
-		std::function<void(INT32, void*, INT16)> SendPacketFunc;
+	
+private:
+	void SendToAllUser(const std::uint16_t dataSize, void* pData, const std::int32_t passUserindex, bool exceptMe);
 
-	private:
-		void SendToAllUser(const UINT16 dataSize, void* pData, const INT32 passUserindex, bool exceptMe);
 
+	std::int32_t room_num_ = -1;
 
-		INT32 m_RoomNum = -1;
-
-		std::list<User*> m_UserList;
+	std::list<ClientSession*> client_list_;
 		
-		INT32 m_MaxUserCount = 0;
+	std::int32_t max_client_count_ = 0;
 
-		UINT16 m_CurrentUserCount = 0;
-	};
-}
+	std::uint16_t current_user_count = 0;
+};

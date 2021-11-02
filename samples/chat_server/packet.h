@@ -1,9 +1,25 @@
 #pragma once
 
-enum class PacketId
+#include <cstdint>
+
+
+enum class PacketID
 {
 	kECHO_REQUEST = 101,
 	kECHO_RESPONSE = 102,	
+
+	kLOGIN_REQUEST = 201,
+	kLOGIN_RESPONSE = 202,
+
+	kROOM_ENTER_REQUEST = 206,
+	kROOM_ENTER_RESPONSE = 207,
+
+	kROOM_LEAVE_REQUEST = 209,
+	kROOM_LEAVE_RESPONSE = 210,
+
+	kROOM_CHAT_REQUEST = 214,
+	kROOM_CHAT_RESPONSE = 215,
+	kROOM_CHAT_NOTIFY = 216,
 };
 
 
@@ -32,7 +48,7 @@ const size_t LOGIN_REQUEST_PACKET_SZIE = sizeof(LOGIN_REQUEST_PACKET);
 
 struct LOGIN_RESPONSE_PACKET : public PacketHeader
 {
-	UINT16 Result;
+	std::uint16_t Result;
 };
 
 
@@ -41,12 +57,12 @@ struct LOGIN_RESPONSE_PACKET : public PacketHeader
 const int MAX_ROOM_TITLE_SIZE = 16;
 struct ROOM_ENTER_REQUEST_PACKET : public PacketHeader
 {
-	INT32 RoomNumber;
+	int RoomNumber;
 };
 
 struct ROOM_ENTER_RESPONSE_PACKET : public PacketHeader
 {
-	INT16 Result;
+	std::uint16_t Result;
 	char RivalUserID[MAX_USER_ID_LEN + 1] = { 0, };
 };
 
@@ -59,7 +75,7 @@ struct ROOM_LEAVE_REQUEST_PACKET : public PacketHeader
 
 struct ROOM_LEAVE_RESPONSE_PACKET : public PacketHeader
 {
-	INT16 Result;
+	std::uint16_t Result;
 };
 
 
@@ -73,7 +89,7 @@ struct ROOM_CHAT_REQUEST_PACKET : public PacketHeader
 
 struct ROOM_CHAT_RESPONSE_PACKET : public PacketHeader
 {
-	INT16 Result;
+	std::uint16_t Result;
 };
 
 struct ROOM_CHAT_NOTIFY_PACKET : public PacketHeader

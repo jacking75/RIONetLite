@@ -8,7 +8,7 @@
 class ClientSession
 {
 public:
-	enum class DOMAIN_STATE 
+	enum class DomainState 
 	{
 		kNONE = 0,
 		kLOGIN = 1,
@@ -30,12 +30,12 @@ public:
 		room_index_ = -1;
 		user_id_ = "";
 		is_confirm_ = false;
-		cur_domain_state = DOMAIN_STATE::kNONE;
+		cur_domain_state = DomainState::kNONE;
 	}
 
 	int SetLogin(char* login_id)
 	{
-		cur_domain_state = DOMAIN_STATE::kLOGIN;
+		cur_domain_state = DomainState::kLOGIN;
 		user_id_ = login_id;
 
 		return 0;
@@ -44,10 +44,10 @@ public:
 	void EnterRoom(int32_t roomIndex)
 	{
 		room_index_ = roomIndex;
-		cur_domain_state = DOMAIN_STATE::kROOM;
+		cur_domain_state = DomainState::kROOM;
 	}
 		
-	void SetDomainState(DOMAIN_STATE val) 
+	void SetDomainState(DomainState val) 
 	{ 
 		cur_domain_state = val; 
 	}
@@ -67,7 +67,7 @@ public:
 		return  user_id_;
 	}
 
-	DOMAIN_STATE GetDomainState() 
+	DomainState GetDomainState() 
 	{
 		return cur_domain_state;
 	}
@@ -83,5 +83,5 @@ private:
 
 	int32_t index_ = -1;
 
-	DOMAIN_STATE cur_domain_state = DOMAIN_STATE::kNONE;		
+	DomainState cur_domain_state = DomainState::kNONE;		
 };
