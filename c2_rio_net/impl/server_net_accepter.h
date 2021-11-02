@@ -22,37 +22,37 @@ namespace c2rionet
 		std::function<void(TcpSession*, const uint64_t, const DisconnectReason)> DisConnectFunc;
 
 		void Start(SessionNetConfig net_cfg,
-					SOCKET listen_socket,
+					SOCKET& listen_socket,
 					std::vector<RIO_CQ>& rio_completion_queues,
 					SessionManager& session_mgr,
-					INetEventManager* net_event_mgr,
+					INetEventManager* p_net_event_mgr,
 					[[maybe_unused]] SendManager* p_send_mgr)
-		{
-			work_thread_ = std::thread([&]() {
+		{			
+			work_thread_ = std::thread([&, p_net_event_mgr, p_send_mgr]() {
 					Run(net_cfg,
 						listen_socket,
 						rio_completion_queues,
 						session_mgr,
-						net_event_mgr,
+						p_net_event_mgr,
 						p_send_mgr);
 				});
 		}
 
 		void Run(SessionNetConfig net_cfg, 
-				SOCKET listen_socket, 
+				SOCKET& listen_socket, 
 				std::vector<RIO_CQ>& rio_completion_queues,
 				SessionManager& session_mgr, 
 				INetEventManager* net_event_mgr, 
 			[[maybe_unused]] SendManager* p_send_mgr)
 		{
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - Start~~~");
+			LogFuncPtr((int)LogLevel::kINFO, "Accepter::Run() - Start~~~");
 
 			listen_socket_ = listen_socket;
 			is_run_ = true;
 			while (is_run_) {
 				SOCKET accepted_sock = accept(listen_socket, NULL, NULL);
 				if (accepted_sock == INVALID_SOCKET) {
-					LogFuncPtr((int)LogLevel::kERROR, "RIONetManager::StartAcceptLoop() - accept invalid socket");
+					LogFuncPtr((int)LogLevel::kERROR, "Accepter::Run() - accept invalid socket");
 					continue;
 				}
 
@@ -83,7 +83,7 @@ namespace c2rionet
 				net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUID());
 			}
 
-			LogFuncPtr((int)LogLevel::kINFO, "RIONetManager::StartAcceptLoop() - End!!!");
+			LogFuncPtr((int)LogLevel::kINFO, "Accepter::Run() - End!!!");
 		}
 
 		void Stop() 

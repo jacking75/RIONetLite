@@ -32,6 +32,8 @@ void  ChatServerContent::Start()
 {
 	Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "ChatServerContent::Start");
 
+	is_run_ = true;
+
 	work_thread_ = std::thread([&]() {
 			Update();
 		});
@@ -63,12 +65,13 @@ void ChatServerContent::Update()
 	while (is_run_) {
 		NetEventMsg* p_msg = nullptr;
 		DWORD dummy1 = 0;
+		DWORD dummy2 = 0;
 		auto wait_time = INFINITE;
 
 		if (auto result = GetQueuedCompletionStatus(
 			msg_queue_iocp_,
 			&dummy1,
-			NULL,
+			(PULONG_PTR)&dummy2,
 			reinterpret_cast<LPOVERLAPPED*>(&p_msg),
 			wait_time);
 			result == false) {
@@ -94,6 +97,7 @@ void ChatServerContent::Update()
 		case NetEventType::kCLOSE:
 		{
 			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kCLOSE");
+			net_event_msg_pool_.ClearSession(p_msg->session_index_);
 		}
 		break;
 		case NetEventType::kONRECV:

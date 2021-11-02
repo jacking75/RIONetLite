@@ -36,12 +36,16 @@ public:
 	{
 		net_mgr_.Start();
 
+		content_.Start();
+
 		std::this_thread::sleep_for(std::chrono::milliseconds(256));
 	}
 
 	void End()
 	{
 		net_mgr_.End();
+
+		content_.Stop();
 
 		Logger::WriteLog((int)c2rionet::LogLevel::kINFO, "End Server");
 	}

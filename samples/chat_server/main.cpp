@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-// ChatServer.exe --PortNumber=32452 --IoWorkThreadCount=4 --IoWorkThreadCount=2 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
+// ChatServer.exe --PortNumber=11021 --IoWorkThreadCount=4 --IoWorkThreadCount=2 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=12288
 c2rionet::NetConfig GetConfig(int argc, char* argv[])
 {
 	c2rionet::NetConfig config;
