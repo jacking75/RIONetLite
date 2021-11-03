@@ -13,28 +13,28 @@ public:
 	PacketManager() = default;
 	~PacketManager() = default;
 
-	void Init(ClientSessionManager* pUserManager, RoomManager* pRoomManager);
-
-	void ProcessRecvPacket(std::int32_t connectionIndex, char* pBuf, std::int16_t copySize);
-	void ProcessLogin(std::int32_t connIndex, char* pBuf, std::int16_t copySize);
-	void ProcessEnterRoom(std::int32_t connIndex, char* pBuf, std::int16_t copySize);
-	void ProcessLeaveRoom(std::int32_t connIndex, char* pBuf, std::int16_t copySize);
-	void ProcessRoomChatMessage(std::int32_t connIndex, char* pBuf, std::int16_t copySize);
-		
-
-	void ClearConnectionInfo(std::int32_t connIndex);
-		
-
 	std::function<void(std::int32_t, void*, std::int16_t)> SendPacketFunc;
 
+	void Init(ClientSessionManager* p_session_mgr, RoomManager* p_room_mgr);
+
+	void ProcessRecvPacket(std::int32_t client_index, std::int16_t data_size, char* p_data);
+	
 
 private:
-	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(std::int32_t, char*, std::int16_t);
-	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION> m_RecvFuntionDictionary;
+	void ProcessLogin(std::int32_t client_index, std::int16_t data_size, char* p_data);
+	void ProcessEnterRoom(std::int32_t client_index, std::int16_t data_size, char* p_data);
+	void ProcessLeaveRoom(std::int32_t client_index, std::int16_t data_size, char* p_data);
+	void ProcessRoomChatMessage(std::int32_t client_index, std::int16_t data_size, char* p_data);
 
-	ClientSessionManager* m_pUserManager;
-	RoomManager* m_pRoomManager;
-		
-	std::function<void(int, char*)> m_SendMQDataFunc;
+
+	void ClearConnectionInfo(std::int32_t client_index);
+
+
+
+	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(std::int32_t, std::int16_t, char*);
+	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION> packet_func_dic_;
+
+	ClientSessionManager* pref_client_mgr_;
+	RoomManager* pref_room_mgr_;		
 };
 

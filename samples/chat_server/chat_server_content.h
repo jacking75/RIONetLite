@@ -2,6 +2,9 @@
 
 #include "net_event_msg.h"
 #include "net_event_msg_pool.h"
+#include "client_session_manager.h"
+#include "room_manager.h"
+#include "packet_manager.h"
 #include "error_code.h"
 
 #include "../../c2_rio_net/i_net_event.h"
@@ -48,9 +51,11 @@ private:
 
 	NetEventMsgObjectPool net_event_msg_pool_;
 
-	HANDLE msg_queue_iocp_ = INVALID_HANDLE_VALUE;
+	ClientSessionManager client_session_mgr_;
+	RoomManager room_mgr_;
+	PacketManager packet_mgr_;
 
 	bool is_run_ = false;
-
+	HANDLE msg_queue_iocp_ = INVALID_HANDLE_VALUE;
 	std::thread work_thread_;
 };

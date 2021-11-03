@@ -16,8 +16,14 @@ bool ChatServerContent::Init(c2rionet::ServerNetManager* p_net_mgr)
 	const int max_session_count = 12;
 	const int max_msg_count_per_session = 8;
 
-	net_event_msg_pool_.Init(max_session_count, max_msg_count_per_session);
+	client_session_mgr_.Init(max_session_count);
 
+	room_mgr_.Init(0, 12, 4);
+
+	packet_mgr_.Init(&client_session_mgr_, &room_mgr_);
+
+
+	net_event_msg_pool_.Init(max_session_count, max_msg_count_per_session);
 
 	msg_queue_iocp_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
 	if (msg_queue_iocp_ == INVALID_HANDLE_VALUE)
@@ -103,8 +109,11 @@ void ChatServerContent::Update()
 		case NetEventType::kONRECV:
 		{
 			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kONRECV");
+			packet_mgr_.ProcessRecvPacket(p_msg->session_index_, p_msg->data_size_, p_msg->p_data_);
 		}
 		break;
+		default:
+			Logger::WriteLog((int)c2rionet::LogLevel::kERROR, "ChatServerContent::Update - Unknown net event");
 		}
 	}
 
