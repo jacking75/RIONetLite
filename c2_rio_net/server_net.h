@@ -64,9 +64,9 @@ namespace c2rionet
 
 
 //TODO 리팩토링: modern c++ 20  
-//TODO 샘플 프로젝트: 채팅 서버
-//TODO 샘플 프로젝트: 오목 서버
 //TODO 더미 테스트: 더미 클라 테스트를 통해 최대 접속 수를 100 정도로 한 상태에서 반복적으로 ForcedClose를 발생시켜서 에러 발생이 없는지 확인한다
+//TODO 유닛락 사용하는 서버 예제
+//TODO tcmalloc 사용하는 예제 서버
 
 
 //완료

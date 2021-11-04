@@ -15,6 +15,24 @@ public:
 		};
 	}
 
+	static void Debug(const char* szLogMsg)
+	{
+		auto level = (int)c2rionet::LogLevel::kDEBUG;
+		printf("[%s] %s\r\n", c2rionet::LogLevelStr[level], szLogMsg);
+	}
+
+	static void Info(const char* szLogMsg)
+	{
+		auto level = (int)c2rionet::LogLevel::kINFO;
+		printf("[%s] %s\r\n", c2rionet::LogLevelStr[level], szLogMsg);
+	}
+
+	static void Error(const char* szLogMsg)
+	{
+		auto level = (int)c2rionet::LogLevel::kERROR;
+		printf("[%s] %s\r\n", c2rionet::LogLevelStr[level], szLogMsg);
+	}
+
 	static void WriteLog(const int eLogInfoType, const char* szLogMsg)
 	{
 		printf("[%s] %s\r\n", c2rionet::LogLevelStr[eLogInfoType], szLogMsg);

@@ -23,6 +23,7 @@ namespace c2rionet
 		}
 
 		virtual void OnClose([[maybe_unused]] const std::int32_t index_, 
+							[[maybe_unused]] const std::uint64_t uid, 
 							[[maybe_unused]] const c2rionet::DisconnectReason reason_)
 		{
 		}

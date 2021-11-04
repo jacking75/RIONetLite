@@ -18,19 +18,19 @@ bool ChatServerContent::Init(c2rionet::ServerNetManager* p_net_mgr)
 
 	client_session_mgr_.Init(max_session_count);
 
+
 	room_mgr_.Init(0, 12, 4);
 
 	packet_mgr_.Init(&client_session_mgr_, &room_mgr_);
 
+	SetSendFunction();
 
 	net_event_msg_pool_.Init(max_session_count, max_msg_count_per_session);
 
-	msg_queue_iocp_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
-	if (msg_queue_iocp_ == INVALID_HANDLE_VALUE)
-	{
+	if (InitNetMsgQueue() == false) {
 		return false;
 	}
-
+	
 	return true;
 }
 
@@ -98,6 +98,9 @@ void ChatServerContent::Update()
 		case NetEventType::kCONNECTION:
 		{
 			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kCONNECTION");
+
+			auto p_session = client_session_mgr_.GetClientByConnIdx(p_msg->session_index_);
+			p_session->Connected(p_msg->uid_);
 		}
 		break;
 		case NetEventType::kCLOSE:
@@ -109,7 +112,7 @@ void ChatServerContent::Update()
 		case NetEventType::kONRECV:
 		{
 			Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, "ChatServerContent::Update - kONRECV");
-			packet_mgr_.ProcessRecvPacket(p_msg->session_index_, p_msg->data_size_, p_msg->p_data_);
+			packet_mgr_.ProcessRecvPacket(p_msg->session_index_, p_msg->uid_, p_msg->data_size_, p_msg->p_data_);
 		}
 		break;
 		default:
@@ -126,18 +129,21 @@ void ChatServerContent::OnConnect(const std::int32_t index, const std::uint64_t 
 		std::format("[OnConnect] - SessionIndex({0}), UniqueId({1})", index, uid).c_str());
 	
 	auto p_event_msg = net_event_msg_pool_.Alloc(index);
+	p_event_msg->uid_ = uid;
 	p_event_msg->event_type_ = NetEventType::kCONNECTION;
 	
 	PostNetMessage(p_event_msg);
 }
 
 void ChatServerContent::OnClose(const std::int32_t index, 
+								const std::uint64_t uid, 
 								const c2rionet::DisconnectReason reason) 
 {
 	Logger::WriteLog((int)c2rionet::LogLevel::kDEBUG, 
 		std::format("[OnClose] - SessionIndex({0}), Reason({1})", index, c2rionet::DisconnectReasonStr[(int)reason]).c_str());
 
 	auto p_event_msg = net_event_msg_pool_.Alloc(index);
+	p_event_msg->uid_ = uid;
 	p_event_msg->event_type_ = NetEventType::kCLOSE;
 
 	PostNetMessage(p_event_msg);
@@ -166,6 +172,7 @@ std::uint32_t ChatServerContent::OnReceive(const std::int32_t index,
 			break;
 		}
 
+		p_msg->uid_ = uid;
 		PostNetMessage(p_msg);
 
 		readPos += (int)p_msg->data_size_;
@@ -208,5 +215,14 @@ BOOL ChatServerContent::PostNetMessage(NetEventMsg* pEvnet_)
 										reinterpret_cast<LPOVERLAPPED>(pEvnet_));
 }
 
-// std::span
-//https://docs.google.com/presentation/d/1bC_V1_wQsRL-N7igEc_JH_pWqfXMqmZkUMEYF9WKwZ0/edit?usp=sharing
+void ChatServerContent::SetSendFunction()
+{
+	auto send_func = [&](const std::int32_t session_index, const std::uint64_t session_uid, const std::uint32_t data_size, const char* p_data) -> int
+	{
+		return (int)pref_net_mgr_->SendData(session_index, session_uid, data_size, p_data);
+	};
+
+	room_mgr_.SendPacketFunc = send_func;
+	packet_mgr_.SendPacketFunc = send_func;
+}
+

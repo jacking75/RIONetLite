@@ -22,7 +22,6 @@ namespace csharp_test_client
             PacketFuncDic.Add(PACKET_ID.PACKET_ID_ROOM_LEAVE_USER_NTF, PacketProcess_RoomLeaveUserNotify);
             PacketFuncDic.Add(PACKET_ID.PACKET_ID_ROOM_CHAT_RES, PacketProcess_RoomChatResponse);            
             PacketFuncDic.Add(PACKET_ID.PACKET_ID_ROOM_CHAT_NOTIFY, PacketProcess_RoomChatNotify);
-            PacketFuncDic.Add(PACKET_ID.PACKET_ID_ROOM_RELAY_NTF, PacketProcess_RoomRelayNotify);
         }
 
         void PacketProcess(PacketData packet)
@@ -79,7 +78,7 @@ namespace csharp_test_client
 
             for (int i = 0; i < notifyPkt.UserCount; ++i)
             {
-                AddRoomUserList(notifyPkt.UserUniqueIdList[i], notifyPkt.UserIDList[i]);
+                AddRoomUserList(notifyPkt.UserIDList[i]);
             }
 
             DevLog.Write($"방의 기존 유저 리스트 받음");
@@ -90,7 +89,7 @@ namespace csharp_test_client
             var notifyPkt = new RoomNewUserNtfPacket();
             notifyPkt.FromBytes(bodyData);
 
-            AddRoomUserList(notifyPkt.UserUniqueId, notifyPkt.UserID);
+            AddRoomUserList(notifyPkt.UserID);
             
             DevLog.Write($"방에 새로 들어온 유저 받음");
         }

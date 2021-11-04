@@ -19,6 +19,31 @@ public:
 	ClientSession() = default;
 	~ClientSession() = default;
 
+	int32_t GetCurrentRoom()
+	{
+		return room_index_;
+	}
+
+	int32_t SessionIndex()
+	{
+		return index_;
+	}
+
+	uint64_t SessionUID()
+	{
+		return uid_;
+	}
+
+	std::string GetUserId() const
+	{
+		return  user_id_;
+	}
+
+	DomainState GetDomainState()
+	{
+		return cur_domain_state;
+	}
+
 
 	void Init(const int32_t index)
 	{
@@ -31,6 +56,11 @@ public:
 		user_id_ = "";
 		is_confirm_ = false;
 		cur_domain_state = DomainState::kNONE;
+	}
+
+	void Connected(const uint64_t uid)
+	{
+		uid_ = uid;
 	}
 
 	int SetLogin(char* login_id)
@@ -52,25 +82,7 @@ public:
 		cur_domain_state = val; 
 	}
 
-	int32_t GetCurrentRoom()
-	{
-		return room_index_;
-	}
-
-	int32_t GetNetConnIdx()
-	{
-		return index_;
-	}
-
-	std::string GetUserId() const
-	{
-		return  user_id_;
-	}
-
-	DomainState GetDomainState() 
-	{
-		return cur_domain_state;
-	}
+	
 				
 
 
@@ -82,6 +94,7 @@ private:
 	std::string auth_token;
 
 	int32_t index_ = -1;
+	uint64_t uid_ = 0;
 
 	DomainState cur_domain_state = DomainState::kNONE;		
 };

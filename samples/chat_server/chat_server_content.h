@@ -29,7 +29,7 @@ public:
 
 	void OnConnect(const std::int32_t index, const std::uint64_t uid) override;
 	
-	void OnClose(const std::int32_t index, const c2rionet::DisconnectReason reason) override;
+	void OnClose(const std::int32_t index, const std::uint64_t uid, const c2rionet::DisconnectReason reason) override;
 
 	std::uint32_t OnReceive(const std::int32_t index, const std::uint64_t uid,
 					const std::uint32_t data_size, char* p_data) override;
@@ -37,6 +37,17 @@ public:
 		
 private:
 	void Update();
+
+	void SetSendFunction();
+
+	bool InitNetMsgQueue()
+	{
+		msg_queue_iocp_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
+		if (msg_queue_iocp_ == INVALID_HANDLE_VALUE) {
+			return false;
+		}
+		return true;
+	}
 
 	std::tuple<NetEventMsg*, ErrorCode> GenerateNetEventMsg(const int32_t session_index,
 		const int packet_data_size, char* p_packet_data,

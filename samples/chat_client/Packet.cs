@@ -43,8 +43,8 @@ namespace csharp_test_client
 
     public class LoginReqPacket
     {
-        byte[] UserID = new byte[PacketDef.MAX_USER_ID_BYTE_LENGTH];
-        byte[] UserPW = new byte[PacketDef.MAX_USER_PW_BYTE_LENGTH];
+        byte[] UserID = new byte[PacketDef.MAX_USER_ID_BYTE_LENGTH + 1];
+        byte[] UserPW = new byte[PacketDef.MAX_USER_PW_BYTE_LENGTH + 1];
 
         public void SetValue(string userID, string userPW)
         {
@@ -63,11 +63,11 @@ namespace csharp_test_client
 
     public class LoginResPacket
     {
-        public Int16 Result;
+        public UInt16 Result;
 
         public bool FromBytes(byte[] bodyData)
         {
-            Result = BitConverter.ToInt16(bodyData, 0);
+            Result = BitConverter.ToUInt16(bodyData, 0);
             return true;
         }
     }
@@ -91,21 +91,18 @@ namespace csharp_test_client
 
     public class RoomEnterResPacket
     {
-        public Int16 Result;
-        public Int64 RoomUserUniqueId;
-
+        public UInt16 Result;
+        
         public bool FromBytes(byte[] bodyData)
         {
-            Result = BitConverter.ToInt16(bodyData, 0);
-            RoomUserUniqueId = BitConverter.ToInt64(bodyData, 2);
+            Result = BitConverter.ToUInt16(bodyData, 0);
             return true;
         }
     }
 
     public class RoomUserListNtfPacket
     {
-        public int UserCount = 0;
-        public List<Int64> UserUniqueIdList = new List<Int64>();
+        public SByte UserCount = 0;
         public List<string> UserIDList = new List<string>();
 
         public bool FromBytes(byte[] bodyData)
@@ -116,16 +113,12 @@ namespace csharp_test_client
 
             for (int i = 0; i < userCount; ++i)
             {
-                var uniqeudId = BitConverter.ToInt64(bodyData, readPos);
-                readPos += 8;
-
                 var idlen = (SByte)bodyData[readPos];
                 ++readPos;
 
                 var id = Encoding.UTF8.GetString(bodyData, readPos, idlen);
                 readPos += idlen;
 
-                UserUniqueIdList.Add(uniqeudId);
                 UserIDList.Add(id);
             }
 
@@ -136,16 +129,12 @@ namespace csharp_test_client
 
     public class RoomNewUserNtfPacket
     {
-        public Int64 UserUniqueId;
         public string UserID;
 
         public bool FromBytes(byte[] bodyData)
         {
             var readPos = 0;
-
-            UserUniqueId = BitConverter.ToInt64(bodyData, readPos);
-            readPos += 8;
-
+             
             var idlen = (SByte)bodyData[readPos];
             ++readPos;
 

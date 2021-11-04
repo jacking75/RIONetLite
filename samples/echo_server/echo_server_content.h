@@ -16,9 +16,9 @@ public:
 		printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uid);
 	}
 
-	void OnClose(const std::int32_t index, const c2rionet::DisconnectReason reason) override
+	void OnClose(const std::int32_t index, const std::uint64_t uid, const c2rionet::DisconnectReason reason) override
 	{
-		printf("[OnClose] - SessionIndex(%d), Reason(%s)\n", index, c2rionet::DisconnectReasonStr[(int)reason]);
+		printf("[OnClose] - SessionIndex(%d), SessionUID(%I64u), Reason(%s)\n", index, uid, c2rionet::DisconnectReasonStr[(int)reason]);
 	}
 
 	std::uint32_t OnReceive(const std::int32_t index, const std::uint64_t uid, 

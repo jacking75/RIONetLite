@@ -11,6 +11,7 @@
 #include "..\define.h"
 
 #include <vector>
+#include <cstdint>
 
 
 namespace c2rionet
@@ -91,8 +92,8 @@ namespace c2rionet
 		}
 
 						
-		NetErrorCode SendData(const INT32 session_index, const UINT64 session_uid, 
-							const UINT32 data_size, const char* p_data)
+		NetErrorCode SendData(const std::int32_t session_index, const std::uint64_t session_uid,
+							const std::uint32_t data_size, const char* p_data)
 		{
 #ifndef __USE_SEND_THREAD__
 			if (auto ret = session_mgr_.SendData(session_index, session_uid, data_size, p_data);
@@ -112,7 +113,7 @@ namespace c2rionet
 			return NetErrorCode::kNONE;
 		}
 
-		bool ForcedClose(const INT32 session_index, const UINT64 session_uid)
+		bool ForcedClose(const std::int32_t session_index, const std::uint64_t session_uid)
 		{
 			if (auto thread_index = session_mgr_.ForcedClose(session_index, session_uid);
 				thread_index >= 0) {
@@ -141,7 +142,7 @@ namespace c2rionet
 			}
 		}
 
-		void DisConnect(TcpSession* p_session, const UINT64 session_uid, const DisconnectReason reason)
+		void DisConnect(TcpSession* p_session, const std::uint64_t session_uid, const DisconnectReason reason)
 		{
 			auto cur_time_sec = Helper::CurrentSecond();
 			auto session_index = p_session->GetIndex();
@@ -154,7 +155,7 @@ namespace c2rionet
 			}
 
 			if (p_session->Disconnect(session_uid)) {
-				net_event_mgr_->OnClose(session_index, reason);
+				net_event_mgr_->OnClose(session_index, session_uid, reason);
 				session_mgr_.ReturnSession(session_index, cur_time_sec);
 
 #ifdef __USE_SEND_THREAD__
@@ -163,7 +164,7 @@ namespace c2rionet
 			}
 		}
 
-		void ForcedClose(const int session_index, DisconnectReason reason)
+		void ForcedClose(const std::int32_t session_index, DisconnectReason reason)
 		{
 			// 이 함수를 호출할 때는 절대 session_index는 유효한 값이다.
 			auto p_session = session_mgr_.GetSessionObj(session_index);

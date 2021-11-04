@@ -292,7 +292,6 @@
             this.btnRoomRelay.TabIndex = 54;
             this.btnRoomRelay.Text = "Relay";
             this.btnRoomRelay.UseVisualStyleBackColor = true;
-            this.btnRoomRelay.Click += new System.EventHandler(this.btnRoomRelay_Click);
             // 
             // btnRoomChat
             // 

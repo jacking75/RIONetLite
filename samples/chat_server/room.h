@@ -2,6 +2,7 @@
 
 #include "client_session.h"
 
+
 #include <functional>
 #include <cstdint>
 
@@ -12,7 +13,7 @@ public:
 	Room() = default;
 	~Room() = default;
 
-	std::function<void(std::int32_t, void*, std::int16_t)> SendPacketFunc;
+	std::function<int(const std::int32_t, const std::uint64_t, const std::uint32_t, const char*)> SendPacketFunc;
 
 
 	void Init(const std::int32_t room_num, const std::int32_t max_user_count);
@@ -32,7 +33,7 @@ public:
 		
 	
 private:
-	void SendToAllUser(const std::uint16_t data_size, void* p_data, const std::int32_t pass_user_index, bool is_except_me);
+	void SendToAllUser(const std::uint16_t data_size, char* p_data, const std::int32_t pass_user_index, bool is_except_me);
 
 
 	std::int32_t room_num_ = -1;

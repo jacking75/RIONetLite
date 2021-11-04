@@ -243,10 +243,9 @@ namespace csharp_test_client
             SendPacketQueue.Enqueue(dataSource.ToArray());
         }
 
-        void AddRoomUserList(Int64 userUniqueId, string userID)
+        void AddRoomUserList(string userID)
         {
-            var msg = $"{userUniqueId}: {userID}";
-            listBoxRoomUserList.Items.Add(msg);
+            listBoxRoomUserList.Items.Add(userID);
         }
 
         void RemoveRoomUserList(Int64 userUniqueId)
@@ -375,19 +374,6 @@ namespace csharp_test_client
 
             PostSendPacket(PACKET_ID.PACKET_ID_ROOM_CHAT_REQ, requestPkt.ToBytes());
             DevLog.Write($"방 채팅 요청");
-        }
-
-        private void btnRoomRelay_Click(object sender, EventArgs e)
-        {
-            if( textBoxRelay.Text.IsEmpty())
-            {
-                MessageBox.Show("릴레이 할 데이터가 없습니다");
-                return;
-            }
-            
-            var bodyData = Encoding.UTF8.GetBytes(textBoxRelay.Text);
-            PostSendPacket(PACKET_ID.PACKET_ID_ROOM_RELAY_REQ, bodyData);
-            DevLog.Write($"방 릴레이 요청");
         }
 
         

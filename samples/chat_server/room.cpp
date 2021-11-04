@@ -34,29 +34,29 @@ void Room::LeaveClient(ClientSession* p_leave_client)
 			
 void Room::NotifyChat(std::int32_t client_index, const char* p_user_id, const char* p_msg)
 {
-	ROOM_CHAT_NOTIFY_PACKET roomChatNtfyPkt;
+	RoomChatNotifyPacket roomChatNtfyPkt;
 	roomChatNtfyPkt.id_ = (std::uint16_t)PacketID::kROOM_CHAT_NOTIFY;
 	roomChatNtfyPkt.length_ = sizeof(roomChatNtfyPkt);
 
 	memcpy(roomChatNtfyPkt.Msg, p_msg, sizeof(roomChatNtfyPkt.Msg));
 	memcpy(roomChatNtfyPkt.UserID, p_user_id, sizeof(roomChatNtfyPkt.UserID));
-	SendToAllUser(sizeof(roomChatNtfyPkt), &roomChatNtfyPkt, client_index, false);
+	SendToAllUser(sizeof(roomChatNtfyPkt), (char*)&roomChatNtfyPkt, client_index, false);
 }
 
 
-void Room::SendToAllUser(const std::uint16_t data_size, void* p_data, const std::int32_t pass_client_index, bool is_except_me)
+void Room::SendToAllUser(const std::uint16_t data_size, char* p_data, const std::int32_t pass_client_index, bool is_except_me)
 {
 
-	for (auto pUser : client_list_)
+	for (auto p_session : client_list_)
 	{
-		if (pUser == nullptr) {
+		if (p_session == nullptr) {
 			continue;
 		}
 
-		if (is_except_me && pUser->GetNetConnIdx() == pass_client_index) {
+		if (is_except_me && p_session->SessionIndex() == pass_client_index) {
 			continue;
 		}
 						
-		SendPacketFunc(pUser->GetNetConnIdx(), p_data, data_size);
+		SendPacketFunc(p_session->SessionIndex(), p_session->SessionUID(), data_size, p_data);
 	}
 }

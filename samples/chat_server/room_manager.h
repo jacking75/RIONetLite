@@ -12,7 +12,7 @@ public:
 	RoomManager() = default;
 	~RoomManager() = default;
 
-	std::function<void(std::int32_t, void*, std::int16_t)> SendPacketFunc;
+	std::function<int(const std::int32_t, const std::uint64_t, const std::uint32_t, const char*)> SendPacketFunc;
 
 
 	void Init(const std::int32_t begin_room_number, const std::int32_t max_room_count, const std::int32_t max_room_client_count)

@@ -1,6 +1,8 @@
 #include "packet_manager.h"
 #include "Packet.h"
+#include "logger.h"
 
+#include <format>
 #include <utility>
 #include <cstring>
 
@@ -20,36 +22,36 @@ void PacketManager::Init(ClientSessionManager* p_client_mgr, RoomManager* p_room
 
 
 
-void PacketManager::ProcessRecvPacket(std::int32_t client_index, std::int16_t data_size, char* p_data)
+void PacketManager::ProcessRecvPacket(std::int32_t client_index, const std::uint64_t client_uid, std::int16_t data_size, char* p_data)
 {
 	auto p_header = reinterpret_cast<PacketHeader*>(p_data);
 
 	auto iter = packet_func_dic_.find(p_header->id_);
 	if (iter != packet_func_dic_.end()) {
-		(this->*(iter->second))(client_index, data_size, p_data);
+		(this->*(iter->second))(client_index, client_uid, data_size, p_data);
 	}
 
 }
 		
-void PacketManager::ProcessLogin(const std::int32_t client_index, std::int16_t data_size, char* p_data)
+void PacketManager::ProcessLogin(const std::int32_t client_index, const std::uint64_t client_uid, std::int16_t data_size, char* p_data)
 { 
 	if (LOGIN_REQUEST_PACKET_SZIE != data_size) {
 		return;
 	}
 
-	auto p_login_req_packet = reinterpret_cast<LOGIN_REQUEST_PACKET*>(p_data);
-
+	auto p_login_req_packet = reinterpret_cast<LoginRequestPacket*>(p_data);
 	auto p_cleint_id = p_login_req_packet->UserID;
-	printf("requested user id = %s\n", p_cleint_id);
 
-	LOGIN_RESPONSE_PACKET loginResPacket;
+	Logger::Debug(std::format("requested user id = {0}", p_cleint_id).c_str());
+
+	LoginResponsePacket loginResPacket;
 	loginResPacket.id_ = (std::uint16_t)PacketID::kLOGIN_RESPONSE;
-	loginResPacket.length_ = sizeof(LOGIN_RESPONSE_PACKET);
+	loginResPacket.length_ = sizeof(LoginResponsePacket);
 
 	if (pref_client_mgr_->CurrentClientCount() >= pref_client_mgr_->MaxClientCount()) { 
 		//접속자수가 최대수를 차지해서 접속불가
 		loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(client_index, &loginResPacket, sizeof(LOGIN_RESPONSE_PACKET));
+		SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
 		return;
 	}
 
@@ -62,57 +64,57 @@ void PacketManager::ProcessLogin(const std::int32_t client_index, std::int16_t d
 	} else {
 		//접속중인 유저여서 실패를 반환한다.
 		loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_ALREADY;
-		SendPacketFunc(client_index, &loginResPacket, sizeof(LOGIN_RESPONSE_PACKET));
+		SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
 		return;
 	}
 
-	SendPacketFunc(client_index, &loginResPacket, sizeof(LOGIN_RESPONSE_PACKET));				
+	SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
 }
 
 
 
-void PacketManager::ProcessEnterRoom(std::int32_t client_index, [[maybe_unused]] std::int16_t data_size, char* p_data)
+void PacketManager::ProcessEnterRoom(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, char* p_data)
 {
-	auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(p_data);
+	auto pRoomEnterReqPacket = reinterpret_cast<RoomEnterRequestPacket*>(p_data);
 	auto p_req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
 
 	if (!p_req_client || p_req_client == nullptr) {
 		return;
 	}
 				
-	ROOM_ENTER_RESPONSE_PACKET room_enter_res_packet;
+	RoomEnterResponsePacket room_enter_res_packet;
 	room_enter_res_packet.id_ = (std::uint16_t)PacketID::kROOM_ENTER_RESPONSE;
-	room_enter_res_packet.length_ = sizeof(ROOM_ENTER_RESPONSE_PACKET);
+	room_enter_res_packet.length_ = sizeof(RoomEnterResponsePacket);
 				
 	room_enter_res_packet.Result = pref_room_mgr_->EnterClient(pRoomEnterReqPacket->RoomNumber, p_req_client);
 
-	SendPacketFunc(client_index, &room_enter_res_packet, sizeof(ROOM_ENTER_RESPONSE_PACKET));
+	SendPacketFunc(client_index, client_uid, sizeof(RoomEnterResponsePacket) , (char*)&room_enter_res_packet );
 	printf("Response Packet Sended");
 }
 
 
-void PacketManager::ProcessLeaveRoom(std::int32_t client_index, [[maybe_unused]] std::int16_t data_size, [[maybe_unused]] char* p_data)
+void PacketManager::ProcessLeaveRoom(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, [[maybe_unused]] char* p_data)
 {
-	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
+	RoomLeaveResponsePacket roomLeaveResPacket;
 	roomLeaveResPacket.id_ = (std::uint16_t)PacketID::kROOM_LEAVE_RESPONSE;
-	roomLeaveResPacket.length_ = sizeof(ROOM_LEAVE_RESPONSE_PACKET);
+	roomLeaveResPacket.length_ = sizeof(RoomLeaveResponsePacket);
 
 	auto req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
 	auto room_num = req_client->GetCurrentRoom();
 				
 	//TODO Room안의 UserList객체의 값 확인하기
 	roomLeaveResPacket.Result = pref_room_mgr_->LeaveClient(room_num, req_client);
-	SendPacketFunc(client_index, &roomLeaveResPacket, sizeof(ROOM_LEAVE_RESPONSE_PACKET));
+	SendPacketFunc(client_index, client_uid, sizeof(RoomLeaveResponsePacket), (char*)&roomLeaveResPacket);
 }
 
 
-void PacketManager::ProcessRoomChatMessage(std::int32_t client_index, [[maybe_unused]] std::int16_t data_size, char* p_data)
+void PacketManager::ProcessRoomChatMessage(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, char* p_data)
 {
-	auto p_room_chat_req_packet = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(p_data);
+	auto p_room_chat_req_packet = reinterpret_cast<RoomChatRequestPacket*>(p_data);
 		
-	ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
+	RoomChatResponsePacket roomChatResPacket;
 	roomChatResPacket.id_ = (std::uint16_t)PacketID::kROOM_CHAT_RESPONSE;
-	roomChatResPacket.length_ = sizeof(ROOM_CHAT_RESPONSE_PACKET);
+	roomChatResPacket.length_ = sizeof(RoomChatResponsePacket);
 	roomChatResPacket.Result = (std::uint16_t)ErrorCode::kNONE;
 
 
@@ -122,11 +124,11 @@ void PacketManager::ProcessRoomChatMessage(std::int32_t client_index, [[maybe_un
 	auto pRoom = pref_room_mgr_->GetRoomByNumber(roomNum);
 	if (pRoom == nullptr) {
 		roomChatResPacket.Result = (std::uint16_t)ErrorCode::kCHAT_ROOM_INVALID_ROOM_NUMBER;
-		SendPacketFunc(client_index, &roomChatResPacket, sizeof(ROOM_CHAT_RESPONSE_PACKET));
+		SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket) , (char*)&roomChatResPacket );
 		return;
 	}
 		
-	SendPacketFunc(client_index, &roomChatResPacket, sizeof(ROOM_CHAT_RESPONSE_PACKET));
+	SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket), (char*)&roomChatResPacket);
 
 	pRoom->NotifyChat(client_index, reqUser->GetUserId().c_str(), p_room_chat_req_packet->Message);		
 }		   
