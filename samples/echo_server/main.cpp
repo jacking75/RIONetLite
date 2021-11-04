@@ -1,6 +1,4 @@
-﻿#include <iostream>
-
-#pragma comment(lib, "ws2_32.lib")
+﻿#pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib,"mswsock.lib")
 #pragma comment(lib,"DbgHelp.lib")
 #pragma comment(lib, "winmm.lib")
@@ -8,6 +6,9 @@
 #include "echo_server.h"
 
 #include "../thirdparty/flags.h"
+
+#include <iostream>
+
 
 c2rionet::NetConfig GetConfig(int argc, char* argv[]);
 

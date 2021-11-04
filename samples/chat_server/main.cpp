@@ -1,4 +1,10 @@
-﻿#include <iostream>
+﻿#ifdef _DEBUG
+#pragma comment(lib, "tcmalloc_debug/libtcmalloc_minimal")
+#pragma comment(linker, "/include:__tcmalloc")
+#else 
+#pragma comment(lib, "tcmalloc_release/libtcmalloc_minimal")
+#pragma comment(linker, "/include:__tcmalloc")
+#endif
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib,"mswsock.lib")
@@ -8,6 +14,9 @@
 #include "chat_server.h"
 
 #include "../thirdparty/flags.h"
+
+#include <iostream>
+
 
 c2rionet::NetConfig GetConfig(int argc, char* argv[]);
 
