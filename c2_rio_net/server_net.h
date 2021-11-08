@@ -13,45 +13,45 @@
 
 namespace c2rionet
 {	
-	class ServerNetManager
-	{
-	public:
-		ServerNetManager() = default;
-		~ServerNetManager() = default;
+class ServerNetManager
+{
+public:
+	ServerNetManager() = default;
+	~ServerNetManager() = default;
 		
 	
-		NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr) 
-		{
-			return impl_.Initialize(net_cfg, p_net_event_mgr);
-		}
+	NetErrorCode Initialize(NetConfig net_cfg, INetEventManager* p_net_event_mgr) 
+	{
+		return impl_.Initialize(net_cfg, p_net_event_mgr);
+	}
 
-		void Start() 
-		{
-			impl_.Start();
-		}
+	void Start() 
+	{
+		impl_.Start();
+	}
 		
-		void End() 
-		{ 
-			impl_.End(); 
-		}
+	void End() 
+	{ 
+		impl_.End(); 
+	}
 		
-		NetErrorCode SendData(const std::int32_t session_index, const std::uint64_t session_uid, 
-								const std::uint32_t data_size, const char* p_data) 
-		{
-			return impl_.SendData(session_index, session_uid, data_size, p_data);
-		}
+	NetErrorCode SendData(const std::int32_t session_index, const std::uint64_t session_uid, 
+							const std::uint32_t data_size, const char* p_data) 
+	{
+		return impl_.SendData(session_index, session_uid, data_size, p_data);
+	}
 
-		void ForcedClose(const std::int32_t session_index, const std::uint64_t session_uid) 
-		{
-			impl_.ForcedClose(session_index, session_uid);
-		}
+	void ForcedClose(const std::int32_t session_index, const std::uint64_t session_uid) 
+	{
+		impl_.ForcedClose(session_index, session_uid);
+	}
 		
 
-	private:
-		ServerNetManagerImpl impl_;
-	};
+private:
+	ServerNetManagerImpl impl_;
+};
 
-}
+} // namespace c2rionet
 
 //코드 확인: 현재(2021-10-28)는 send는 애플리케이션에서 호출하면 즉시 보내고 있다.
 

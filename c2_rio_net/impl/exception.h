@@ -4,46 +4,46 @@
 
 namespace c2rionet
 {
-	inline LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
-	{
-		if (IsDebuggerPresent()) { return EXCEPTION_CONTINUE_SEARCH; }
+inline LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* exceptionInfo)
+{
+	if (IsDebuggerPresent()) { return EXCEPTION_CONTINUE_SEARCH; }
 		
-		HANDLE hFile = CreateFileA("EasyServer_minidump.dmp", 
-								GENERIC_READ | GENERIC_WRITE,
-								0, NULL, 
-								CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 
-								NULL);
-		if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE)) {
-			MINIDUMP_EXCEPTION_INFORMATION mdei;
-			mdei.ThreadId = GetCurrentThreadId();
-			mdei.ExceptionPointers = exceptionInfo;
-			mdei.ClientPointers = FALSE;
-
-			auto mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
-				MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
-				MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
-
-			MiniDumpWriteDump(GetCurrentProcess(), 
-							GetCurrentProcessId(),
-							hFile, 
-							mdt, 
-							(exceptionInfo != 0) ? &mdei : 0, 
-							0, 
+	HANDLE hFile = CreateFileA("EasyServer_minidump.dmp", 
+							GENERIC_READ | GENERIC_WRITE,
+							0, NULL, 
+							CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 
 							NULL);
-			CloseHandle(hFile);
-		} else {
-			printf("CreateFile failed. Error: %u \n", GetLastError());
-		}
+	if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE)) {
+		MINIDUMP_EXCEPTION_INFORMATION mdei;
+		mdei.ThreadId = GetCurrentThreadId();
+		mdei.ExceptionPointers = exceptionInfo;
+		mdei.ClientPointers = FALSE;
 
-		return EXCEPTION_EXECUTE_HANDLER;
+		auto mdt = (MINIDUMP_TYPE)(MiniDumpWithPrivateReadWriteMemory |
+			MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo |
+			MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
 
+		MiniDumpWriteDump(GetCurrentProcess(), 
+						GetCurrentProcessId(),
+						hFile, 
+						mdt, 
+						(exceptionInfo != 0) ? &mdei : 0, 
+						0, 
+						NULL);
+		CloseHandle(hFile);
+	} else {
+		printf("CreateFile failed. Error: %u \n", GetLastError());
 	}
 
-	/*inline void CRASH_ASSERT(bool isOk)
-	{
-		if (isOk) { return; }
+	return EXCEPTION_EXECUTE_HANDLER;
 
-		int* crashVal = 0;
-		*crashVal = 0xDEADBEEF;
-	}*/
 }
+
+/*inline void CRASH_ASSERT(bool isOk)
+{
+	if (isOk) { return; }
+
+	int* crashVal = 0;
+	*crashVal = 0xDEADBEEF;
+}*/
+}// namespace c2rionet

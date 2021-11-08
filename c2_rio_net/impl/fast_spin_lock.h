@@ -6,101 +6,102 @@
 
 namespace c2rionet
 {
-	class CustomSpinLockCriticalSection
+class CustomSpinLockCriticalSection
+{
+	const int kSPIN_LOCK_COUNT = 1000;
+
+public:
+	CustomSpinLockCriticalSection()
 	{
-		const int kSPIN_LOCK_COUNT = 1000;
+		(void)InitializeCriticalSectionAndSpinCount(&cs_lock_, kSPIN_LOCK_COUNT);
+	}
 
-	public:
-		CustomSpinLockCriticalSection()
-		{
-			(void)InitializeCriticalSectionAndSpinCount(&cs_lock_, kSPIN_LOCK_COUNT);
-		}
-
-		~CustomSpinLockCriticalSection()
-		{
-			DeleteCriticalSection(&cs_lock_);
-		}
+	~CustomSpinLockCriticalSection()
+	{
+		DeleteCriticalSection(&cs_lock_);
+	}
 		
-		void EnterLock()
-		{
-			EnterCriticalSection(&cs_lock_);
-		}
+	void EnterLock()
+	{
+		EnterCriticalSection(&cs_lock_);
+	}
 
-		void LeaveLock()
-		{
-			LeaveCriticalSection(&cs_lock_);
-		}
+	void LeaveLock()
+	{
+		LeaveCriticalSection(&cs_lock_);
+	}
 				
 
-	private:
-		CRITICAL_SECTION cs_lock_;
-	};
+private:
+	CRITICAL_SECTION cs_lock_;
+};
 
 
-	class FastSpinlock
+class FastSpinlock
+{
+public:
+	FastSpinlock() = default;
+	~FastSpinlock() = default;
+
+	void EnterLock()
 	{
-	public:
-		FastSpinlock() = default;
-		~FastSpinlock() = default;
-
-		void EnterLock()
+		for (int nloops = 0; ; nloops++)
 		{
-			for (int nloops = 0; ; nloops++)
-			{
-				if (InterlockedExchange(&lock_flag_, 1) == 0) { return; }
+			if (InterlockedExchange(&lock_flag_, 1) == 0) { return; }
 
-				UINT uTimerRes = 1;
-				timeBeginPeriod(uTimerRes);
-				Sleep((DWORD)min(10, nloops));
-				timeEndPeriod(uTimerRes);
-			}
+			UINT uTimerRes = 1;
+			timeBeginPeriod(uTimerRes);
+			Sleep((DWORD)min(10, nloops));
+			timeEndPeriod(uTimerRes);
 		}
+	}
 
-		void LeaveLock()
-		{
-			InterlockedExchange(&lock_flag_, 0);
-		}
-
-	private:
-		FastSpinlock(const FastSpinlock& rhs);
-		FastSpinlock& operator=(const FastSpinlock& rhs);
-
-		volatile long lock_flag_ = 0;
-	};
-
-
-	class FastSpinlockGuard
+	void LeaveLock()
 	{
-	public:
-		FastSpinlockGuard(FastSpinlock& lock) : lock_(lock)
-		{
-			lock_.EnterLock();
-		}
+		InterlockedExchange(&lock_flag_, 0);
+	}
 
-		~FastSpinlockGuard()
-		{
-			lock_.LeaveLock();
-		}
+private:
+	FastSpinlock(const FastSpinlock& rhs);
+	FastSpinlock& operator=(const FastSpinlock& rhs);
 
-	private:
-		FastSpinlock& lock_;
-	};
+	volatile long lock_flag_ = 0;
+};
 
-	template<class LockType>  
-	class SpinlockGuard
+
+class FastSpinlockGuard
+{
+public:
+	FastSpinlockGuard(FastSpinlock& lock) : lock_(lock)
 	{
-	public:
-		SpinlockGuard(LockType& lock) : lock_(lock)
-		{
-			lock_.EnterLock();
-		}
+		lock_.EnterLock();
+	}
 
-		~SpinlockGuard()
-		{
-			lock_.LeaveLock();
-		}
+	~FastSpinlockGuard()
+	{
+		lock_.LeaveLock();
+	}
 
-	private:
-		LockType& lock_;
-	};
-}
+private:
+	FastSpinlock& lock_;
+};
+
+template<class LockType>  
+class SpinlockGuard
+{
+public:
+	SpinlockGuard(LockType& lock) : lock_(lock)
+	{
+		lock_.EnterLock();
+	}
+
+	~SpinlockGuard()
+	{
+		lock_.LeaveLock();
+	}
+
+private:
+	LockType& lock_;
+};
+
+}// namespace c2rionet
