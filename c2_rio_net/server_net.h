@@ -65,13 +65,13 @@ private:
 
 //TODO 리팩토링: modern c++ 20  
 //TODO 더미 테스트: 더미 클라 테스트를 통해 최대 접속 수를 100 정도로 한 상태에서 반복적으로 ForcedClose를 발생시켜서 에러 발생이 없는지 확인한다
-//TODO 유닛락 사용하는 서버 예제
 //TODO 메모리 성능 테스트 비교
 //  - 사용하지 않을 때
 //  - tcmalloc
 //  - jemalloc
 //  - mimalloc
-
+//TODO 병렬 큐 성능 비교
+// IOCP postqueue, concurrent_queue, Interlocked Singly linked list(https://gist.github.com/jacking75/985df041ba8afb6a05cff7fd2b3fb1a0 )
 
 
 //완료
