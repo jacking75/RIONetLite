@@ -1,4 +1,6 @@
 # RIONetLib - C++
+>>> 리팩토링과 학습 문서 필요   
+
 Windows Registered I/O API를 사용한 네트워크 라이브러리  
 [Registered I/O  - Windows에서 고 성능 서버 만들기](https://docs.google.com/presentation/d/11PE5zKPtgCoxwfhNBWI1nM6gTuLRwWteZTQuX9bIHmM/edit?usp=sharing )    
   
