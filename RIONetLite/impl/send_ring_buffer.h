@@ -11,7 +11,7 @@ namespace rionetlite {
 class SendRingBuffer {
  public:
   SendRingBuffer() = default;
-  ~SendRingBuffer() { delete ring_buffer_; }
+  ~SendRingBuffer() { delete[] ring_buffer_; }
 
   char* GetBuffer() { return ring_buffer_; }
 

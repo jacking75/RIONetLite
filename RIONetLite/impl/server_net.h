@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../src/detail/win32_resources.h"
 #include "..\define.h"
 #include "..\i_net_event.h"
 #include "helper.h"
@@ -18,16 +19,25 @@ namespace rionetlite {
 class ServerNetManagerImpl {
  public:
   ServerNetManagerImpl() = default;
-  ~ServerNetManagerImpl() = default;
+  ~ServerNetManagerImpl() { End(); }
 
   NetErrorCode Initialize(NetConfig net_cfg,
                           INetEventManager* p_net_event_mgr) {
-    if (auto ret = ServerNetManagerInit::Initialize(listen_socket_, net_cfg);
+    if (initialized_) {
+      return NetErrorCode::kINVALID_CONFIG;
+    }
+    if (p_net_event_mgr == nullptr) {
+      return NetErrorCode::kINVALID_CONFIG;
+    }
+
+    if (auto ret = ServerNetManagerInit::Initialize(winsock_runtime_,
+                                                    listen_socket_, net_cfg);
         ret != NetErrorCode::kNONE) {
       return ret;
     }
 
     if (session_mgr_.PrepareSessionPool(net_cfg) == false) {
+      session_mgr_.Dispose();
       return NetErrorCode::kPREPARE_SESSION_POOL_FAIL;
     }
 
@@ -38,18 +48,24 @@ class ServerNetManagerImpl {
 
     net_config_ = net_cfg;
     net_event_mgr_ = p_net_event_mgr;
+    initialized_ = true;
 
     LogFuncPtr((int)LogLevel::kINFO,
                "ServerNetManagerImpl::Initialize() - Success!");
     return NetErrorCode::kNONE;
   }
 
-  void Start() {
-    io_worker_.StartIoThreads(net_config_.io_work_thread_count_,
-                              net_config_.session_cfg_.max_send_count_per_1sec_,
-                              net_config_.max_session_count_,
-                              net_config_.io_work_thread_count_,
-                              rio_completion_queues_);
+  NetErrorCode Start() {
+    if (!initialized_ || started_) {
+      return NetErrorCode::kINVALID_CONFIG;
+    }
+    if (!io_worker_.StartIoThreads(
+            net_config_.io_work_thread_count_,
+            net_config_.session_cfg_.max_send_count_per_1sec_,
+            net_config_.max_session_count_, net_config_.io_work_thread_count_,
+            rio_completion_queues_)) {
+      return NetErrorCode::kIO_THREAD_START_FAIL;
+    }
 #ifdef __USE_SEND_THREAD__
     if (StartSendThread(net_config_) == false) {
       LogFuncPtr(
@@ -62,22 +78,32 @@ class ServerNetManagerImpl {
     accepter_.Start(net_config_.session_cfg_, listen_socket_,
                     rio_completion_queues_, session_mgr_, net_event_mgr_,
                     &send_mgr_);
+    started_ = true;
+    return NetErrorCode::kNONE;
   }
 
   void End() {
+    if (!initialized_) {
+      return;
+    }
     LogFuncPtr((int)LogLevel::kINFO, "ServerNetManager::End - Start");
 
-    accepter_.Stop();
-
-    io_worker_.Stop();
+    if (started_) {
+      accepter_.Stop();
+      io_worker_.Stop();
+    } else {
+      listen_socket_.Reset();
+    }
 
 #ifdef __USE_SEND_THREAD__
     send_mgr_.End();
 #endif
 
     session_mgr_.Dispose();
-
-    WSACleanup();
+    rio_completion_queues_.clear();
+    winsock_runtime_.Reset();
+    started_ = false;
+    initialized_ = false;
 
     LogFuncPtr((int)LogLevel::kINFO, "ServerNetManager::End - Complete");
   }
@@ -179,15 +205,6 @@ class ServerNetManagerImpl {
       DisConnect(session_index, session_uid, reason);
     };
     send_mgr_.DisConnectFunc = dis_connect_func2;
-
-    auto close_rioqueues_func = [&]() { CloseRIOQueues(); };
-    io_worker_.CloseRIOQueues = close_rioqueues_func;
-  }
-
-  void CloseRIOQueues() {
-    for (std::size_t i = 0; i < rio_completion_queues_.size(); ++i) {
-      RIO.RIOCloseCompletionQueue(rio_completion_queues_[i]);
-    }
   }
 
  private:
@@ -201,15 +218,19 @@ class ServerNetManagerImpl {
 
   ServerNetIOWorker io_worker_;
 
-  std::vector<RIO_CQ> rio_completion_queues_;
+  std::vector<detail::UniqueRioCompletionQueue> rio_completion_queues_;
 
-  SOCKET listen_socket_ = INVALID_SOCKET;
+  detail::WinsockRuntime winsock_runtime_;
+  detail::UniqueSocket listen_socket_;
 
   SessionManager session_mgr_;
 
   SendManager send_mgr_;
 
   UINT64 connect_sequence_id_ = 0;
+
+  bool initialized_ = false;
+  bool started_ = false;
 };
 
 }  // namespace rionetlite

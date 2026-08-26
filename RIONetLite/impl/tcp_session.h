@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "fast_spin_lock.h"
 #include "ring_buffer.h"
@@ -8,6 +9,7 @@
 
 #include <cstdint>
 #include <format>
+#include <utility>
 #include <vector>
 
 namespace rionetlite {
@@ -56,9 +58,8 @@ class TcpSession {
       return false;
     }
 
-    recv_rio_buffer_id_ = RIO.RIORegisterBuffer(
-        recv_buffer_.GetBuffer(), recv_buffer_.EnableBufferSize());
-    if (recv_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
+    if (!recv_rio_buffer_.Register(RIO, recv_buffer_.GetBuffer(),
+                                   recv_buffer_.EnableBufferSize())) {
       LogFuncPtr(
           (int)LogLevel::kERROR,
           std::format(
@@ -74,24 +75,23 @@ class TcpSession {
   }
 
   void Dispose() {
-    if (recv_rio_buffer_id_ != NULL) {
-      RIO.RIODeregisterBuffer(recv_rio_buffer_id_);
-    }
+    static_cast<void>(recv_rio_buffer_.Reset());
 
     io_sender_.Dispose();
   }
 
-  bool OnConnect(const std::uint64_t uid, SOCKET socket, RIO_RQ rio_rq) {
+  bool OnConnect(const std::uint64_t uid, detail::UniqueSocket socket,
+                 RIO_RQ rio_rq) {
     // 세션 객체가 재 사용되더라도 대기 시간이 있으므로 연결이 끊어질 때와 이
     // 함수 호출이 겹쳐지지 않는다.
-    SetAddress(socket);
+    SetAddress(socket.get());
 
     /// turn off nagle
     int opt = 1;
-    setsockopt(socket_, IPPROTO_TCP, TCP_NODELAY, (const char*)&opt,
+    setsockopt(socket.get(), IPPROTO_TCP, TCP_NODELAY, (const char*)&opt,
                sizeof(int));
 
-    socket_ = socket;
+    socket_ = std::move(socket);
     uid_ = uid;
     connected_ = kCONNECTED;
     enable_network_ = kENABLE_VALUE;
@@ -137,7 +137,7 @@ class TcpSession {
     }
 
     recv_context_.session_unique_Id_ = GetUID();
-    recv_context_.BufferId = recv_rio_buffer_id_;
+    recv_context_.BufferId = recv_rio_buffer_.get();
     recv_context_.Length = max_try_1recv_buffer_size_;
     recv_context_.Offset = recv_buffer_.GetWriteablePos();
 
@@ -178,11 +178,10 @@ class TcpSession {
     lingerOption.l_linger = 0;
 
     /// no TCP TIME_WAIT
-    setsockopt(socket_, SOL_SOCKET, SO_LINGER, (char*)&lingerOption,
+    setsockopt(socket_.get(), SOL_SOCKET, SO_LINGER, (char*)&lingerOption,
                sizeof(LINGER));
 
-    closesocket(socket_);
-    socket_ = NULL;
+    socket_.Reset();
     connected_ = 0;
     SetDisableNetwork();
     uid_ = 0;
@@ -191,8 +190,7 @@ class TcpSession {
   }
 
   void DisConnectByAcceptFail() {
-    closesocket(socket_);
-    socket_ = NULL;
+    socket_.Reset();
     connected_ = 0;
     SetDisableNetwork();
     uid_ = 0;
@@ -220,7 +218,6 @@ class TcpSession {
   int index_ = -1;
   std::uint32_t max_try_1recv_buffer_size_ = 0;
   int rio_thread_id_ = -1;
-  RIO_BUFFERID recv_rio_buffer_id_ = NULL;
 
   std::uint64_t uid_ = 0;
 
@@ -231,7 +228,7 @@ class TcpSession {
 
   std::int64_t enable_network_ = 0;
 
-  SOCKET socket_ = INVALID_SOCKET;
+  detail::UniqueSocket socket_;
   SOCKADDR_IN client_addr_;
 
   RIO_RQ rio_rq_ = NULL;
@@ -240,6 +237,7 @@ class TcpSession {
   SendImmediately io_sender_;
 
   RingBufferVA2 recv_buffer_;
+  detail::RegisteredRioBuffer recv_rio_buffer_;
 };
 
 }  // namespace rionetlite

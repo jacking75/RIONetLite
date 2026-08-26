@@ -329,3 +329,8 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# RIONetLite checked-in build definitions
+!/build/
+!/build/*.props
+!/build/*.vcxproj

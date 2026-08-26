@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "../i_net_event.h"
 #include "helper.h"
@@ -8,6 +9,7 @@
 #include "session_manager.h"
 #include "tcp_session.h"
 
+#include <atomic>
 #include <cstdint>
 #include <format>
 #include <functional>
@@ -22,8 +24,6 @@ class ServerNetIOWorker {
 
   std::function<void(TcpSession*, const uint64_t, const DisconnectReason)>
       DisConnectFunc;
-  std::function<void()> CloseRIOQueues;
-
   void Init(ServerNetLazyedDisConnManager* p_lazyed_dis_conn_mgr,
             SessionManager* p_session_mgr, INetEventManager* p_net_event_mgr,
             SendManager* p_send_mgr) {
@@ -33,27 +33,38 @@ class ServerNetIOWorker {
     pref_send_mgr_ = p_send_mgr;
   }
 
-  bool StartIoThreads(const std::uint32_t rio_thread_count,
-                      const std::uint32_t max_send_count_per_1sec,
-                      const std::uint32_t max_connection_count,
-                      const std::uint32_t io_work_thread_count,
-                      std::vector<RIO_CQ>& rio_completion_queues) {
-    is_run_ = true;
+  bool StartIoThreads(
+      const std::uint32_t rio_thread_count,
+      const std::uint32_t max_send_count_per_1sec,
+      const std::uint32_t max_connection_count,
+      const std::uint32_t io_work_thread_count,
+      std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues) {
+    is_run_.store(true, std::memory_order_release);
+    pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(rio_thread_count);
 
     auto max_cq_count_per_thread = MaxCQCountPerThread(
         max_connection_count, io_work_thread_count, max_send_count_per_1sec);
 
     for (std::uint32_t i = 0; i < rio_thread_count; ++i) {
-      auto rioQueue = RIO.RIOCreateCompletionQueue(max_cq_count_per_thread, 0);
-      if (rioQueue == RIO_INVALID_CQ) {
+      auto rio_queue =
+          RIO.RIOCreateCompletionQueue(max_cq_count_per_thread, nullptr);
+      if (rio_queue == RIO_INVALID_CQ) {
+        is_run_.store(false, std::memory_order_release);
+        for (auto& thread : io_work_threads_) {
+          if (thread.joinable()) {
+            thread.join();
+          }
+        }
+        io_work_threads_.clear();
+        rio_completion_queues.clear();
         return false;
       } else {
-        rio_completion_queues.push_back(rioQueue);
+        rio_completion_queues.emplace_back(RIO, rio_queue);
       }
 
-      auto threadIndex = i;
-      io_work_threads_.emplace_back([threadIndex, &rioQueue, this]() {
-        IoWorkerThread(threadIndex, rioQueue);
+      auto thread_index = i;
+      io_work_threads_.emplace_back([thread_index, rio_queue, this]() {
+        IoWorkerThread(thread_index, rio_queue);
       });
 
       // mIOWorkThreads 내부에서 초기화 작업이 있어서 잠시 대기한다
@@ -66,15 +77,14 @@ class ServerNetIOWorker {
   void Stop() {
     LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - Start");
 
-    is_run_ = false;
-
-    CloseRIOQueues();
+    is_run_.store(false, std::memory_order_release);
 
     for (auto& thread : io_work_threads_) {
       if (thread.joinable()) {
         thread.join();
       }
     }
+    io_work_threads_.clear();
 
     LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - End");
   }
@@ -82,7 +92,7 @@ class ServerNetIOWorker {
  private:
   void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues) {
     auto core_count = Helper::GetNumberOfProcessors();
-    auto results = new RIORESULT[core_count];
+    std::vector<RIORESULT> results(core_count);
 
     LogFuncPtr((int)LogLevel::kINFO,
                std::format("ServerNetIOWorker::IoWorkerThread() - Start. "
@@ -90,15 +100,12 @@ class ServerNetIOWorker {
                            thread_index, core_count)
                    .c_str());
 
-    pref_lazyed_dis_conn_mgr_->AddSessionQueue();
-
-    while (is_run_) {
-      memset(results, 0, sizeof(results));
+    while (is_run_.load(std::memory_order_acquire)) {
       ULONG numResults = RIO.RIODequeueCompletion(
-          rio_completion_queues, results, core_count);  // 대기가 없다
+          rio_completion_queues, results.data(), core_count);  // 대기가 없다
 
       if (RIO_CORRUPT_CQ == numResults) {
-        if (is_run_ == false) {
+        if (!is_run_.load(std::memory_order_acquire)) {
           break;
         }
 
@@ -124,8 +131,6 @@ class ServerNetIOWorker {
         Sleep(1);  ///< for low cpu-usage
       }
     }
-
-    delete results;
 
     LogFuncPtr((int)LogLevel::kINFO,
                std::format(
@@ -196,15 +201,17 @@ class ServerNetIOWorker {
   uint32_t MaxCQCountPerThread(const std::uint32_t max_connection_count,
                                const std::uint32_t io_work_thread_count,
                                const std::uint32_t max_send_count_per_1sec) {
-    auto session_count_per_rio_thread =
-        max_connection_count / io_work_thread_count;
-    auto max_cq_count_per_rio_thread =
-        (1 + max_send_count_per_1sec) * session_count_per_rio_thread;
+    const auto session_count_per_rio_thread =
+        (static_cast<std::uint64_t>(max_connection_count) +
+         io_work_thread_count - 1) /
+        io_work_thread_count;
+    const auto max_cq_count_per_rio_thread =
+        (1ULL + max_send_count_per_1sec) * session_count_per_rio_thread;
 
-    return max_cq_count_per_rio_thread;
+    return static_cast<std::uint32_t>(max_cq_count_per_rio_thread);
   }
 
-  bool is_run_ = false;
+  std::atomic<bool> is_run_{false};
 
   ServerNetLazyedDisConnManager* pref_lazyed_dis_conn_mgr_ = nullptr;
   SessionManager* pref_session_mgr_ = nullptr;

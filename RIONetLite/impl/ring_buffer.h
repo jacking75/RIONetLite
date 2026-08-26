@@ -1,10 +1,11 @@
 #pragma once
 
-#include "circular_memory.h"
+#include "../../src/detail/win32_resources.h"
 
 #include <cstdint>
 #include <string>
 #include <tuple>
+#include <utility>
 
 namespace rionetlite {
 // RIO용 버퍼로는 사용할 수 없다!!
@@ -12,27 +13,26 @@ class RingBufferVA2 {
  public:
   RingBufferVA2() = default;
 
-  ~RingBufferVA2() { CircularMemory::Release(ring_buffer_, secondary_view_); }
+  ~RingBufferVA2() = default;
 
-  char* GetBuffer() { return ring_buffer_; }
+  char* GetBuffer() { return ring_buffer_.data(); }
 
   std::tuple<int, std::string> Create(const bool is_write_only,
                                       const std::uint32_t ring_buffer_size) {
     is_write_only_ = is_write_only;
 
-    auto [pRingBuffer, errorCode, error_msg] =
-        CircularMemory::AllocMemory(ring_buffer_size, &secondary_view_);
-
-    if (pRingBuffer == nullptr) {
-      return {errorCode, error_msg};
+    auto buffer = detail::DoubleMappedBuffer::Create(ring_buffer_size);
+    if (!buffer) {
+      return {static_cast<int>(buffer.error()),
+              "DoubleMappedBuffer::Create failed"};
     }
 
-    ring_buffer_ = pRingBuffer;
+    ring_buffer_ = std::move(*buffer);
     ring_buffer_size_ = ring_buffer_size;
 
     Clear();
 
-    return {errorCode, error_msg};
+    return {0, {}};
   }
 
   // VirtualAlloc2의 링버퍼를 사용하고 있어서 주소로는 2배까지 사용 가능하다.
@@ -49,10 +49,10 @@ class RingBufferVA2 {
 
     if (read_pos_ < write_pos_) {
       readAbleSize = write_pos_ - read_pos_;
-      pData = &ring_buffer_[read_pos_];
+      pData = &ring_buffer_.data()[read_pos_];
     } else {
       readAbleSize = (ring_buffer_size_ - read_pos_) + write_pos_;
-      pData = &ring_buffer_[read_pos_];
+      pData = &ring_buffer_.data()[read_pos_];
     }
 
     return {readAbleSize, pData};
@@ -72,14 +72,14 @@ class RingBufferVA2 {
     }
 
     int oldPos = write_pos_;
-    CopyMemory(&ring_buffer_[write_pos_], p_data, size);
+    CopyMemory(&ring_buffer_.data()[write_pos_], p_data, size);
     write_pos_ += size;
 
     if (write_pos_ >= ring_buffer_size_) {
       write_pos_ -= ring_buffer_size_;
     }
 
-    return &ring_buffer_[oldPos];
+    return &ring_buffer_.data()[oldPos];
   }
 
   bool Write(const std::uint32_t size) {
@@ -127,8 +127,7 @@ class RingBufferVA2 {
 
   bool is_write_only_ = false;
   std::uint32_t ring_buffer_size_ = 0;
-  char* ring_buffer_ = nullptr;
-  void* secondary_view_ = nullptr;
+  detail::DoubleMappedBuffer ring_buffer_;
   std::uint32_t write_pos_ = 0;
   std::uint32_t read_pos_ = 0;
 };

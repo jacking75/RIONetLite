@@ -2,6 +2,7 @@
 
 #include <WinSock2.h>
 
+#include "../../src/detail/session_partition.h"
 #include "exception.h"
 #include "fast_spin_lock.h"
 #include "tcp_session.h"
@@ -26,17 +27,17 @@ class SessionManager {
   bool PrepareSessionPool(NetConfig net_cfg) {
     std::uint32_t client_index = 0;
     auto rioThreadCount = net_cfg.io_work_thread_count_;
-    auto session_count_per_rio_thread =
-        net_cfg.max_session_count_ / net_cfg.io_work_thread_count_;
-
-    for (decltype(rioThreadCount) i = 0; i <= rioThreadCount; ++i) {
-      for (decltype(session_count_per_rio_thread) j = 0;
-           j < session_count_per_rio_thread; ++j) {
+    for (decltype(rioThreadCount) i = 0; i < rioThreadCount; ++i) {
+      const auto partition = detail::PartitionSessions(
+          net_cfg.max_session_count_, rioThreadCount, i);
+      for (std::uint32_t j = 0; j < partition.count; ++j) {
         auto client = new TcpSession;
 
         client->Init(client_index, i);
 
         if (client->RioInitialize(net_cfg.session_cfg_) == false) {
+          client->Dispose();
+          delete client;
           return false;
         }
 
@@ -64,6 +65,10 @@ class SessionManager {
       pSession->Dispose();
       delete pSession;
     }
+
+    sessions_.clear();
+    free_session_indexs_.clear();
+    max_session_count_ = 0;
 
     LogFuncPtr((int)LogLevel::kINFO, "SessionManager::Dispose - Complete");
   }

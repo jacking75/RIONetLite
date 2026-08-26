@@ -96,6 +96,8 @@ enum class NetErrorCode : std::int16_t {
   kRECV_DISABLE_NETWORK_STATUS = 17,
   kRECV_RIO_FAIL = 18,
   kSEND_THREAD_BUFFER_FULL = 19,
+  kINVALID_CONFIG = 20,
+  kIO_THREAD_START_FAIL = 21,
 };
 
 struct LazyedDisConnectSession {
@@ -104,5 +106,6 @@ struct LazyedDisConnectSession {
   DisconnectReason reason_ = DisconnectReason::kNONE;
 };
 
-inline void (*LogFuncPtr)(const int, const char* pszLogMsg);
+inline void DefaultLog(const int, const char*) {}
+inline void (*LogFuncPtr)(const int, const char* pszLogMsg) = &DefaultLog;
 }  // namespace rionetlite

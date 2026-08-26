@@ -48,13 +48,18 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>mincore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)</TargetName>
-    <OutDir>..\bin\</OutDir>
+    <OutDir>..\..\bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>..\..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\bin\</OutDir>
+    <OutDir>..\..\bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>..\..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -86,29 +91,16 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\RIONetLite\define.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\circular_memory.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\exception.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\fast_spin_lock.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\helper.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\send_immediately.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\ring_buffer.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\rio_context.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\send_ring_buffer.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\send_manager.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\send_session.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\server_net.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\server_net_accepter.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\server_net_io_worker.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\server_net_lazyed_dis_conn_manager.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\server_net_init.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\session_manager.h" />
-    <ClInclude Include="..\..\RIONetLite\impl\tcp_session.h" />
     <ClInclude Include="..\..\RIONetLite\i_net_event.h" />
     <ClInclude Include="..\..\RIONetLite\server_net.h" />
     <ClInclude Include="echo_server_content.h" />
     <ClInclude Include="echo_server.h" />
     <ClInclude Include="packet.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\build\RIONetLite.vcxproj">
+      <Project>{A1111111-1111-4111-8111-111111111111}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

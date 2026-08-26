@@ -14,8 +14,12 @@ RIONetLite는 Windows Registered I/O(RIO)를 이용하는 게임 서버용 C++ �
 
 ## 프로젝트 구조
 
-- `RIONetLite/`: 공개 헤더와 라이브러리 구현이다.
-- `RIONetLite/impl/`: RIO, 세션, 송수신, 버퍼의 내부 구현이다.
+- `include/rionetlite/`: 신규 공개 API다.
+- `src/`: 정적 라이브러리 구현과 내부 RAII다.
+- `RIONetLite/`: 기존 API 호환 헤더와 전환 중인 RIO 구현이다.
+- `build/`: 공통 MSBuild 설정과 정적 라이브러리 프로젝트다.
+- `tests/unit/`: OS 의존성을 최소화한 단위 테스트다.
+- `tests/integration/`: 실제 Winsock/RIO 통합 테스트다.
 - `samples/echo_server/`: 최소 EchoServer 예제다.
 - `samples/chat_server/`: 게임 패킷과 룸 처리를 포함한 ChatServer 예제다.
 - `samples/chat_client/`: ChatServer용 C# 테스트 클라이언트다.
@@ -27,18 +31,16 @@ RIONetLite는 Windows Registered I/O(RIO)를 이용하는 게임 서버용 C++ �
 - 모든 C++ 구성은 `/std:c++latest`와 `/utf-8`을 유지한다.
 - 지원 플랫폼은 x64뿐이다. x86/Win32 구성을 다시 추가하지 않는다.
 - x64 Debug/Release 프로젝트 구성을 모두 유지한다.
-- ChatServer는 manifest-mode vcpkg로 mimalloc을 사용한다. allocator 바이너리를 저장소에 직접 추가하지 않는다.
+- 루트 manifest-mode vcpkg로 GoogleTest와 mimalloc을 관리한다. allocator 바이너리를 저장소에 직접 추가하지 않는다.
 
 대표 검증 명령은 다음과 같다.
 
 ```powershell
-msbuild samples\echo_server\EchoServer.sln /m /t:Rebuild /p:Configuration=Debug /p:Platform=x64
-msbuild samples\echo_server\EchoServer.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64
-msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Debug /p:Platform=x64
-msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64
+tools\build.ps1 -Configuration Debug -Rebuild
+tools\build.ps1 -Configuration Release -Rebuild
 ```
 
-플랫폼 또는 공용 헤더를 변경했다면 두 예제의 x64 Debug/Release를 모두 빌드한다.
+플랫폼 또는 공개 헤더를 변경했다면 루트 솔루션의 x64 Debug/Release와 두 테스트 실행 파일을 모두 검증한다.
 
 ## C++ 스타일
 

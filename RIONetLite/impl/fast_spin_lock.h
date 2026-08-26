@@ -4,6 +4,8 @@
 #include <mmsystem.h>
 #include <windows.h>
 
+#include <algorithm>
+
 namespace rionetlite {
 class CustomSpinLockCriticalSection {
   const int kSPIN_LOCK_COUNT = 1000;
@@ -36,7 +38,7 @@ class FastSpinlock {
 
       UINT uTimerRes = 1;
       timeBeginPeriod(uTimerRes);
-      Sleep((DWORD)min(10, nloops));
+      Sleep(static_cast<DWORD>(std::min(10, nloops)));
       timeEndPeriod(uTimerRes);
     }
   }

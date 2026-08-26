@@ -16,7 +16,12 @@ class ServerNetLazyedDisConnManager {
   ServerNetLazyedDisConnManager() = default;
   ~ServerNetLazyedDisConnManager() = default;
 
-  void AddSessionQueue() { lazyed_dis_connect_sessions_.emplace_back(); }
+  void PrepareSessionQueues(const std::uint32_t thread_count) {
+    lazyed_dis_connect_sessions_.clear();
+    for (std::uint32_t i = 0; i < thread_count; ++i) {
+      lazyed_dis_connect_sessions_.emplace_back();
+    }
+  }
 
   void AddSession(const int thread_index, const INT32 session_index,
                   const UINT64 session_uid, const DisconnectReason reason) {

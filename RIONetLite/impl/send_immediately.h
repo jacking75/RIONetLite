@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../src/detail/win32_resources.h"
 #include "fast_spin_lock.h"
 #include "ring_buffer.h"
 #include "rio_context.h"
@@ -43,9 +44,8 @@ class SendImmediately {
       send_contexts_.push_back(context);
     }
 
-    send_rio_buffer_id_ = RIO.RIORegisterBuffer(
-        send_buffer_.GetBuffer(), send_buffer_.EnableBufferSize());
-    if (send_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
+    if (!send_rio_buffer_.Register(RIO, send_buffer_.GetBuffer(),
+                                   send_buffer_.EnableBufferSize())) {
       LogFuncPtr(
           (int)LogLevel::kERROR,
           std::format(
@@ -61,7 +61,7 @@ class SendImmediately {
   }
 
   void Dispose() {
-    RIO.RIODeregisterBuffer(send_rio_buffer_id_);
+    static_cast<void>(send_rio_buffer_.Reset());
 
     for (int i = 0; i < max_send_count_per_1sec_; ++i) {
       delete send_contexts_[i];
@@ -90,7 +90,7 @@ class SendImmediately {
     send_buffer_.Write(data_size, p_data);
 
     send_context->session_unique_Id_ = session_uid;
-    send_context->BufferId = send_rio_buffer_id_;
+    send_context->BufferId = send_rio_buffer_.get();
     send_context->Length = data_size;
     send_context->Offset = writable_position;
 
@@ -131,9 +131,8 @@ class SendImmediately {
   std::vector<RioIoContext*> send_contexts_;
 
   RIO_RQ rio_rq_ = NULL;
-  RIO_BUFFERID send_rio_buffer_id_ = NULL;
-
   RingBufferVA2 send_buffer_;
+  detail::RegisteredRioBuffer send_rio_buffer_;
 };
 
 }  // namespace rionetlite

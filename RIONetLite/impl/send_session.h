@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "fast_spin_lock.h"
 #include "rio_context.h"
@@ -32,9 +33,8 @@ class SendSession {
 
     sendContext_.Init(index_, IOType::kSEND);
 
-    send_rio_buffer_id_ = RIO.RIORegisterBuffer(
-        send_buffer_.GetBuffer(), send_buffer_.EnableBufferSize());
-    if (send_rio_buffer_id_ == RIO_INVALID_BUFFERID) {
+    if (!send_rio_buffer_.Register(RIO, send_buffer_.GetBuffer(),
+                                   send_buffer_.EnableBufferSize())) {
       LogFuncPtr(
           (int)LogLevel::kERROR,
           std::format("SendSession::Init() - RIORegisterBuffer Error: {0}",
@@ -48,7 +48,7 @@ class SendSession {
     return true;
   }
 
-  void Dispose() { RIO.RIODeregisterBuffer(send_rio_buffer_id_); }
+  void Dispose() { static_cast<void>(send_rio_buffer_.Reset()); }
 
   void OnConnect(const std::uint64_t uid, RIO_RQ request_queue) {
     is_connected_ = true;
@@ -90,7 +90,7 @@ class SendSession {
     }
 
     sendContext_.session_index_ = index_;
-    sendContext_.BufferId = send_rio_buffer_id_;
+    sendContext_.BufferId = send_rio_buffer_.get();
     sendContext_.Length = send_size;
     sendContext_.Offset = send_buffer_.GetReadPos();
 
@@ -117,13 +117,13 @@ class SendSession {
   std::uint64_t max_send_count_per_1sec_ = 0;
   std::int32_t max_send_ring_buffer_size_ = 0;
   RioIoContext sendContext_;
-  RIO_BUFFERID send_rio_buffer_id_ = NULL;
 
   bool is_connected_ = false;
   RIO_RQ ref_rio_rq_ = NULL;
 
   FastSpinlock session_lock_;
   SendRingBuffer send_buffer_;
+  detail::RegisteredRioBuffer send_rio_buffer_;
 };
 
 }  // namespace rionetlite

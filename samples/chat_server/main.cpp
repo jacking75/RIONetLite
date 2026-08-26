@@ -23,8 +23,6 @@ rionetlite::NetConfig GetConfig(int argc, char* argv[]);
 int main(int argc, char* argv[]) {
   std::cout << "Start ChatServer" << std::endl;
 
-  SetUnhandledExceptionFilter(rionetlite::ExceptionFilter);
-
   auto net_config = GetConfig(argc, argv);
 
   ChatServer chat_server;
@@ -49,7 +47,7 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-// ChatServer.exe --PortNumber=11021 --IoWorkThreadCount=4 --IoWorkThreadCount=2
+// ChatServer.exe --PortNumber=11021 --IoWorkThreadCount=4 --IoSendThreadCount=2
 // --MaxConnectionCount=256 --MaxRecvPacketSize=1024
 // --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5
 // --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5
@@ -72,7 +70,7 @@ rionetlite::NetConfig GetConfig(int argc, char* argv[]) {
   }
   config.io_work_thread_count_ = *io_work_thread_count;
 
-  const auto io_send_thread_count = args.get<UINT16>("IoWorkThreadCount");
+  const auto io_send_thread_count = args.get<UINT16>("IoSendThreadCount");
   if (!io_send_thread_count) {
     std::cerr << "No IoSendThreadCount. :(" << std::endl;
     return config;
@@ -109,14 +107,14 @@ rionetlite::NetConfig GetConfig(int argc, char* argv[]) {
   config.session_cfg_.max_recv_count_per_1sec_ = *max_recv_count_per_1sec;
 
   const auto max_recv_buffer_size = args.get<UINT16>("MaxRecvBufferSize");
-  if (!max_recv_count_per_1sec) {
+  if (!max_recv_buffer_size) {
     std::cerr << "No MaxRecvBufferSize. :(" << std::endl;
     return config;
   }
   config.session_cfg_.max_recv_buffer_size_ = *max_recv_buffer_size;
 
   const auto max_send_packet_size = args.get<UINT16>("MaxSendPacketSize");
-  if (!max_recv_count_per_1sec) {
+  if (!max_send_packet_size) {
     std::cerr << "No MaxSendPacketSize. :(" << std::endl;
     return config;
   }
