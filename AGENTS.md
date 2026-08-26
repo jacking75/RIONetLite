@@ -25,7 +25,8 @@ RIONetLite는 Windows Registered I/O(RIO)를 이용하는 게임 서버용 C++ �
 
 - Visual Studio 2026과 MSVC `v145`를 기준으로 한다.
 - 모든 C++ 구성은 `/std:c++latest`와 `/utf-8`을 유지한다.
-- Debug/Release와 Win32/x64 프로젝트 구성을 깨뜨리지 않는다.
+- 지원 플랫폼은 x64뿐이다. x86/Win32 구성을 다시 추가하지 않는다.
+- x64 Debug/Release 프로젝트 구성을 모두 유지한다.
 - ChatServer는 manifest-mode vcpkg로 mimalloc을 사용한다. allocator 바이너리를 저장소에 직접 추가하지 않는다.
 
 대표 검증 명령은 다음과 같다.
@@ -37,7 +38,7 @@ msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Debug 
 msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64
 ```
 
-플랫폼 또는 공용 헤더를 변경했다면 Win32 Debug/Release도 빌드한다.
+플랫폼 또는 공용 헤더를 변경했다면 두 예제의 x64 Debug/Release를 모두 빌드한다.
 
 ## C++ 스타일
 

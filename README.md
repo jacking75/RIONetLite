@@ -30,7 +30,7 @@ samples/
 
 ## 개발 및 빌드 환경
 
-- Windows
+- 64비트 Windows(x64)
 - Visual Studio 2026
 - MSVC 플랫폼 도구 집합 `v145`
 - 최신 C++ 표준 `/std:c++latest`
@@ -49,7 +49,7 @@ msbuild samples\echo_server\EchoServer.sln /m /t:Build /p:Configuration=Debug /p
 msbuild samples\chat_server\ChatServer.sln /m /t:Build /p:Configuration=Debug /p:Platform=x64
 ```
 
-두 예제는 Debug/Release와 Win32/x64 구성을 제공한다. ChatServer는 `samples/chat_server/vcpkg.json`을 통해 mimalloc을 자동으로 복원하고 C++ 전역 `new/delete` 할당자로 사용한다.
+두 예제는 x64 Debug/Release 구성만 지원한다. ChatServer는 `samples/chat_server/vcpkg.json`을 통해 mimalloc을 자동으로 복원하고 C++ 전역 `new/delete` 할당자로 사용한다.
 
 ## 기본 사용 흐름
 
