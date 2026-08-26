@@ -1,100 +1,61 @@
 #pragma once
 
-#include "Packet.h"
+#include "packet.h"
 
-#include <string>
 #include <cstdint>
+#include <string>
 
-class ClientSession
-{
-public:
-	enum class DomainState 
-	{
-		kNONE = 0,
-		kLOGIN = 1,
-		kROOM = 2
-	};
+class ClientSession {
+ public:
+  enum class DomainState { kNONE = 0, kLOGIN = 1, kROOM = 2 };
 
+  ClientSession() = default;
+  ~ClientSession() = default;
 
-	ClientSession() = default;
-	~ClientSession() = default;
+  int32_t GetCurrentRoom() { return room_index_; }
 
-	int32_t GetCurrentRoom()
-	{
-		return room_index_;
-	}
+  int32_t SessionIndex() { return index_; }
 
-	int32_t SessionIndex()
-	{
-		return index_;
-	}
+  uint64_t SessionUID() { return uid_; }
 
-	uint64_t SessionUID()
-	{
-		return uid_;
-	}
+  std::string GetUserId() const { return user_id_; }
 
-	std::string GetUserId() const
-	{
-		return  user_id_;
-	}
+  DomainState GetDomainState() { return cur_domain_state; }
 
-	DomainState GetDomainState()
-	{
-		return cur_domain_state;
-	}
+  void Init(const int32_t index) { index_ = index; }
 
+  void Clear() {
+    room_index_ = -1;
+    user_id_ = "";
+    is_confirm_ = false;
+    cur_domain_state = DomainState::kNONE;
+  }
 
-	void Init(const int32_t index)
-	{
-		index_ = index;
-	}
+  void Connected(const uint64_t uid) { uid_ = uid; }
 
-	void Clear()
-	{
-		room_index_ = -1;
-		user_id_ = "";
-		is_confirm_ = false;
-		cur_domain_state = DomainState::kNONE;
-	}
+  int SetLogin(char* login_id) {
+    cur_domain_state = DomainState::kLOGIN;
+    user_id_ = login_id;
 
-	void Connected(const uint64_t uid)
-	{
-		uid_ = uid;
-	}
+    return 0;
+  }
 
-	int SetLogin(char* login_id)
-	{
-		cur_domain_state = DomainState::kLOGIN;
-		user_id_ = login_id;
+  void EnterRoom(int32_t roomIndex) {
+    room_index_ = roomIndex;
+    cur_domain_state = DomainState::kROOM;
+  }
 
-		return 0;
-	}
-		
-	void EnterRoom(int32_t roomIndex)
-	{
-		room_index_ = roomIndex;
-		cur_domain_state = DomainState::kROOM;
-	}
-		
-	void SetDomainState(DomainState val) 
-	{ 
-		cur_domain_state = val; 
-	}
+  void SetDomainState(DomainState val) { cur_domain_state = val; }
 
-	
-				
+ private:
+  int32_t room_index_ = -1;
 
+  std::string user_id_;
+  bool is_confirm_ = false;
+  std::string auth_token;
 
-private:
-	int32_t room_index_ = -1;
+  int32_t index_ = -1;
+  uint64_t uid_ = 0;
 
-	std::string user_id_;
-	bool is_confirm_ = false;
-	std::string auth_token;
-
-	int32_t index_ = -1;
-	uint64_t uid_ = 0;
-
-	DomainState cur_domain_state = DomainState::kNONE;		
+  DomainState cur_domain_state = DomainState::kNONE;
 };

@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>16.0</VCProjectVersion>
+    <VCProjectVersion>18.0</VCProjectVersion>
     <ProjectGuid>{F520E7DD-78E3-49CB-B502-51A988BDE26C}</ProjectGuid>
     <RootNamespace>ChatServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
@@ -28,26 +28,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -69,6 +69,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)</TargetName>
     <OutDir>..\bin\</OutDir>
@@ -93,8 +100,6 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,8 +128,6 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -139,26 +142,26 @@
     <ClCompile Include="room.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\c2_rio_net\define.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\circular_memory.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\exception.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\fast_spin_lock.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\helper.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\send_immediately.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\ring_buffer.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\rio_context.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\send_ring_buffer.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\send_manager.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\send_session.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_accepter.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_io_worker.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_lazyed_dis_conn_manager.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_init.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\session_manager.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\tcp_session.h" />
-    <ClInclude Include="..\..\c2_rio_net\i_net_event.h" />
-    <ClInclude Include="..\..\c2_rio_net\server_net.h" />
+    <ClInclude Include="..\..\RIONetLite\define.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\circular_memory.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\exception.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\fast_spin_lock.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\helper.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\send_immediately.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\ring_buffer.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\rio_context.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\send_ring_buffer.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\send_manager.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\send_session.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\server_net.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_accepter.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_io_worker.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_lazyed_dis_conn_manager.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_init.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\session_manager.h" />
+    <ClInclude Include="..\..\RIONetLite\impl\tcp_session.h" />
+    <ClInclude Include="..\..\RIONetLite\i_net_event.h" />
+    <ClInclude Include="..\..\RIONetLite\server_net.h" />
     <ClInclude Include="chat_server_content.h" />
     <ClInclude Include="chat_server.h" />
     <ClInclude Include="client_session.h" />

@@ -4,76 +4,76 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="c2_rio_net">
+    <Filter Include="RIONetLite">
       <UniqueIdentifier>{f1f03037-378e-499a-98ec-964555c82b0f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="c2_rio_net\impl">
+    <Filter Include="RIONetLite\impl">
       <UniqueIdentifier>{8798544f-03bd-4142-816d-f4499d256c3e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="packet.h" />
     <ClInclude Include="echo_server.h" />
-    <ClInclude Include="..\..\c2_rio_net\define.h">
-      <Filter>c2_rio_net</Filter>
+    <ClInclude Include="..\..\RIONetLite\define.h">
+      <Filter>RIONetLite</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\circular_memory.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\circular_memory.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\exception.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\exception.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\fast_spin_lock.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\fast_spin_lock.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\helper.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\helper.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\send_immediately.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\send_immediately.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\ring_buffer.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\ring_buffer.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\rio_context.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\rio_context.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\send_ring_buffer.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\send_ring_buffer.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\send_manager.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\send_manager.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\send_session.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\send_session.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\session_manager.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\session_manager.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\tcp_session.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\tcp_session.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_init.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_init.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
     <ClInclude Include="echo_server_content.h" />
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_lazyed_dis_conn_manager.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_lazyed_dis_conn_manager.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_accepter.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_accepter.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net_io_worker.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\server_net_io_worker.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\i_net_event.h">
-      <Filter>c2_rio_net</Filter>
+    <ClInclude Include="..\..\RIONetLite\i_net_event.h">
+      <Filter>RIONetLite</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\server_net.h">
-      <Filter>c2_rio_net</Filter>
+    <ClInclude Include="..\..\RIONetLite\server_net.h">
+      <Filter>RIONetLite</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\c2_rio_net\impl\server_net.h">
-      <Filter>c2_rio_net\impl</Filter>
+    <ClInclude Include="..\..\RIONetLite\impl\server_net.h">
+      <Filter>RIONetLite\impl</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

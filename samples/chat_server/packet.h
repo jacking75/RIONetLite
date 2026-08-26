@@ -2,118 +2,100 @@
 
 #include <cstdint>
 
+enum class PacketID {
+  kECHO = 101,
 
-enum class PacketID
-{
-	kECHO = 101,
-	
-	kLOGIN_REQUEST = 201,
-	kLOGIN_RESPONSE = 202,
+  kLOGIN_REQUEST = 201,
+  kLOGIN_RESPONSE = 202,
 
-	kROOM_ENTER_REQUEST = 206,
-	kROOM_ENTER_RESPONSE = 207,
-	PACKET_ID_ROOM_USER_LIST_NTF = 208,
-	PACKET_ID_ROOM_NEW_USER_NTF = 219,
+  kROOM_ENTER_REQUEST = 206,
+  kROOM_ENTER_RESPONSE = 207,
+  PACKET_ID_ROOM_USER_LIST_NTF = 208,
+  PACKET_ID_ROOM_NEW_USER_NTF = 219,
 
-	kROOM_LEAVE_REQUEST = 216,
-	kROOM_LEAVE_RESPONSE = 217,
-	kROOM_LEAVE_NOTIFY = 218,
+  kROOM_LEAVE_REQUEST = 216,
+  kROOM_LEAVE_RESPONSE = 217,
+  kROOM_LEAVE_NOTIFY = 218,
 
-	kROOM_CHAT_REQUEST = 221,
-	kROOM_CHAT_RESPONSE = 222,
-	kROOM_CHAT_NOTIFY = 223,
+  kROOM_CHAT_REQUEST = 221,
+  kROOM_CHAT_RESPONSE = 222,
+  kROOM_CHAT_NOTIFY = 223,
 };
 
-
-#pragma pack(push,1)
-struct PacketHeader
-{
-	unsigned short length_;
-	unsigned short id_;
-	unsigned char type_; // æ–√‡ø©∫Œ æœ»£»≠ø©∫Œ µÓ º”º∫¿ª æÀæ∆≥ª¥¬ ∞™
+#pragma pack(push, 1)
+struct PacketHeader {
+  unsigned short length_;
+  unsigned short id_;
+  unsigned char type_;  // ÏïïÏ∂ïÏó¨Î∂Ä ÏïîÌò∏ÌôîÏó¨Î∂Ä Îì± ÏÜçÏÑ±ÏùÑ ÏïåÏïÑÎÇ¥Îäî Í∞í
 };
 
 const unsigned short PACKET_HEADER_SIZE = sizeof(PacketHeader);
 
-
-//- ∑Œ±◊¿Œ ø‰√ª
+//- Î°úÍ∑∏Ïù∏ ÏöîÏ≤≠
 const int MAX_USER_ID_LEN = 20;
 const int MAX_USER_PW_LEN = 20;
 
-struct LoginRequestPacket : public PacketHeader
-{
-	char UserID[MAX_USER_ID_LEN + 1];
-	char UserPW[MAX_USER_PW_LEN + 1];
+struct LoginRequestPacket : public PacketHeader {
+  char UserID[MAX_USER_ID_LEN + 1];
+  char UserPW[MAX_USER_PW_LEN + 1];
 };
 const size_t LOGIN_REQUEST_PACKET_SZIE = sizeof(LoginRequestPacket);
 
-
-struct LoginResponsePacket : public PacketHeader
-{
-	std::uint16_t Result;
+struct LoginResponsePacket : public PacketHeader {
+  std::uint16_t Result;
 };
 
-
-
-//- ∑Îø° µÈæÓ∞°±‚ ø‰√ª
+//- Î£∏Ïóê Îì§Ïñ¥Í∞ÄÍ∏∞ ÏöîÏ≤≠
 const int MAX_ROOM_TITLE_SIZE = 16;
-struct RoomEnterRequestPacket : public PacketHeader
-{
-	int RoomNumber;
+struct RoomEnterRequestPacket : public PacketHeader {
+  int RoomNumber;
 };
 
-struct RoomEnterResponsePacket : public PacketHeader
-{
-	std::uint16_t Result;
+struct RoomEnterResponsePacket : public PacketHeader {
+  std::uint16_t Result;
 };
 
-
-struct RoomUserListNotifyPacket : public PacketHeader
-{
-	char user_count_;
-	char data_[1];
+struct RoomUserListNotifyPacket : public PacketHeader {
+  char user_count_;
+  char data_[1];
 };
 
-struct RoomNewUserNotifyPacket : public PacketHeader
-{
-	char data_[1];
+struct RoomNewUserNotifyPacket : public PacketHeader {
+  char data_[1];
 };
 
+//- Î£∏ ÎÇòÍ∞ÄÍ∏∞ ÏöîÏ≤≠
+struct RoomLeaveRequestPacket : public PacketHeader {};
 
-//- ∑Î ≥™∞°±‚ ø‰√ª
-struct RoomLeaveRequestPacket : public PacketHeader
-{
-
+struct RoomLeaveResponsePacket : public PacketHeader {
+  std::uint16_t Result;
 };
 
-struct RoomLeaveResponsePacket : public PacketHeader
-{
-	std::uint16_t Result;
+struct RoomLeaveNotifyPacket : public PacketHeader {
+  char UserID[MAX_USER_ID_LEN + 1] = {
+      0,
+  };
 };
 
-struct RoomLeaveNotifyPacket : public PacketHeader
-{
-	char UserID[MAX_USER_ID_LEN + 1] = { 0, };
-};
-
-
-// ∑Î √§∆√
+// Î£∏ Ï±ÑÌåÖ
 const int MAX_CHAT_MSG_SIZE = 256;
-struct RoomChatRequestPacket : public PacketHeader
-{
-	char Message[MAX_CHAT_MSG_SIZE + 1] = { 0, };
+struct RoomChatRequestPacket : public PacketHeader {
+  char Message[MAX_CHAT_MSG_SIZE + 1] = {
+      0,
+  };
 };
 
-struct RoomChatResponsePacket : public PacketHeader
-{
-	std::uint16_t Result;
+struct RoomChatResponsePacket : public PacketHeader {
+  std::uint16_t Result;
 };
 
-struct RoomChatNotifyPacket : public PacketHeader
-{
-	char UserID[MAX_USER_ID_LEN + 1] = { 0, };
-	char Msg[MAX_CHAT_MSG_SIZE + 1] = { 0, };
+struct RoomChatNotifyPacket : public PacketHeader {
+  char UserID[MAX_USER_ID_LEN + 1] = {
+      0,
+  };
+  char Msg[MAX_CHAT_MSG_SIZE + 1] = {
+      0,
+  };
 };
 
-
-#pragma pack(pop) //¿ßø° º≥¡§µ» ∆–≈∑º≥¡§¿Ã ªÁ∂Û¡¸
+#pragma pack(pop)  // ÏúÑÏóê ÏÑ§Ï†ïÎêú Ìå®ÌÇπÏÑ§Ï†ïÏù¥ ÏÇ¨ÎùºÏßê

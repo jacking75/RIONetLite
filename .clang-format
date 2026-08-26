@@ -1,0 +1,4 @@
+BasedOnStyle: Google
+IncludeBlocks: Preserve
+LineEnding: LF
+Standard: Latest

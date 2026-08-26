@@ -1,20 +1,17 @@
 #pragma once
 
-enum class PacketId
-{
-	kECHO_REQUEST = 101,
-	kECHO_RESPONSE = 102,	
+enum class PacketId {
+  kECHO_REQUEST = 101,
+  kECHO_RESPONSE = 102,
 };
 
-
-#pragma pack(push,1)
-struct PacketHeader
-{
-	unsigned short length_;
-	unsigned short id_;
-	unsigned char type_; // ¾ĞÃà¿©ºÎ ¾ÏÈ£È­¿©ºÎ µî ¼Ó¼ºÀ» ¾Ë¾Æ³»´Â °ª
+#pragma pack(push, 1)
+struct PacketHeader {
+  unsigned short length_;
+  unsigned short id_;
+  unsigned char type_;  // ì••ì¶•ì—¬ë¶€ ì•”í˜¸í™”ì—¬ë¶€ ë“± ì†ì„±ì„ ì•Œì•„ë‚´ëŠ” ê°’
 };
 
 const unsigned short PACKET_HEADER_SIZE = sizeof(PacketHeader);
 
-#pragma pack(pop) //À§¿¡ ¼³Á¤µÈ ÆĞÅ·¼³Á¤ÀÌ »ç¶óÁü
+#pragma pack(pop)  // ìœ„ì— ì„¤ì •ëœ íŒ¨í‚¹ì„¤ì •ì´ ì‚¬ë¼ì§

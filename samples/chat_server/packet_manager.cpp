@@ -1,148 +1,161 @@
 #include "packet_manager.h"
-#include "Packet.h"
 #include "logger.h"
+#include "packet.h"
 
+#include <cstring>
 #include <format>
 #include <utility>
-#include <cstring>
 
+void PacketManager::Init(ClientSessionManager* p_client_mgr,
+                         RoomManager* p_room_mgr) {
+  packet_func_dic_ = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
 
-void PacketManager::Init(ClientSessionManager* p_client_mgr, RoomManager* p_room_mgr)
-{
-	packet_func_dic_ = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
+  packet_func_dic_[(int)PacketID::kLOGIN_REQUEST] =
+      &PacketManager::ProcessLogin;
+  packet_func_dic_[(int)PacketID::kROOM_ENTER_REQUEST] =
+      &PacketManager::ProcessEnterRoom;
+  packet_func_dic_[(int)PacketID::kROOM_LEAVE_REQUEST] =
+      &PacketManager::ProcessLeaveRoom;
+  packet_func_dic_[(int)PacketID::kROOM_CHAT_REQUEST] =
+      &PacketManager::ProcessRoomChatMessage;
 
-	packet_func_dic_[(int)PacketID::kLOGIN_REQUEST] = &PacketManager::ProcessLogin;
-	packet_func_dic_[(int)PacketID::kROOM_ENTER_REQUEST] = &PacketManager::ProcessEnterRoom;
-	packet_func_dic_[(int)PacketID::kROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
-	packet_func_dic_[(int)PacketID::kROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
-				
-	pref_client_mgr_ = p_client_mgr;
-	pref_room_mgr_ = p_room_mgr;
+  pref_client_mgr_ = p_client_mgr;
+  pref_room_mgr_ = p_room_mgr;
 }
 
+void PacketManager::ProcessRecvPacket(std::int32_t client_index,
+                                      const std::uint64_t client_uid,
+                                      std::int16_t data_size, char* p_data) {
+  auto p_header = reinterpret_cast<PacketHeader*>(p_data);
 
-
-void PacketManager::ProcessRecvPacket(std::int32_t client_index, const std::uint64_t client_uid, std::int16_t data_size, char* p_data)
-{
-	auto p_header = reinterpret_cast<PacketHeader*>(p_data);
-
-	auto iter = packet_func_dic_.find(p_header->id_);
-	if (iter != packet_func_dic_.end()) {
-		(this->*(iter->second))(client_index, client_uid, data_size, p_data);
-	}
-
-}
-		
-void PacketManager::ProcessLogin(const std::int32_t client_index, const std::uint64_t client_uid, std::int16_t data_size, char* p_data)
-{ 
-	if (LOGIN_REQUEST_PACKET_SZIE != data_size) {
-		return;
-	}
-
-	auto p_login_req_packet = reinterpret_cast<LoginRequestPacket*>(p_data);
-	auto p_cleint_id = p_login_req_packet->UserID;
-
-	Logger::Debug(std::format("requested user id = {0}", p_cleint_id).c_str());
-
-	LoginResponsePacket loginResPacket;
-	loginResPacket.id_ = (std::uint16_t)PacketID::kLOGIN_RESPONSE;
-	loginResPacket.length_ = sizeof(LoginResponsePacket);
-
-	if (pref_client_mgr_->CurrentClientCount() >= pref_client_mgr_->MaxClientCount()) { 
-		//¡¢º”¿⁄ºˆ∞° √÷¥Îºˆ∏¶ ¬˜¡ˆ«ÿº≠ ¡¢º”∫“∞°
-		loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
-		return;
-	}
-
-	//ø©±‚ø°º≠ ¿ÃπÃ ¡¢º”µ» ¿Ø¿˙¿Œ¡ˆ »Æ¿Œ«œ∞Ì, ¡¢º”µ» ¿Ø¿˙∂Û∏È Ω«∆–«—¥Ÿ.
-	if (pref_client_mgr_->FindClientIndexByID(p_cleint_id) == -1) { 
-		//¡¢º”¡ﬂ¿Ã æ∆¥— ¿Ø¿˙∂Û∏È
-		//¿Ø¿˙∏¶ ∞¸∏Æ«œ¥¬ ∞¥√ºø° ≥÷¥¬¥Ÿ.
-		pref_client_mgr_->AddClient(p_cleint_id, client_index);
-		loginResPacket.Result = (std::uint16_t)ErrorCode::kNONE;
-	} else {
-		//¡¢º”¡ﬂ¿Œ ¿Ø¿˙ø©º≠ Ω«∆–∏¶ π›»Ø«—¥Ÿ.
-		loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_ALREADY;
-		SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
-		return;
-	}
-
-	SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket), (char*)&loginResPacket);
+  auto iter = packet_func_dic_.find(p_header->id_);
+  if (iter != packet_func_dic_.end()) {
+    (this->*(iter->second))(client_index, client_uid, data_size, p_data);
+  }
 }
 
+void PacketManager::ProcessLogin(const std::int32_t client_index,
+                                 const std::uint64_t client_uid,
+                                 std::int16_t data_size, char* p_data) {
+  if (LOGIN_REQUEST_PACKET_SZIE != data_size) {
+    return;
+  }
 
+  auto p_login_req_packet = reinterpret_cast<LoginRequestPacket*>(p_data);
+  auto p_cleint_id = p_login_req_packet->UserID;
 
-void PacketManager::ProcessEnterRoom(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, char* p_data)
-{
-	auto pRoomEnterReqPacket = reinterpret_cast<RoomEnterRequestPacket*>(p_data);
-	auto p_req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
+  Logger::Debug(std::format("requested user id = {0}", p_cleint_id).c_str());
 
-	if (!p_req_client || p_req_client == nullptr) {
-		return;
-	}
-				
-	RoomEnterResponsePacket room_enter_res_packet;
-	room_enter_res_packet.id_ = (std::uint16_t)PacketID::kROOM_ENTER_RESPONSE;
-	room_enter_res_packet.length_ = sizeof(RoomEnterResponsePacket);
-				
-	room_enter_res_packet.Result = pref_room_mgr_->EnterClient(pRoomEnterReqPacket->RoomNumber, p_req_client);
+  LoginResponsePacket loginResPacket;
+  loginResPacket.id_ = (std::uint16_t)PacketID::kLOGIN_RESPONSE;
+  loginResPacket.length_ = sizeof(LoginResponsePacket);
 
-	SendPacketFunc(client_index, client_uid, sizeof(RoomEnterResponsePacket) , (char*)&room_enter_res_packet );
-	printf("Response Packet Sended");
+  if (pref_client_mgr_->CurrentClientCount() >=
+      pref_client_mgr_->MaxClientCount()) {
+    // Ï†ëÏÜçÏûêÏàòÍ∞Ä ÏµúÎåÄÏàòÎ•º Ï∞®ÏßÄÌï¥ÏÑú Ï†ëÏÜçÎ∂àÍ∞Ä
+    loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_USED_ALL_OBJ;
+    SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket),
+                   (char*)&loginResPacket);
+    return;
+  }
+
+  // Ïó¨Í∏∞ÏóêÏÑú Ïù¥ÎØ∏ Ï†ëÏÜçÎêú Ïú†Ï†ÄÏù∏ÏßÄ ÌôïÏù∏ÌïòÍ≥†, Ï†ëÏÜçÎêú Ïú†Ï†ÄÎùºÎ©¥ Ïã§Ìå®ÌïúÎã§.
+  if (pref_client_mgr_->FindClientIndexByID(p_cleint_id) == -1) {
+    // Ï†ëÏÜçÏ§ëÏù¥ ÏïÑÎãå Ïú†Ï†ÄÎùºÎ©¥
+    // Ïú†Ï†ÄÎ•º Í¥ÄÎ¶¨ÌïòÎäî Í∞ùÏ≤¥Ïóê ÎÑ£ÎäîÎã§.
+    pref_client_mgr_->AddClient(p_cleint_id, client_index);
+    loginResPacket.Result = (std::uint16_t)ErrorCode::kNONE;
+  } else {
+    // Ï†ëÏÜçÏ§ëÏù∏ Ïú†Ï†ÄÏó¨ÏÑú Ïã§Ìå®Î•º Î∞òÌôòÌïúÎã§.
+    loginResPacket.Result = (std::uint16_t)ErrorCode::kLOGIN_USER_ALREADY;
+    SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket),
+                   (char*)&loginResPacket);
+    return;
+  }
+
+  SendPacketFunc(client_index, client_uid, sizeof(LoginResponsePacket),
+                 (char*)&loginResPacket);
 }
 
+void PacketManager::ProcessEnterRoom(std::int32_t client_index,
+                                     const std::uint64_t client_uid,
+                                     [[maybe_unused]] std::int16_t data_size,
+                                     char* p_data) {
+  auto pRoomEnterReqPacket = reinterpret_cast<RoomEnterRequestPacket*>(p_data);
+  auto p_req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
 
-void PacketManager::ProcessLeaveRoom(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, [[maybe_unused]] char* p_data)
-{
-	RoomLeaveResponsePacket roomLeaveResPacket;
-	roomLeaveResPacket.id_ = (std::uint16_t)PacketID::kROOM_LEAVE_RESPONSE;
-	roomLeaveResPacket.length_ = sizeof(RoomLeaveResponsePacket);
+  if (!p_req_client || p_req_client == nullptr) {
+    return;
+  }
 
-	auto req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
-	auto room_num = req_client->GetCurrentRoom();
-				
-	//TODO Roomæ»¿« UserList∞¥√º¿« ∞™ »Æ¿Œ«œ±‚
-	roomLeaveResPacket.Result = pref_room_mgr_->LeaveClient(room_num, req_client);
-	SendPacketFunc(client_index, client_uid, sizeof(RoomLeaveResponsePacket), (char*)&roomLeaveResPacket);
+  RoomEnterResponsePacket room_enter_res_packet;
+  room_enter_res_packet.id_ = (std::uint16_t)PacketID::kROOM_ENTER_RESPONSE;
+  room_enter_res_packet.length_ = sizeof(RoomEnterResponsePacket);
+
+  room_enter_res_packet.Result = pref_room_mgr_->EnterClient(
+      pRoomEnterReqPacket->RoomNumber, p_req_client);
+
+  SendPacketFunc(client_index, client_uid, sizeof(RoomEnterResponsePacket),
+                 (char*)&room_enter_res_packet);
+  printf("Response Packet Sended");
 }
 
+void PacketManager::ProcessLeaveRoom(std::int32_t client_index,
+                                     const std::uint64_t client_uid,
+                                     [[maybe_unused]] std::int16_t data_size,
+                                     [[maybe_unused]] char* p_data) {
+  RoomLeaveResponsePacket roomLeaveResPacket;
+  roomLeaveResPacket.id_ = (std::uint16_t)PacketID::kROOM_LEAVE_RESPONSE;
+  roomLeaveResPacket.length_ = sizeof(RoomLeaveResponsePacket);
 
-void PacketManager::ProcessRoomChatMessage(std::int32_t client_index, const std::uint64_t client_uid, [[maybe_unused]] std::int16_t data_size, char* p_data)
-{
-	auto p_room_chat_req_packet = reinterpret_cast<RoomChatRequestPacket*>(p_data);
-		
-	RoomChatResponsePacket roomChatResPacket;
-	roomChatResPacket.id_ = (std::uint16_t)PacketID::kROOM_CHAT_RESPONSE;
-	roomChatResPacket.length_ = sizeof(RoomChatResponsePacket);
-	roomChatResPacket.Result = (std::uint16_t)ErrorCode::kNONE;
+  auto req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
+  auto room_num = req_client->GetCurrentRoom();
 
+  // TODO RoomÏïàÏùò UserListÍ∞ùÏ≤¥Ïùò Í∞í ÌôïÏù∏ÌïòÍ∏∞
+  roomLeaveResPacket.Result = pref_room_mgr_->LeaveClient(room_num, req_client);
+  SendPacketFunc(client_index, client_uid, sizeof(RoomLeaveResponsePacket),
+                 (char*)&roomLeaveResPacket);
+}
 
-	auto reqUser = pref_client_mgr_->GetClientByConnIdx(client_index);
-	auto roomNum = reqUser->GetCurrentRoom();
-				
-	auto pRoom = pref_room_mgr_->GetRoomByNumber(roomNum);
-	if (pRoom == nullptr) {
-		roomChatResPacket.Result = (std::uint16_t)ErrorCode::kCHAT_ROOM_INVALID_ROOM_NUMBER;
-		SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket) , (char*)&roomChatResPacket );
-		return;
-	}
-		
-	SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket), (char*)&roomChatResPacket);
+void PacketManager::ProcessRoomChatMessage(
+    std::int32_t client_index, const std::uint64_t client_uid,
+    [[maybe_unused]] std::int16_t data_size, char* p_data) {
+  auto p_room_chat_req_packet =
+      reinterpret_cast<RoomChatRequestPacket*>(p_data);
 
-	pRoom->NotifyChat(client_index, reqUser->GetUserId().c_str(), p_room_chat_req_packet->Message);		
-}		   
+  RoomChatResponsePacket roomChatResPacket;
+  roomChatResPacket.id_ = (std::uint16_t)PacketID::kROOM_CHAT_RESPONSE;
+  roomChatResPacket.length_ = sizeof(RoomChatResponsePacket);
+  roomChatResPacket.Result = (std::uint16_t)ErrorCode::kNONE;
 
-void PacketManager::ClearConnectionInfo(std::int32_t client_index)
-{
-	auto p_req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
+  auto reqUser = pref_client_mgr_->GetClientByConnIdx(client_index);
+  auto roomNum = reqUser->GetCurrentRoom();
 
-	if (p_req_client->GetDomainState() == ClientSession::DomainState::kROOM) {
-		auto roomNum = p_req_client->GetCurrentRoom();
-		pref_room_mgr_->LeaveClient(roomNum, p_req_client);
-	}
+  auto pRoom = pref_room_mgr_->GetRoomByNumber(roomNum);
+  if (pRoom == nullptr) {
+    roomChatResPacket.Result =
+        (std::uint16_t)ErrorCode::kCHAT_ROOM_INVALID_ROOM_NUMBER;
+    SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket),
+                   (char*)&roomChatResPacket);
+    return;
+  }
 
-	if (p_req_client->GetDomainState() != ClientSession::DomainState::kNONE) {
-		pref_client_mgr_->RemoveClient(p_req_client);
-	}
+  SendPacketFunc(client_index, client_uid, sizeof(RoomChatResponsePacket),
+                 (char*)&roomChatResPacket);
+
+  pRoom->NotifyChat(client_index, reqUser->GetUserId().c_str(),
+                    p_room_chat_req_packet->Message);
+}
+
+void PacketManager::ClearConnectionInfo(std::int32_t client_index) {
+  auto p_req_client = pref_client_mgr_->GetClientByConnIdx(client_index);
+
+  if (p_req_client->GetDomainState() == ClientSession::DomainState::kROOM) {
+    auto roomNum = p_req_client->GetCurrentRoom();
+    pref_room_mgr_->LeaveClient(roomNum, p_req_client);
+  }
+
+  if (p_req_client->GetDomainState() != ClientSession::DomainState::kNONE) {
+    pref_client_mgr_->RemoveClient(p_req_client);
+  }
 }

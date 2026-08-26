@@ -1,56 +1,57 @@
 #pragma once
 
-#include "Packet.h"
+#include "packet.h"
 
-#include "../../c2_rio_net/i_net_event.h"
-#include "../../c2_rio_net/server_net.h"
+#include "../../RIONetLite/i_net_event.h"
+#include "../../RIONetLite/server_net.h"
 
 #include <cstdint>
 
+class EchoServerContent : public rionetlite::INetEventManager {
+ public:
+  void OnConnect(const std::int32_t index, const std::uint64_t uid) override {
+    printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uid);
+  }
 
-class EchoServerContent : public c2rionet::INetEventManager
-{
-public:
-	void OnConnect(const std::int32_t index, const std::uint64_t uid) override
-	{
-		printf("[OnConnect] - SessionIndex(%d), UniqueId(%I64u)\n", index, uid);
-	}
+  void OnClose(const std::int32_t index, const std::uint64_t uid,
+               const rionetlite::DisconnectReason reason) override {
+    printf("[OnClose] - SessionIndex(%d), SessionUID(%I64u), Reason(%s)\n",
+           index, uid, rionetlite::DisconnectReasonStr[(int)reason]);
+  }
 
-	void OnClose(const std::int32_t index, const std::uint64_t uid, const c2rionet::DisconnectReason reason) override
-	{
-		printf("[OnClose] - SessionIndex(%d), SessionUID(%I64u), Reason(%s)\n", index, uid, c2rionet::DisconnectReasonStr[(int)reason]);
-	}
+  std::uint32_t OnReceive(const std::int32_t index, const std::uint64_t uid,
+                          const std::uint32_t data_size,
+                          char* p_data) override {
+    // ì´ ë°ì´í„°ëŠ” ë°©ê¸ˆ ë°›ì€ ë°ì´í„°ë¡œ ì—¬ê¸°ì„œ ì‚¬ìš© ë„ì¤‘ ì„¸ì…˜ì´ ëŠì–´ì ¸ì„œ ì´ ì„¸ì…˜ì´
+    // ìž¬ ì‚¬ìš©ë˜ë©´ ë²„í¼ì˜ ê°’ì´ ì´ìƒí•´ì§ˆ ìˆ˜ ìžˆë‹¤. ì´ ì´ë²¤íŠ¸ ë°œìƒ í›„
+    // RE_USE_SESSION_WAITE_TIMESECëŠ” ë³´ìž¥í•œë‹¤
+    // printf("[OnReceive] - SessionIndex(%d), size(%d)\n", index_,
+    // (int)dataSize_);
 
-	std::uint32_t OnReceive(const std::int32_t index, const std::uint64_t uid, 
-							const std::uint32_t data_size, char* p_data) override
-	{
-		// ÀÌ µ¥ÀÌÅÍ´Â ¹æ±Ý ¹ÞÀº µ¥ÀÌÅÍ·Î ¿©±â¼­ »ç¿ë µµÁß ¼¼¼ÇÀÌ ²÷¾îÁ®¼­ ÀÌ ¼¼¼ÇÀÌ Àç »ç¿ëµÇ¸é ¹öÆÛÀÇ °ªÀÌ ÀÌ»óÇØÁú ¼ö ÀÖ´Ù. ÀÌ ÀÌº¥Æ® ¹ß»ý ÈÄ RE_USE_SESSION_WAITE_TIMESEC´Â º¸ÀåÇÑ´Ù
-		//printf("[OnReceive] - SessionIndex(%d), size(%d)\n", index_, (int)dataSize_);
+    auto usedDataSize = ProcessPacket(index, uid, data_size, p_data);
+    return usedDataSize;
+  }
 
-		auto usedDataSize = ProcessPacket(index, uid, data_size, p_data);
-		return usedDataSize;
-	}
+  std::uint32_t ProcessPacket(const std::int32_t index, const std::uint64_t uid,
+                              const std::uint32_t data_size,
+                              const char* p_data) {
+    std::int32_t readPos = 0;
+    auto remainSize = data_size;
 
-	std::uint32_t ProcessPacket(const std::int32_t index, const std::uint64_t uid, 
-								const std::uint32_t data_size, const char* p_data)
-	{
-		std::int32_t readPos = 0;
-		auto remainSize = data_size;
+    while (remainSize >= PACKET_HEADER_SIZE) {
+      auto pHeader = (PacketHeader*)&p_data[readPos];
 
-		while (remainSize >= PACKET_HEADER_SIZE) {
-			auto pHeader = (PacketHeader*)&p_data[readPos];
+      if (pHeader->length_ > remainSize) {
+        break;
+      }
 
-			if (pHeader->length_ > remainSize) {
-				break;
-			}
+      pref_net_mgr_->SendData(index, uid, pHeader->length_, &p_data[readPos]);
+      readPos += pHeader->length_;
+      remainSize -= pHeader->length_;
+    }
 
-			pref_net_mgr_->SendData(index, uid, pHeader->length_, &p_data[readPos]);
-			readPos += pHeader->length_;
-			remainSize -= pHeader->length_;
-		}
+    return readPos;
+  }
 
-		return readPos;
-	}
-
-	c2rionet::ServerNetManager* pref_net_mgr_;
+  rionetlite::ServerNetManager* pref_net_mgr_;
 };
