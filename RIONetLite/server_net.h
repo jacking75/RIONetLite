@@ -58,7 +58,6 @@ class ServerNetManager {
 // 상태에서 반복적으로 ForcedClose를 발생시켜서 에러 발생이 없는지 확인한다
 // TODO 메모리 성능 테스트 비교
 //   - 사용하지 않을 때
-//   - tcmalloc
 //   - jemalloc
 //   - mimalloc
 // TODO 병렬 큐 성능 비교

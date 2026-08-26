@@ -1,8 +1,3 @@
-#if defined(_WIN64) && defined(_DEBUG)
-#pragma comment(lib, "tcmalloc_debug/libtcmalloc_minimal")
-#pragma comment(linker, "/include:__tcmalloc")
-#endif
-
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
 #pragma comment(lib, "DbgHelp.lib")
@@ -13,6 +8,15 @@
 #include "../thirdparty/flags.h"
 
 #include <iostream>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4559)
+#endif
+#include <mimalloc-new-delete.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 rionetlite::NetConfig GetConfig(int argc, char* argv[]);
 

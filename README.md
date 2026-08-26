@@ -35,6 +35,7 @@ samples/
 - MSVC 플랫폼 도구 집합 `v145`
 - 최신 C++ 표준 `/std:c++latest`
 - Windows SDK `10.0`
+- Visual Studio에 포함된 vcpkg
 
 Visual Studio에서 다음 솔루션을 열어 빌드할 수 있다.
 
@@ -48,7 +49,7 @@ msbuild samples\echo_server\EchoServer.sln /m /t:Build /p:Configuration=Debug /p
 msbuild samples\chat_server\ChatServer.sln /m /t:Build /p:Configuration=Debug /p:Platform=x64
 ```
 
-두 예제는 Debug/Release와 Win32/x64 구성을 제공한다. ChatServer에 포함된 기존 tcmalloc 바이너리는 x64 Debug에서만 사용하며, 나머지 구성은 MSVC 기본 할당자를 사용한다.
+두 예제는 Debug/Release와 Win32/x64 구성을 제공한다. ChatServer는 `samples/chat_server/vcpkg.json`을 통해 mimalloc을 자동으로 복원하고 C++ 전역 `new/delete` 할당자로 사용한다.
 
 ## 기본 사용 흐름
 

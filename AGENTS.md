@@ -26,7 +26,7 @@ RIONetLite는 Windows Registered I/O(RIO)를 이용하는 게임 서버용 C++ �
 - Visual Studio 2026과 MSVC `v145`를 기준으로 한다.
 - 모든 C++ 구성은 `/std:c++latest`와 `/utf-8`을 유지한다.
 - Debug/Release와 Win32/x64 프로젝트 구성을 깨뜨리지 않는다.
-- ChatServer의 번들 tcmalloc은 x64 Debug에서만 사용한다. 구형 Release 라이브러리를 VS2026 LTCG에 연결하지 않는다.
+- ChatServer는 manifest-mode vcpkg로 mimalloc을 사용한다. allocator 바이너리를 저장소에 직접 추가하지 않는다.
 
 대표 검증 명령은 다음과 같다.
 
@@ -47,7 +47,7 @@ msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Releas
 - 고정 폭 네트워크·프로토콜 값은 `<cstdint>` 타입을 사용한다.
 - `NULL`보다 `nullptr`, C 스타일 캐스트보다 C++ 캐스트, 수동 자원 해제보다 RAII를 우선한다.
 - 공개 API를 변경할 때는 예제와 README를 함께 갱신한다.
-- `c2_rio_net`, `c2rionet`, `RIONetLib` 이름을 다시 도입하지 않는다.
+- `c2_rio_net`, `c2rionet`, `RIONetLib`과 제거된 allocator 이름을 다시 도입하지 않는다.
 - Windows 헤더는 `WinSock2.h`가 `MSWSock.h`보다 먼저 포함되어야 한다.
 
 C++ 변경 후 다음 검사를 수행한다.
@@ -78,6 +78,6 @@ git diff --check
 ## 변경 및 Git 원칙
 
 - 빌드 결과, IDE 캐시와 사용자별 설정을 커밋하지 않는다.
-- 서드파티 바이너리를 재빌드하거나 교체할 때는 대상 아키텍처, 런타임 라이브러리와 컴파일러 버전을 기록한다.
+- C++ 의존성은 가능한 한 vcpkg manifest로 관리한다. 서드파티 바이너리를 직접 추가하지 않는다.
 - 사용자 소유의 관련 없는 변경을 수정하거나 커밋하지 않는다.
 - 커밋 전 구형 프로젝트명 참조, 포맷, 빌드 결과와 `git status`를 확인한다.
