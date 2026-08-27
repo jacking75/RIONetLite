@@ -2,7 +2,9 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Debug',
     [switch]$Rebuild,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$UseMimalloc,
+    [switch]$Analyze
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,7 +35,9 @@ $env:Path = $taskPath
 
 $target = if ($Rebuild) { 'Rebuild' } else { 'Build' }
 & $msbuild (Join-Path $PSScriptRoot '..\RIONetLite.sln') /m "/t:$target" `
-    "/p:Configuration=$Configuration" /p:Platform=x64 /nologo
+    "/p:Configuration=$Configuration" /p:Platform=x64 `
+    "/p:UseMimalloc=$($UseMimalloc.IsPresent)" `
+    "/p:RunCodeAnalysis=$($Analyze.IsPresent)" /nologo
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

@@ -15,6 +15,10 @@
     <ProjectGuid>{F520E7DD-78E3-49CB-B502-51A988BDE26C}</ProjectGuid>
     <RootNamespace>EchoServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgManifestRoot>$(ProjectDir)..\..\</VcpkgManifestRoot>
+    <VcpkgTriplet>x64-windows-static-md</VcpkgTriplet>
+    <VcpkgApplocalDeps>false</VcpkgApplocalDeps>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -31,35 +35,49 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <UseMimalloc Condition="'$(UseMimalloc)' == ''">false</UseMimalloc>
+    <VcpkgRoot Condition="'$(VcpkgRoot)' == ''">$(VCInstallDir)vcpkg</VcpkgRoot>
+  </PropertyGroup>
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props" Condition="'$(VcpkgPropsImported)' != 'true'" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\build\RIONetLite.Common.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\build\RIONetLite.Common.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>mincore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;mswsock.lib;mincore.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(UseMimalloc)' == 'true'">
+    <ClCompile><ForcedIncludeFiles>mimalloc-new-delete.h;%(ForcedIncludeFiles)</ForcedIncludeFiles><DisableSpecificWarnings>4559;%(DisableSpecificWarnings)</DisableSpecificWarnings></ClCompile>
+    <Link><AdditionalDependencies Condition="'$(Configuration)' == 'Debug'">mimalloc-debug.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalDependencies Condition="'$(Configuration)' == 'Release'">mimalloc.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)</TargetName>
     <OutDir>..\..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>..\..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(RIONetLiteIsolatedIntRoot)' != ''">$(RIONetLiteIsolatedIntRoot)$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\..\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>..\..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(RIONetLiteIsolatedIntRoot)' != ''">$(RIONetLiteIsolatedIntRoot)$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -91,18 +109,12 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\RIONetLite\i_net_event.h" />
-    <ClInclude Include="..\..\RIONetLite\server_net.h" />
-    <ClInclude Include="echo_server_content.h" />
-    <ClInclude Include="echo_server.h" />
-    <ClInclude Include="packet.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\build\RIONetLite.vcxproj">
       <Project>{A1111111-1111-4111-8111-111111111111}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" Condition="'$(_ZVcpkgRoot)' == ''" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

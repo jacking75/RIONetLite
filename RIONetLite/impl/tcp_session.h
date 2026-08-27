@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../src/detail/rio_api.h"
+#include "../../src/detail/session_lifecycle.h"
 #include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "fast_spin_lock.h"
@@ -7,70 +9,74 @@
 #include "rio_context.h"
 #include "send_immediately.h"
 
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
-#include <format>
 #include <utility>
 #include <vector>
 
 namespace rionetlite {
-class TcpSession {
-  const std::int64_t kCONNECTED = 1;
-  const std::int64_t kENABLE_VALUE = 1;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
 
+class alignas(64) TcpSession {
  public:
-  TcpSession() = default;
+  TcpSession(const std::uint32_t index, const std::uint32_t thread_id)
+      : lifecycle_(index),
+        index_(static_cast<int>(index)),
+        rio_thread_id_(static_cast<int>(thread_id)) {}
   ~TcpSession() = default;
 
   int GetIndex() { return index_; }
 
-  std::uint64_t GetUID() { return uid_; }
+  std::uint64_t GetUID() const { return lifecycle_.id().generation; }
 
   RIO_RQ GetRIORQ() { return rio_rq_; }
 
-  bool IsEnableNetwork() { return enable_network_ == kENABLE_VALUE; }
-
-  void SetDisableNetwork() { enable_network_ = 0; }
-
-  void Init(const int index, const int threadId) {
-    rio_thread_id_ = threadId;
-    index_ = index;
-    memset(&client_addr_, 0, sizeof(SOCKADDR_IN));
+  bool IsEnableNetwork() const {
+    return enable_network_.load(std::memory_order_acquire);
   }
 
-  bool RioInitialize(const SessionNetConfig net_config) {
+  void SetDisableNetwork() {
+    enable_network_.store(false, std::memory_order_release);
+    static_cast<void>(lifecycle_.TryBeginClose());
+    io_sender_.BeginClose();
+  }
+
+  bool TryReserve() noexcept { return lifecycle_.TryReserve(); }
+
+  bool Matches(const std::uint64_t generation) const noexcept {
+    return lifecycle_.Matches(SessionId{
+        .index = static_cast<std::uint32_t>(index_),
+        .generation = generation,
+    });
+  }
+
+  bool RioInitialize(const SessionNetConfig net_config,
+                     detail::RioApi& rio_api) {
+    rio_api_ = &rio_api;
     max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
 
-    if (io_sender_.Init(index_, net_config) == false) {
-      LogFuncPtr((int)LogLevel::kERROR,
-                 "TcpSession::RioInitialize() - fail io_sender_.Init");
+    if (io_sender_.Init(index_, net_config, rio_api,
+                        static_cast<std::uint32_t>(rio_thread_id_)) == false) {
       return false;
     }
 
-    if (auto [err_code, err_msg] =
+    if (const auto create_result =
             recv_buffer_.Create(false, net_config.max_recv_buffer_size_);
-        err_code != (int)NetErrorCode::kNONE) {
-      LogFuncPtr(
-          (int)LogLevel::kERROR,
-          std::format(
-              "TcpSession::RioInitialize() - fail mRecvBuffer.Create. {0}, {1}",
-              err_code, err_msg)
-              .c_str());
+        std::get<0>(create_result) != static_cast<int>(NetErrorCode::kNONE)) {
       return false;
     }
 
-    if (!recv_rio_buffer_.Register(RIO, recv_buffer_.GetBuffer(),
-                                   recv_buffer_.EnableBufferSize())) {
-      LogFuncPtr(
-          (int)LogLevel::kERROR,
-          std::format(
-              "TcpSession::RioInitialize() - RIORegisterBuffer Error: {0}",
-              GetLastError())
-              .c_str());
-
+    if (!recv_rio_buffer_.Register(rio_api, recv_buffer_.GetBuffer(),
+                                   recv_buffer_.RegisteredSpanSize())) {
       return false;
     }
 
-    recv_context_.Init(index_, IOType::kRECV);
+    recv_context_.Init(index_, IOType::kRECV,
+                       static_cast<std::uint32_t>(rio_thread_id_));
     return true;
   }
 
@@ -82,47 +88,87 @@ class TcpSession {
 
   bool OnConnect(const std::uint64_t uid, detail::UniqueSocket socket,
                  RIO_RQ rio_rq) {
-    // 세션 객체가 재 사용되더라도 대기 시간이 있으므로 연결이 끊어질 때와 이
-    // 함수 호출이 겹쳐지지 않는다.
-    SetAddress(socket.get());
-
-    /// turn off nagle
-    int opt = 1;
-    setsockopt(socket.get(), IPPROTO_TCP, TCP_NODELAY, (const char*)&opt,
-               sizeof(int));
-
-    socket_ = std::move(socket);
-    uid_ = uid;
-    connected_ = kCONNECTED;
-    enable_network_ = kENABLE_VALUE;
-    rio_rq_ = rio_rq;
-    io_sender_.OnConnect(rio_rq_);
-    recv_buffer_.Clear();
-
-    return PostRecv() == NetErrorCode::kNONE;
-  }
-
-  bool IsConnected() const { return connected_ == kCONNECTED; }
-
-  int GetRioThreadId() const { return rio_thread_id_; }
-
-  bool PostSend(const UINT32 data_size, const char* p_data) {
-    if (IsConnected() == false) {
+    if (!SetAddress(socket.get())) {
       return false;
     }
 
-    FastSpinlockGuard criticalSection(send_lock_);
-    auto result = io_sender_.PostSend(GetUID(), data_size, p_data);
-    return result;
-  }
-
-  void SendCompletion(RioIoContext* p_send_context) {
-    if (IsConnected() == false) {
-      return;
+    int opt = 1;
+    if (setsockopt(socket.get(), IPPROTO_TCP, TCP_NODELAY,
+                   reinterpret_cast<const char*>(&opt),
+                   sizeof(opt)) == SOCKET_ERROR) {
+      return false;
     }
 
-    FastSpinlockGuard criticalSection(send_lock_);
-    io_sender_.Completed(p_send_context);
+    socket_ = std::move(socket);
+    rio_rq_ = rio_rq;
+    io_sender_.OnConnect(rio_rq_, uid);
+    recv_buffer_.Clear();
+    enable_network_.store(true, std::memory_order_release);
+    accepting_application_sends_.store(true, std::memory_order_release);
+    socket_closed_.store(false, std::memory_order_release);
+    if (!Matches(uid) || !lifecycle_.TryActivate()) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool IsConnected() const {
+    return lifecycle_.state() == detail::SessionState::kActive;
+  }
+
+  bool HasOpenSocket() const noexcept {
+    return !socket_closed_.load(std::memory_order_acquire);
+  }
+
+  int GetRioThreadId() const { return rio_thread_id_; }
+
+  NetErrorCode PostSend(const std::uint64_t expected_uid,
+                        const UINT32 data_size, const char* p_data) {
+    if (IsConnected() == false ||
+        !accepting_application_sends_.load(std::memory_order_acquire)) {
+      return NetErrorCode::kSEND_SESSION_NETWORK_DISABLE;
+    }
+
+    return io_sender_.PostSend(expected_uid, data_size, p_data);
+  }
+
+  bool SendCompletion(RioIoContext* p_send_context,
+                      const std::uint32_t transferred) {
+    if (IsConnected() == false) {
+      io_sender_.Failed(p_send_context);
+      return false;
+    }
+
+    return io_sender_.Completed(p_send_context, transferred);
+  }
+
+  void SendFailed(RioIoContext* p_send_context) {
+    io_sender_.Failed(p_send_context);
+  }
+
+  void RecvFailed() {
+    recv_context_.Fail();
+    recv_rio_buffer_.CompleteOutstanding();
+  }
+
+  std::uint32_t Outstanding() const noexcept {
+    return recv_rio_buffer_.outstanding() + io_sender_.Outstanding();
+  }
+
+  std::uint32_t SendOutstanding() const noexcept {
+    return io_sender_.Outstanding();
+  }
+
+  void BeginPeerClose() noexcept {
+    accepting_application_sends_.store(false, std::memory_order_release);
+  }
+
+  bool ReadyForPeerClose() const noexcept { return SendOutstanding() == 0; }
+
+  void AbandonOutstanding() noexcept {
+    recv_rio_buffer_.AbandonOutstanding();
+    io_sender_.AbandonOutstanding();
   }
 
   NetErrorCode PostRecv() {
@@ -136,108 +182,143 @@ class TcpSession {
       return NetErrorCode::kRECV_DISABLE_NETWORK_STATUS;
     }
 
-    recv_context_.session_unique_Id_ = GetUID();
-    recv_context_.BufferId = recv_rio_buffer_.get();
-    recv_context_.Length = max_try_1recv_buffer_size_;
-    recv_context_.Offset = recv_buffer_.GetWriteablePos();
+    const auto writable = recv_buffer_.GetWritableSize();
+    if (writable == 0) {
+      return NetErrorCode::kRECV_BUFFER_FULL;
+    }
+    const auto receive_length = std::min(max_try_1recv_buffer_size_, writable);
+    if (!recv_context_.BeginRequest(
+            GetUID(), recv_rio_buffer_.get(), recv_buffer_.GetWriteablePos(),
+            receive_length, recv_buffer_.RegisteredSpanSize())) {
+      return NetErrorCode::kRECV_RIO_FAIL;
+    }
 
     /// start async recv
     DWORD flags = 0;
-    if (!RIO.RIOReceive(rio_rq_, (PRIO_BUF)&recv_context_, 1, flags,
-                        &recv_context_)) {
-      WriteLog_FailPostRecv();
+    recv_rio_buffer_.AddOutstanding();
+    if (!rio_api_->Receive(rio_rq_, reinterpret_cast<PRIO_BUF>(&recv_context_),
+                           1, flags, &recv_context_)) {
+      recv_context_.Fail();
+      recv_rio_buffer_.CompleteOutstanding();
       return NetErrorCode::kRECV_RIO_FAIL;
     }
 
     return NetErrorCode::kNONE;
   }
 
-  void RecvCompletion(const std::uint32_t size) { recv_buffer_.Write(size); }
+  bool RecvCompletion(const std::uint32_t size) {
+    recv_rio_buffer_.CompleteOutstanding();
+    if (!recv_context_.CompleteReceive(size) || !recv_buffer_.Write(size)) {
+      recv_context_.Fail();
+      return false;
+    }
+    return true;
+  }
 
   std::tuple<std::uint32_t, char*> ReadRecvBuffer() {
     return recv_buffer_.Read();
   }
 
-  void IncremantReadPosRecvBuffer(const std::uint32_t size) {
+  bool ConsumeRecvBuffer(const std::uint32_t size) {
+    const auto [readable, data] = recv_buffer_.Read();
+    static_cast<void>(data);
+    if (size > readable) {
+      return false;
+    }
     recv_buffer_.IncremantReadPos(size);
+    return true;
   }
 
-  bool Disconnect(const std::uint64_t uid) {
-    if (IsConnected() == false) {
+  bool Disconnect(const std::uint64_t uid, const bool abortive = true) {
+    if (!Matches(uid)) {
       return false;
     }
 
-    if (GetUID() != uid) {
+    static_cast<void>(lifecycle_.TryBeginClose());
+    if (lifecycle_.state() != detail::SessionState::kDraining) {
       return false;
     }
 
-    // FastSpinlockGuard criticalSection(session_lock_);
+    bool expected = false;
+    if (!socket_closed_.compare_exchange_strong(expected, true,
+                                                std::memory_order_acq_rel)) {
+      return false;
+    }
 
-    LINGER lingerOption;
-    lingerOption.l_onoff = 1;
-    lingerOption.l_linger = 0;
+    io_sender_.BeginClose();
 
-    /// no TCP TIME_WAIT
-    setsockopt(socket_.get(), SOL_SOCKET, SO_LINGER, (char*)&lingerOption,
-               sizeof(LINGER));
+    if (abortive) {
+      LINGER linger_option{};
+      linger_option.l_onoff = 1;
+      linger_option.l_linger = 0;
+      setsockopt(socket_.get(), SOL_SOCKET, SO_LINGER,
+                 reinterpret_cast<const char*>(&linger_option),
+                 sizeof(linger_option));
+    } else {
+      static_cast<void>(shutdown(socket_.get(), SD_SEND));
+    }
 
     socket_.Reset();
-    connected_ = 0;
-    SetDisableNetwork();
-    uid_ = 0;
+    enable_network_.store(false, std::memory_order_release);
+    accepting_application_sends_.store(false, std::memory_order_release);
+    static_cast<void>(lifecycle_.TryMarkClosing());
+    const bool notify_close = lifecycle_.TryNotifyClose();
+    static_cast<void>(lifecycle_.TryQuarantine());
 
-    return true;
+    return notify_close;
   }
 
   void DisConnectByAcceptFail() {
     socket_.Reset();
-    connected_ = 0;
-    SetDisableNetwork();
-    uid_ = 0;
+    enable_network_.store(false, std::memory_order_release);
+    accepting_application_sends_.store(false, std::memory_order_release);
+    socket_closed_.store(true, std::memory_order_release);
+    static_cast<void>(lifecycle_.TryBeginClose());
+    static_cast<void>(lifecycle_.TryMarkClosing());
+    static_cast<void>(lifecycle_.TryNotifyClose());
+    static_cast<void>(lifecycle_.TryQuarantine());
   }
+
+  bool TryRecycle() noexcept { return lifecycle_.TryRecycle(Outstanding(), 0); }
 
  private:
-  void SetAddress(SOCKET socket) {
-    SOCKADDR_IN clientaddr;
+  bool SetAddress(SOCKET socket) {
+    SOCKADDR_IN clientaddr{};
     int addrlen = sizeof(clientaddr);
-    getpeername(socket, (SOCKADDR*)&clientaddr, &addrlen);
-    memcpy(&client_addr_, &clientaddr, sizeof(SOCKADDR_IN));
+    if (getpeername(socket, reinterpret_cast<SOCKADDR*>(&clientaddr),
+                    &addrlen) == SOCKET_ERROR) {
+      return false;
+    }
+    client_addr_ = clientaddr;
+    return true;
   }
-
-  void WriteLog_FailPostRecv() {
-    char logmsg[256] = {
-        0,
-    };
-    sprintf_s(logmsg, "TcpSession::PostRecv() - RIOReceive Error: %d",
-              GetLastError());
-    LogFuncPtr((int)LogLevel::kERROR, logmsg);
-  }
-
-  FastSpinlock send_lock_;
 
   int index_ = -1;
   std::uint32_t max_try_1recv_buffer_size_ = 0;
   int rio_thread_id_ = -1;
 
-  std::uint64_t uid_ = 0;
-
-  // 64비트에서 INT64는 아토믹하게 읽기,쓰기 가능. ++i 가 아닌 i = 1 등이
-  // 아토믹하다는 것이다.
-  // https://docs.microsoft.com/en-us/windows/win32/sync/interlocked-variable-access
-  std::int64_t connected_ = 0;
-
-  std::int64_t enable_network_ = 0;
+  detail::SessionLifecycle lifecycle_;
+  std::atomic<bool> enable_network_{false};
+  std::atomic<bool> accepting_application_sends_{false};
+  std::atomic<bool> socket_closed_{true};
 
   detail::UniqueSocket socket_;
-  SOCKADDR_IN client_addr_;
+  SOCKADDR_IN client_addr_{};
 
-  RIO_RQ rio_rq_ = NULL;
-  RioIoContext recv_context_;
+  RIO_RQ rio_rq_ = RIO_INVALID_RQ;
+  RioIoContext recv_context_{};
 
   SendImmediately io_sender_;
 
   RingBufferVA2 recv_buffer_;
   detail::RegisteredRioBuffer recv_rio_buffer_;
+  detail::RioApi* rio_api_ = nullptr;
 };
+
+static_assert(alignof(TcpSession) == 64);
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace rionetlite

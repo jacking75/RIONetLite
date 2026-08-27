@@ -12,6 +12,8 @@
 
 namespace rionetlite::detail {
 
+class RioApi;
+
 class WinsockRuntime final {
  public:
   WinsockRuntime() = default;
@@ -108,11 +110,11 @@ class RegisteredRioBuffer final {
   RegisteredRioBuffer& operator=(RegisteredRioBuffer&& other) noexcept;
   ~RegisteredRioBuffer();
 
-  bool Register(RIO_EXTENSION_FUNCTION_TABLE& rio, char* data,
-                std::uint32_t size) noexcept;
+  bool Register(RioApi& rio, char* data, std::uint32_t size) noexcept;
   bool Reset() noexcept;
   void AddOutstanding() noexcept;
   void CompleteOutstanding() noexcept;
+  void AbandonOutstanding() noexcept;
 
   [[nodiscard]] RIO_BUFFERID get() const noexcept { return id_; }
   [[nodiscard]] std::uint32_t outstanding() const noexcept {
@@ -123,7 +125,7 @@ class RegisteredRioBuffer final {
   }
 
  private:
-  RIO_EXTENSION_FUNCTION_TABLE* rio_ = nullptr;
+  RioApi* rio_ = nullptr;
   RIO_BUFFERID id_ = RIO_INVALID_BUFFERID;
   std::atomic<std::uint32_t> outstanding_{0};
 };
@@ -131,8 +133,7 @@ class RegisteredRioBuffer final {
 class UniqueRioCompletionQueue final {
  public:
   UniqueRioCompletionQueue() = default;
-  UniqueRioCompletionQueue(RIO_EXTENSION_FUNCTION_TABLE& rio,
-                           RIO_CQ queue) noexcept
+  UniqueRioCompletionQueue(RioApi& rio, RIO_CQ queue) noexcept
       : rio_(&rio), queue_(queue) {}
   UniqueRioCompletionQueue(const UniqueRioCompletionQueue&) = delete;
   UniqueRioCompletionQueue& operator=(const UniqueRioCompletionQueue&) = delete;
@@ -148,7 +149,7 @@ class UniqueRioCompletionQueue final {
   }
 
  private:
-  RIO_EXTENSION_FUNCTION_TABLE* rio_ = nullptr;
+  RioApi* rio_ = nullptr;
   RIO_CQ queue_ = RIO_INVALID_CQ;
 };
 

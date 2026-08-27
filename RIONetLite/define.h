@@ -33,10 +33,16 @@ struct NetConfig {
   std::uint16_t port_number_ = 0;
   std::int32_t io_work_thread_count_ = 0;
   std::int32_t io_send_thread_count_ =
-      0;  // send 전용 스레드를 사용할 경우에는 꼭 1 이상 되어야 한다.
+      0;  // 0.2.x 호환 입력이다. 별도 send 스레드는 생성하지 않는다.
 
   std::int32_t max_session_count_ = 0;
   SessionNetConfig session_cfg_;
+  std::uint32_t completion_batch_size_ = 64;
+  std::uint32_t completion_queue_capacity_ = 0;
+  std::uint32_t adaptive_spin_count_ = 128;
+  std::uint32_t graceful_shutdown_timeout_ms_ = 5000;
+  std::uint8_t worker_wait_mode_ = 1;
+  bool enable_thread_affinity_ = false;
 
   NetSendConfig GetSendConfig() {
     NetSendConfig cfg;
@@ -61,23 +67,26 @@ enum class DisconnectReason {
   kSEND_THREAD_REAL_SEND_ERROR,
   kFORCES_CLOSE_SERVER,
   kFORCES_CLOSE_SEND_ERROR,
+  kRECV_BUFFER_FULL,
+  kPROTOCOL_ERROR,
+  kOVERLOADED,
   kEND
 };
-inline char DisconnectReasonStr[(int)DisconnectReason::kEND][32] = {
-    "none",
-    "active",
-    "accept_loop_request_queue_error",
-    "accept_loop_on_connect_rrror",
-    "zero_completion",
-    "io_request_recv_error",
-    "partial_send_completion",
-    "send_error",
-    "forces_close_server",
-    "forces_close_send_error"};
-
-enum class LogLevel { kTRACE = 0, kDEBUG, kINFO, kWARN, kERROR, kFATAL, kEND };
-inline char LogLevelStr[(int)LogLevel::kEND][6] = {"trace", "debug", "info",
-                                                   "warn",  "error", "fetal"};
+inline char DisconnectReasonStr[static_cast<std::int32_t>(
+    DisconnectReason::kEND)][32] = {"none",
+                                    "active",
+                                    "accept_loop_request_queue_error",
+                                    "accept_loop_fail_on_connect",
+                                    "zero_completion",
+                                    "io_request_recv_error",
+                                    "partial_send_completion",
+                                    "send_error",
+                                    "send_thread_real_send_error",
+                                    "forces_close_server",
+                                    "forces_close_send_error",
+                                    "recv_buffer_full",
+                                    "protocol_error",
+                                    "overloaded"};
 
 // 0 ~ 100
 enum class NetErrorCode : std::int16_t {
@@ -98,6 +107,8 @@ enum class NetErrorCode : std::int16_t {
   kSEND_THREAD_BUFFER_FULL = 19,
   kINVALID_CONFIG = 20,
   kIO_THREAD_START_FAIL = 21,
+  kSEND_MESSAGE_TOO_LARGE = 22,
+  kRECV_BUFFER_FULL = 23,
 };
 
 struct LazyedDisConnectSession {
@@ -106,6 +117,4 @@ struct LazyedDisConnectSession {
   DisconnectReason reason_ = DisconnectReason::kNONE;
 };
 
-inline void DefaultLog(const int, const char*) {}
-inline void (*LogFuncPtr)(const int, const char* pszLogMsg) = &DefaultLog;
 }  // namespace rionetlite

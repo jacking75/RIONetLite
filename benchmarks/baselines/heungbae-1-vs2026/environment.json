@@ -1,0 +1,17 @@
+{
+  "Commit": "a895a48",
+  "Timestamp": "2026-08-27T04:11:06.8159088Z",
+  "Computer": "HEUNGBAE-1",
+  "Processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel",
+  "LogicalProcessors": 20,
+  "Configuration": "Release",
+  "Profile": "suite",
+  "Runs": 5,
+  "DurationSeconds": 2,
+  "WarmupSeconds": 1,
+  "CooldownMilliseconds": 250,
+  "WaitModes": "adaptive",
+  "BatchSizes": "64",
+  "ObservabilityModes": "off",
+  "CaptureEtw": false
+}

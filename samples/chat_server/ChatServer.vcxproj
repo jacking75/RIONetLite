@@ -16,6 +16,8 @@
     <RootNamespace>ChatServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgManifestRoot>$(ProjectDir)..\..\</VcpkgManifestRoot>
+    <VcpkgTriplet>x64-windows-static-md</VcpkgTriplet>
     <VcpkgXUseBuiltInApplocalDeps>true</VcpkgXUseBuiltInApplocalDeps>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -34,9 +36,10 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
+    <UseMimalloc Condition="'$(UseMimalloc)' == ''">false</UseMimalloc>
     <VcpkgRoot Condition="'$(VcpkgRoot)' == ''">$(VCInstallDir)vcpkg</VcpkgRoot>
   </PropertyGroup>
-  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props" Condition="'$(VcpkgPropsImported)' != 'true'" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
@@ -50,13 +53,18 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>mincore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;mswsock.lib;mincore.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(UseMimalloc)' == 'true'">
+    <ClCompile><ForcedIncludeFiles>mimalloc-new-delete.h;%(ForcedIncludeFiles)</ForcedIncludeFiles><DisableSpecificWarnings>4559;%(DisableSpecificWarnings)</DisableSpecificWarnings></ClCompile>
+    <Link><AdditionalDependencies Condition="'$(Configuration)' == 'Debug'">mimalloc-debug.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalDependencies Condition="'$(Configuration)' == 'Release'">mimalloc.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)</TargetName>
@@ -94,26 +102,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="chat_server_content.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="packet_manager.cpp" />
-    <ClCompile Include="room.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\RIONetLite\i_net_event.h" />
-    <ClInclude Include="..\..\RIONetLite\server_net.h" />
-    <ClInclude Include="chat_server_content.h" />
-    <ClInclude Include="chat_server.h" />
-    <ClInclude Include="client_session.h" />
-    <ClInclude Include="client_session_manager.h" />
-    <ClInclude Include="error_code.h" />
-    <ClInclude Include="logger.h" />
-    <ClInclude Include="net_event_msg.h" />
-    <ClInclude Include="net_event_msg_pool.h" />
-    <ClInclude Include="packet.h" />
-    <ClInclude Include="packet_manager.h" />
-    <ClInclude Include="room.h" />
-    <ClInclude Include="room_manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\build\RIONetLite.vcxproj">
@@ -121,7 +110,7 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" Condition="'$(_ZVcpkgRoot)' == ''" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

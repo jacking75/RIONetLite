@@ -4,6 +4,8 @@
 
 #include <MSWSock.h>
 
+#include <cstdint>
+
 namespace rionetlite {
 enum class IOType {
   kNONE,
@@ -11,39 +13,84 @@ enum class IOType {
   kRECV,
 };
 
-struct RioIoContext : public RIO_BUF {
-  void Init(const int session_index, IOType io_type) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
+
+struct alignas(64) RioIoContext : public RIO_BUF {
+  void Init(const int session_index, const IOType io_type,
+            const std::uint32_t owner_worker = 0) noexcept {
+    BufferId = RIO_INVALID_BUFFERID;
+    Offset = 0;
     Length = 0;
     session_index_ = session_index;
     io_type_ = io_type;
+    owner_worker_ = owner_worker;
+    session_unique_Id_ = 0;
+    request_number_ = 0;
+    posted_length_ = 0;
+    completed_length_ = 0;
   }
 
-  int session_index_;
-  IOType io_type_;
-  UINT64 session_unique_Id_;  // io 완료 시에 요청 때의 세션과 동일한지 체크하기
-                              // 위해
-};
-
-struct RIOAPI {
-  inline static RIO_EXTENSION_FUNCTION_TABLE rio_function_table_ = {
-      0,
-  };
-
-  static bool SetFunction(SOCKET socket) {
-    /// RIO function table
-    GUID functionTableId = WSAID_MULTIPLE_RIO;
-    DWORD dwBytes = 0;
-
-    if (WSAIoctl(socket, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
-                 &functionTableId, sizeof(GUID), (void**)&rio_function_table_,
-                 sizeof(rio_function_table_), &dwBytes, NULL, NULL)) {
+  bool BeginRequest(const UINT64 session_uid, const RIO_BUFFERID buffer_id,
+                    const ULONG offset, const ULONG length,
+                    const ULONG registered_size) noexcept {
+    if (Length != 0 || length == 0 || offset > registered_size ||
+        length > registered_size - offset) {
       return false;
     }
-
+    session_unique_Id_ = session_uid;
+    BufferId = buffer_id;
+    Offset = offset;
+    Length = length;
+    posted_length_ = length;
+    completed_length_ = 0;
+    if (++request_number_ == 0) {
+      ++request_number_;
+    }
     return true;
   }
+
+  bool CompleteSend(const ULONG transferred) noexcept {
+    if (transferred == 0 || transferred > Length) {
+      return false;
+    }
+    completed_length_ += transferred;
+    Offset += transferred;
+    Length -= transferred;
+    return true;
+  }
+
+  bool CompleteReceive(const ULONG transferred) noexcept {
+    if (transferred == 0 || transferred > Length) {
+      return false;
+    }
+    completed_length_ = transferred;
+    Length = 0;
+    return true;
+  }
+
+  void Fail() noexcept {
+    completed_length_ = posted_length_;
+    Length = 0;
+  }
+
+  [[nodiscard]] bool IsIdle() const noexcept { return Length == 0; }
+
+  int session_index_ = -1;
+  IOType io_type_ = IOType::kNONE;
+  UINT64 session_unique_Id_ = 0;
+  std::uint32_t owner_worker_ = 0;
+  std::uint64_t request_number_ = 0;
+  ULONG posted_length_ = 0;
+  ULONG completed_length_ = 0;
 };
 
-#define RIO RIOAPI::rio_function_table_
+static_assert(alignof(RioIoContext) == 64);
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace rionetlite

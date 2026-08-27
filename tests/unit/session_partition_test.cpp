@@ -1,7 +1,9 @@
 #include "detail/session_partition.h"
+#include "detail/processor_topology.h"
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 
 namespace rionetlite::detail {
@@ -29,6 +31,25 @@ TEST(SessionPartitionTest, AssignsEverySessionExactlyOnce) {
 TEST(SessionPartitionTest, RejectsInvalidWorkerCoordinates) {
   EXPECT_EQ(PartitionSessions(10, 0, 0).count, 0U);
   EXPECT_EQ(PartitionSessions(10, 2, 2).count, 0U);
+}
+
+TEST(ProcessorTopologyTest, InterleavesNumaNodesAndPreservesGroupCoordinates) {
+  constexpr std::array processors{
+      ProcessorLocation{.group = 0, .number = 0, .numa_node = 0},
+      ProcessorLocation{.group = 0, .number = 1, .numa_node = 0},
+      ProcessorLocation{.group = 1, .number = 0, .numa_node = 1},
+      ProcessorLocation{.group = 1, .number = 1, .numa_node = 1},
+      ProcessorLocation{.group = 1, .number = 2, .numa_node = 1},
+  };
+
+  const auto ordered = OrderProcessorsForAffinity(processors);
+
+  ASSERT_EQ(ordered.size(), processors.size());
+  EXPECT_EQ(ordered[0], processors[0]);
+  EXPECT_EQ(ordered[1], processors[2]);
+  EXPECT_EQ(ordered[2], processors[1]);
+  EXPECT_EQ(ordered[3], processors[3]);
+  EXPECT_EQ(ordered[4], processors[4]);
 }
 
 }  // namespace

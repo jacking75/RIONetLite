@@ -1,4 +1,5 @@
 #include "detail/win32_resources.h"
+#include "fake_rio_api.h"
 
 #include <gtest/gtest.h>
 
@@ -7,14 +8,6 @@
 
 namespace rionetlite::detail {
 namespace {
-
-int g_deregister_count = 0;
-
-RIO_BUFFERID PASCAL FakeRegisterBuffer(PCHAR, DWORD) {
-  return reinterpret_cast<RIO_BUFFERID>(1);
-}
-
-void PASCAL FakeDeregisterBuffer(RIO_BUFFERID) { ++g_deregister_count; }
 
 TEST(WinsockRuntimeTest, StartAndResetAreIdempotent) {
   WinsockRuntime winsock;
@@ -57,20 +50,17 @@ TEST(DoubleMappedBufferTest, MapsTheSameStorageTwice) {
 }
 
 TEST(RegisteredRioBufferTest, DoesNotDeregisterOutstandingMemory) {
-  RIO_EXTENSION_FUNCTION_TABLE rio{};
-  rio.RIORegisterBuffer = &FakeRegisterBuffer;
-  rio.RIODeregisterBuffer = &FakeDeregisterBuffer;
+  test::FakeRioApi rio;
   char storage[16]{};
-  g_deregister_count = 0;
 
   RegisteredRioBuffer buffer;
   ASSERT_TRUE(buffer.Register(rio, storage, sizeof(storage)));
   buffer.AddOutstanding();
   EXPECT_FALSE(buffer.Reset());
-  EXPECT_EQ(g_deregister_count, 0);
+  EXPECT_EQ(rio.deregister_buffer_calls, 0U);
   buffer.CompleteOutstanding();
   EXPECT_TRUE(buffer.Reset());
-  EXPECT_EQ(g_deregister_count, 1);
+  EXPECT_EQ(rio.deregister_buffer_calls, 1U);
 }
 
 }  // namespace

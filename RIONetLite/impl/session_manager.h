@@ -2,21 +2,26 @@
 
 #include <WinSock2.h>
 
+#include "../../src/detail/rio_api.h"
 #include "../../src/detail/session_partition.h"
-#include "exception.h"
 #include "fast_spin_lock.h"
 #include "tcp_session.h"
 
+#include <cassert>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <vector>
 
 namespace rionetlite {
-const std::uint64_t kRE_USE_SESSION_WAITE_TIME_SEC = 3;
-
 struct SessionIndexContext {
   std::uint32_t index_ = 0;
-  std::uint64_t reuse_able_timesec_ = 0;
+};
+
+enum class SessionPoolState : std::uint8_t {
+  kFree,
+  kLeased,
+  kQuarantined,
 };
 
 class SessionManager {
@@ -24,26 +29,25 @@ class SessionManager {
   SessionManager() = default;
   ~SessionManager() = default;
 
-  bool PrepareSessionPool(NetConfig net_cfg) {
+  bool PrepareSessionPool(NetConfig net_cfg, detail::RioApi& rio_api) {
     std::uint32_t client_index = 0;
     auto rioThreadCount = net_cfg.io_work_thread_count_;
     for (decltype(rioThreadCount) i = 0; i < rioThreadCount; ++i) {
       const auto partition = detail::PartitionSessions(
           net_cfg.max_session_count_, rioThreadCount, i);
       for (std::uint32_t j = 0; j < partition.count; ++j) {
-        auto client = new TcpSession;
+        auto client = std::make_unique<TcpSession>(client_index, i);
 
-        client->Init(client_index, i);
-
-        if (client->RioInitialize(net_cfg.session_cfg_) == false) {
+        if (client->RioInitialize(net_cfg.session_cfg_, rio_api) == false) {
           client->Dispose();
-          delete client;
+          Dispose();
           return false;
         }
 
-        sessions_.push_back(client);
-        free_session_indexs_.emplace_back(SessionIndexContext{
-            .index_ = client_index, .reuse_able_timesec_ = 0});
+        sessions_.push_back(std::move(client));
+        free_session_indexs_.emplace_back(
+            SessionIndexContext{.index_ = client_index});
+        pool_states_.push_back(SessionPoolState::kFree);
 
         ++client_index;
       }
@@ -54,23 +58,20 @@ class SessionManager {
   }
 
   void Dispose() {
-    LogFuncPtr((int)LogLevel::kINFO, "SessionManager::Dispose - Start");
-
-    for (auto pSession : sessions_) {
-      if (pSession->IsConnected()) {
-        auto uniqueId = pSession->GetUID();
-        pSession->Disconnect(uniqueId);  // 네트워크 라이브러리 종료 시에 호출
+    for (const auto& session : sessions_) {
+      if (session->IsConnected()) {
+        auto uniqueId = session->GetUID();
+        session->Disconnect(uniqueId);  // 네트워크 라이브러리 종료 시에 호출
       }
 
-      pSession->Dispose();
-      delete pSession;
+      session->Dispose();
     }
 
     sessions_.clear();
     free_session_indexs_.clear();
+    quarantined_session_indexs_.clear();
+    pool_states_.clear();
     max_session_count_ = 0;
-
-    LogFuncPtr((int)LogLevel::kINFO, "SessionManager::Dispose - Complete");
   }
 
   TcpSession* GetSessionObj(const std::uint32_t session_index) {
@@ -78,7 +79,7 @@ class SessionManager {
       return nullptr;
     }
 
-    return sessions_[session_index];
+    return sessions_[session_index].get();
   }
 
   TcpSession* GetSessionObj(const std::uint32_t session_index,
@@ -91,11 +92,25 @@ class SessionManager {
       return nullptr;
     }
 
-    return sessions_[session_index];
+    return sessions_[session_index].get();
   }
 
-  TcpSession* AllocClientSession(const std::uint64_t cur_sec) {
+  TcpSession* AllocClientSession() {
     FastSpinlockGuard guard(lock_);
+
+    for (auto iterator = quarantined_session_indexs_.begin();
+         iterator != quarantined_session_indexs_.end();) {
+      auto* session = GetSessionObj(iterator->index_);
+      if (session != nullptr &&
+          pool_states_[iterator->index_] == SessionPoolState::kQuarantined &&
+          session->TryRecycle()) {
+        pool_states_[iterator->index_] = SessionPoolState::kFree;
+        free_session_indexs_.push_back(*iterator);
+        iterator = quarantined_session_indexs_.erase(iterator);
+      } else {
+        ++iterator;
+      }
+    }
 
     if (free_session_indexs_.empty()) {
       return nullptr;
@@ -103,22 +118,74 @@ class SessionManager {
 
     auto indexContext = free_session_indexs_.front();
 
-    if (indexContext.reuse_able_timesec_ > cur_sec) {
-      return nullptr;
-    }
-
     auto newSession = GetSessionObj(indexContext.index_);
     free_session_indexs_.pop_front();
 
-    // newSessions는 절대 null 객체가 아니다!!!
+    assert(indexContext.index_ < pool_states_.size());
+    assert(pool_states_[indexContext.index_] == SessionPoolState::kFree);
+    if (newSession == nullptr || !newSession->TryReserve()) {
+      if (newSession != nullptr) {
+        free_session_indexs_.push_front(indexContext);
+      }
+      return nullptr;
+    }
+    pool_states_[indexContext.index_] = SessionPoolState::kLeased;
     return newSession;
   }
 
-  void ReturnSession(const int session_index, const std::uint64_t cur_sec) {
+  void ReturnSession(const int session_index) {
     FastSpinlockGuard guard(lock_);
-    free_session_indexs_.emplace_back(
-        SessionIndexContext{(std::uint32_t)session_index,
-                            (cur_sec + kRE_USE_SESSION_WAITE_TIME_SEC)});
+    if (session_index < 0 ||
+        static_cast<std::uint32_t>(session_index) >= pool_states_.size()) {
+      assert(false && "session index is outside the pool");
+      return;
+    }
+    const auto index = static_cast<std::uint32_t>(session_index);
+    if (pool_states_[index] != SessionPoolState::kLeased) {
+      assert(false && "session slot was returned more than once");
+      return;
+    }
+    auto* session = GetSessionObj(index);
+    SessionIndexContext context{index};
+    if (session != nullptr && session->TryRecycle()) {
+      pool_states_[index] = SessionPoolState::kFree;
+      free_session_indexs_.push_back(context);
+    } else {
+      pool_states_[index] = SessionPoolState::kQuarantined;
+      quarantined_session_indexs_.push_back(context);
+    }
+  }
+
+  std::uint64_t Outstanding() const noexcept {
+    std::uint64_t total = 0;
+    for (const auto& session : sessions_) {
+      total += session->Outstanding();
+    }
+    return total;
+  }
+
+  std::uint64_t SendOutstanding() const noexcept {
+    std::uint64_t total = 0;
+    for (const auto& session : sessions_) {
+      total += session->SendOutstanding();
+    }
+    return total;
+  }
+
+  std::uint64_t ActiveCount() const noexcept {
+    std::uint64_t total = 0;
+    for (const auto& session : sessions_) {
+      if (session->HasOpenSocket()) {
+        ++total;
+      }
+    }
+    return total;
+  }
+
+  void AbandonOutstanding() noexcept {
+    for (const auto& session : sessions_) {
+      session->AbandonOutstanding();
+    }
   }
 
   NetErrorCode SendData(const std::int32_t session_index,
@@ -133,11 +200,7 @@ class SessionManager {
       return NetErrorCode::kSEND_SESSION_NETWORK_DISABLE;
     }
 
-    if (session->PostSend(data_size, p_data) == false) {
-      return NetErrorCode::kSEND_IO_FAIL;
-    }
-
-    return NetErrorCode::kNONE;
+    return session->PostSend(session_uid, data_size, p_data);
   }
 
   int ForcedClose(const std::int32_t session_index,
@@ -157,11 +220,10 @@ class SessionManager {
   FastSpinlock lock_;
 
   std::uint32_t max_session_count_ = 0;
-  std::uint64_t current_issue_count_ = 0;
-  std::uint64_t current_return_count_ = 0;
-
   std::deque<SessionIndexContext> free_session_indexs_;
-  std::vector<TcpSession*> sessions_;
+  std::deque<SessionIndexContext> quarantined_session_indexs_;
+  std::vector<SessionPoolState> pool_states_;
+  std::vector<std::unique_ptr<TcpSession>> sessions_;
 };
 
 }  // namespace rionetlite

@@ -12,6 +12,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EchoServer", "samples\echo_
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChatServer", "samples\chat_server\ChatServer.vcxproj", "{D4444444-4444-4444-8444-444444444444}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadClient", "tools\load_client\LoadClient.vcxproj", "{E5555555-5555-4555-8555-555555555555}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DesignBenchmark", "tools\design_benchmark\DesignBenchmark.vcxproj", "{66666666-6666-4666-8666-666666666666}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -38,6 +42,14 @@ Global
 		{D4444444-4444-4444-8444-444444444444}.Debug|x64.Build.0 = Debug|x64
 		{D4444444-4444-4444-8444-444444444444}.Release|x64.ActiveCfg = Release|x64
 		{D4444444-4444-4444-8444-444444444444}.Release|x64.Build.0 = Release|x64
+		{E5555555-5555-4555-8555-555555555555}.Debug|x64.ActiveCfg = Debug|x64
+		{E5555555-5555-4555-8555-555555555555}.Debug|x64.Build.0 = Debug|x64
+		{E5555555-5555-4555-8555-555555555555}.Release|x64.ActiveCfg = Release|x64
+		{E5555555-5555-4555-8555-555555555555}.Release|x64.Build.0 = Release|x64
+		{66666666-6666-4666-8666-666666666666}.Debug|x64.ActiveCfg = Debug|x64
+		{66666666-6666-4666-8666-666666666666}.Debug|x64.Build.0 = Debug|x64
+		{66666666-6666-4666-8666-666666666666}.Release|x64.ActiveCfg = Release|x64
+		{66666666-6666-4666-8666-666666666666}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -35,6 +35,7 @@
   <PropertyGroup>
     <OutDir>$(ProjectDir)..\bin\lib\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(RIONetLiteIsolatedIntRoot)' != ''">$(RIONetLiteIsolatedIntRoot)$(ProjectName)\</IntDir>
     <TargetName>RIONetLite</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -46,6 +47,8 @@
     <ClCompile Include="..\src\config.cpp" />
     <ClCompile Include="..\src\error.cpp" />
     <ClCompile Include="..\src\legacy_server_net.cpp" />
+    <ClCompile Include="..\src\queued_event_adapter.cpp" />
+    <ClCompile Include="..\src\rio_api.cpp" />
     <ClCompile Include="..\src\server.cpp" />
     <ClCompile Include="..\src\win32_resources.cpp" />
   </ItemGroup>
@@ -53,8 +56,16 @@
     <ClInclude Include="..\include\rionetlite\config.h" />
     <ClInclude Include="..\include\rionetlite\error.h" />
     <ClInclude Include="..\include\rionetlite\event_handler.h" />
+    <ClInclude Include="..\include\rionetlite\metrics.h" />
+    <ClInclude Include="..\include\rionetlite\packet_decoder.h" />
+    <ClInclude Include="..\include\rionetlite\queued_event_adapter.h" />
     <ClInclude Include="..\include\rionetlite\server.h" />
+    <ClInclude Include="..\include\rionetlite\version.h" />
     <ClInclude Include="..\src\detail\session_partition.h" />
+    <ClInclude Include="..\src\detail\rio_api.h" />
+    <ClInclude Include="..\src\detail\socket_api.h" />
+    <ClInclude Include="..\src\detail\session_lifecycle.h" />
+    <ClInclude Include="..\src\detail\shutdown_coordinator.h" />
     <ClInclude Include="..\src\detail\win32_resources.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

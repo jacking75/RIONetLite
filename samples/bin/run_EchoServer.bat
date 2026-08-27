@@ -1,1 +1,2 @@
-EchoServer.exe --PortNumber=11021 --IoWorkThreadCount=4 --IoWorkThreadCount=2 --MaxConnectionCount=16 --MaxRecvPacketSize=256 --MaxTry1RecvBufferSize=512 --MAXRecvCountPer1Sec=5  --MaxRecvBufferSize=4096 --MaxSendPacketSize=256 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=4096
+@echo off
+..\..\bin\x64\Debug\EchoServer.exe --port 32452

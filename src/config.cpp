@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include <algorithm>
 #include <limits>
 #include <string>
 #include <utility>
@@ -27,6 +28,15 @@ bool IsPageAligned(const std::uint32_t value,
 
 }  // namespace
 
+std::uint32_t DefaultIoWorkerCount() noexcept {
+  const DWORD processors = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+  if (processors == 0) {
+    return 1;
+  }
+  return std::clamp<std::uint32_t>(processors > 2 ? processors - 1 : processors,
+                                   1, 256);
+}
+
 std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
     const ServerConfig& config) {
   SYSTEM_INFO system_info{};
@@ -38,6 +48,10 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
   }
   if (config.io_worker_count == 0) {
     return Invalid("io_worker_count", "io_worker_count must be at least 1");
+  }
+  constexpr std::uint32_t kMaxIoWorkerCount = 256;
+  if (config.io_worker_count > kMaxIoWorkerCount) {
+    return Invalid("io_worker_count", "io_worker_count must not exceed 256");
   }
   if (config.max_sessions == 0) {
     return Invalid("max_sessions", "max_sessions must be at least 1");
@@ -84,10 +98,28 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
     return Invalid("max_outstanding_sends_per_session",
                    "max_outstanding_sends_per_session must be at least 1");
   }
+  const std::uint64_t required_send_bytes =
+      static_cast<std::uint64_t>(config.max_message_bytes) *
+      config.max_outstanding_sends_per_session;
+  if (required_send_bytes > config.send_buffer_bytes) {
+    return Invalid("send_buffer_bytes",
+                   "send_buffer_bytes must hold one maximum message for each "
+                   "outstanding send");
+  }
   if (config.completion_batch_size == 0 ||
       config.completion_batch_size > 4096) {
     return Invalid("completion_batch_size",
                    "completion_batch_size must be in the range 1..4096");
+  }
+  if (config.adaptive_spin_count > 1'000'000) {
+    return Invalid("adaptive_spin_count",
+                   "adaptive_spin_count must be in the range 0..1000000");
+  }
+  if (config.graceful_shutdown_timeout_ms == 0 ||
+      config.graceful_shutdown_timeout_ms > 300'000) {
+    return Invalid("graceful_shutdown_timeout_ms",
+                   "graceful_shutdown_timeout_ms must be in the range "
+                   "1..300000");
   }
 
   const std::uint64_t sessions_per_worker =
@@ -101,13 +133,36 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
                    "calculated RIO completion queue capacity exceeds ULONG");
   }
 
-  const std::uint64_t bytes_per_session =
-      2ULL * (static_cast<std::uint64_t>(config.receive_buffer_bytes) +
-              config.send_buffer_bytes);
+  const std::uint64_t registered_bytes_per_session =
+      static_cast<std::uint64_t>(config.receive_buffer_bytes) +
+      config.send_buffer_bytes;
+  const std::uint64_t reserved_bytes_per_session =
+      2ULL * registered_bytes_per_session;
+  constexpr std::uint64_t kEstimatedSessionControlBytes = 512;
+  constexpr std::uint64_t kEstimatedSendContextBytes = 64;
+  const std::uint64_t control_bytes_per_session =
+      kEstimatedSessionControlBytes +
+      kEstimatedSendContextBytes * config.max_outstanding_sends_per_session;
   if (config.max_sessions >
-      std::numeric_limits<std::uint64_t>::max() / bytes_per_session) {
+      std::numeric_limits<std::uint64_t>::max() / reserved_bytes_per_session) {
     return Invalid("max_sessions",
                    "calculated registered memory size overflows uint64");
+  }
+  if (config.max_sessions >
+      std::numeric_limits<std::uint64_t>::max() / control_bytes_per_session) {
+    return Invalid("max_sessions",
+                   "calculated session control memory overflows uint64");
+  }
+  const std::uint64_t session_control_bytes =
+      control_bytes_per_session * config.max_sessions;
+  constexpr std::uint64_t kEstimatedWorkerMetricBytes = 256;
+  const std::uint64_t worker_result_bytes =
+      static_cast<std::uint64_t>(config.io_worker_count) *
+      (config.completion_batch_size * 32ULL + kEstimatedWorkerMetricBytes);
+  if (session_control_bytes >
+      std::numeric_limits<std::uint64_t>::max() - worker_result_bytes) {
+    return Invalid("io_worker_count",
+                   "calculated total control memory overflows uint64");
   }
 
   return ValidatedServerConfig{
@@ -116,7 +171,13 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
           static_cast<std::uint32_t>(sessions_per_worker),
       .completion_queue_capacity =
           static_cast<std::uint32_t>(completion_capacity),
-      .estimated_registered_bytes = bytes_per_session * config.max_sessions,
+      .estimated_registered_bytes =
+          reserved_bytes_per_session * config.max_sessions,
+      .estimated_reserved_virtual_bytes =
+          reserved_bytes_per_session * config.max_sessions,
+      .estimated_committed_bytes =
+          registered_bytes_per_session * config.max_sessions,
+      .estimated_control_bytes = session_control_bytes + worker_result_bytes,
   };
 }
 

@@ -31,6 +31,7 @@ class ServerNetLazyedDisConnManager {
 
   void ProcessLazyedDisConnectSession(const int thread_index,
                                       SessionManager* p_session_mgr) {
+    std::vector<LazyedDisConnectSession> deferred;
     while (true) {
       if (auto disConnectInfo = FetchSession(thread_index);
           disConnectInfo.uid <= 0) {
@@ -41,15 +42,20 @@ class ServerNetLazyedDisConnManager {
 
         if (auto pSession = p_session_mgr->GetSessionObj(session_index, uid);
             pSession != nullptr) {
-          DisConnectFunc(pSession, uid, disConnectInfo.reason_);
+          if (!DisConnectFunc(pSession, uid, disConnectInfo.reason_)) {
+            deferred.push_back(disConnectInfo);
+          }
         } else {
           continue;
         }
       }
     }
+    for (const auto& item : deferred) {
+      lazyed_dis_connect_sessions_[thread_index].push(item);
+    }
   }
 
-  std::function<void(TcpSession*, const uint64_t, const DisconnectReason)>
+  std::function<bool(TcpSession*, const uint64_t, const DisconnectReason)>
       DisConnectFunc;
 
  private:

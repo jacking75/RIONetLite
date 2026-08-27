@@ -3,6 +3,7 @@
 #include "define.h"
 
 #include <cstdint>
+#include <string_view>
 
 namespace rionetlite {
 class INetEventManager {
@@ -29,5 +30,23 @@ class INetEventManager {
       [[maybe_unused]] char* pData_) {
     return 0;
   }
+
+  virtual void OnTransportError(
+      [[maybe_unused]] const std::int32_t worker,
+      [[maybe_unused]] const std::int32_t index,
+      [[maybe_unused]] const std::uint64_t generation,
+      [[maybe_unused]] const std::string_view operation,
+      [[maybe_unused]] const std::uint32_t native_error) {}
+
+  virtual void OnStaleCompletion(
+      [[maybe_unused]] const std::int32_t worker,
+      [[maybe_unused]] const std::int32_t index,
+      [[maybe_unused]] const std::uint64_t generation) {}
+
+  virtual void OnCorruptCompletionQueue(
+      [[maybe_unused]] const std::int32_t worker) {}
+
+  virtual void OnRejectedConnection(
+      [[maybe_unused]] const std::uint32_t native_error) {}
 };
 }  // namespace rionetlite

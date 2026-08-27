@@ -1,6 +1,6 @@
 # RIONetLite 고성능·안정성 구현 계획
 
-> 문서 상태: 구현 진행 중
+> 문서 상태: 구현 완료 (`v0.2.0` 릴리스 후보)
 >
 > 대상 플랫폼: Windows x64, Visual Studio 2026, MSVC v145, `/std:c++latest`
 >
@@ -29,30 +29,37 @@ RIONetLite를 Windows Registered I/O(RIO)에 최적화된 게임 서버용 TCP �
 - [x] [T03. 공개 API와 서버 수명 주기 재설계](#t03-공개-api와-서버-수명-주기-재설계)
 - [x] [T04. 설정 검증과 오류 모델 정비](#t04-설정-검증과-오류-모델-정비)
 - [x] [T05. Windows 및 RIO 자원의 RAII 전환](#t05-windows-및-rio-자원의-raii-전환)
-- [ ] [T06. 세션 상태 머신과 세대 검증 구현](#t06-세션-상태-머신과-세대-검증-구현)
-- [ ] [T07. RIO 완료 컨텍스트와 요청 수명 보장](#t07-rio-완료-컨텍스트와-요청-수명-보장)
-- [ ] [T08. 결정론적 종료와 연결 해제 경로 구현](#t08-결정론적-종료와-연결-해제-경로-구현)
-- [ ] [T09. 수신 버퍼와 프레이밍 계약 강화](#t09-수신-버퍼와-프레이밍-계약-강화)
-- [ ] [T10. 송신 파이프라인과 백프레셔 구현](#t10-송신-파이프라인과-백프레셔-구현)
-- [ ] [T11. 게임 로직 전달 큐와 이벤트 순서 보장](#t11-게임-로직-전달-큐와-이벤트-순서-보장)
-- [ ] [T12. RIO 작업자, 배치와 CPU 정책 최적화](#t12-rio-작업자-배치와-cpu-정책-최적화)
-- [ ] [T13. 메모리 레이아웃과 mimalloc 정책 최적화](#t13-메모리-레이아웃과-mimalloc-정책-최적화)
-- [ ] [T14. 구조화 로그, 메트릭과 진단 정보 추가](#t14-구조화-로그-메트릭과-진단-정보-추가)
-- [ ] [T15. 단위 테스트 기반 구축](#t15-단위-테스트-기반-구축)
-- [ ] [T16. 루프백 통합 테스트 구축](#t16-루프백-통합-테스트-구축)
-- [ ] [T17. 장애 주입, 스트레스와 장시간 테스트 구축](#t17-장애-주입-스트레스와-장시간-테스트-구축)
-- [ ] [T18. 성능 벤치마크와 회귀 기준 구축](#t18-성능-벤치마크와-회귀-기준-구축)
-- [ ] [T19. 최소 Echo 예제 재작성](#t19-최소-echo-예제-재작성)
-- [ ] [T20. 게임 서버형 Chat 예제 재작성](#t20-게임-서버형-chat-예제-재작성)
-- [ ] [T21. 부하 및 오류 시나리오 클라이언트 추가](#t21-부하-및-오류-시나리오-클라이언트-추가)
-- [ ] [T22. 학습 문서와 API 레퍼런스 작성](#t22-학습-문서와-api-레퍼런스-작성)
-- [ ] [T23. CI, 패키징과 릴리스 절차 구축](#t23-ci-패키징과-릴리스-절차-구축)
-- [ ] [T24. 호환 계층 제거와 최종 품질 점검](#t24-호환-계층-제거와-최종-품질-점검)
+- [x] [T06. 세션 상태 머신과 세대 검증 구현](#t06-세션-상태-머신과-세대-검증-구현)
+- [x] [T07. RIO 완료 컨텍스트와 요청 수명 보장](#t07-rio-완료-컨텍스트와-요청-수명-보장)
+- [x] [T08. 결정론적 종료와 연결 해제 경로 구현](#t08-결정론적-종료와-연결-해제-경로-구현)
+- [x] [T09. 수신 버퍼와 프레이밍 계약 강화](#t09-수신-버퍼와-프레이밍-계약-강화)
+- [x] [T10. 송신 파이프라인과 백프레셔 구현](#t10-송신-파이프라인과-백프레셔-구현)
+- [x] [T11. 게임 로직 전달 큐와 이벤트 순서 보장](#t11-게임-로직-전달-큐와-이벤트-순서-보장)
+- [x] [T12. RIO 작업자, 배치와 CPU 정책 최적화](#t12-rio-작업자-배치와-cpu-정책-최적화)
+- [x] [T13. 메모리 레이아웃과 mimalloc 정책 최적화](#t13-메모리-레이아웃과-mimalloc-정책-최적화)
+- [x] [T14. 구조화 로그, 메트릭과 진단 정보 추가](#t14-구조화-로그-메트릭과-진단-정보-추가)
+- [x] [T15. 단위 테스트 기반 구축](#t15-단위-테스트-기반-구축)
+- [x] [T16. 루프백 통합 테스트 구축](#t16-루프백-통합-테스트-구축)
+- [x] [T17. 장애 주입, 스트레스와 장시간 테스트 구축](#t17-장애-주입-스트레스와-장시간-테스트-구축)
+- [x] [T18. 성능 벤치마크와 회귀 기준 구축](#t18-성능-벤치마크와-회귀-기준-구축)
+- [x] [T19. 최소 Echo 예제 재작성](#t19-최소-echo-예제-재작성)
+- [x] [T20. 게임 서버형 Chat 예제 재작성](#t20-게임-서버형-chat-예제-재작성)
+- [x] [T21. 부하 및 오류 시나리오 클라이언트 추가](#t21-부하-및-오류-시나리오-클라이언트-추가)
+- [x] [T22. 학습 문서와 API 레퍼런스 작성](#t22-학습-문서와-api-레퍼런스-작성)
+- [x] [T23. 검증 자동화, 패키징과 릴리스 절차 구축](#t23-검증-자동화-패키징과-릴리스-절차-구축)
+- [x] [T24. 호환 계층 제거와 최종 품질 점검](#t24-호환-계층-제거와-최종-품질-점검)
 
 ## 구현 진행 기록
 
 | 날짜 | 완료 태스크 | 결과 |
 |---|---|---|
+| 2026-08-27 | T12~T18, T23~T24 최종 검증 | 최종 후보 `7d80c68`에서 Debug/Release 46개 단위·15개 RIO 통합 테스트, `/analyze`, ASan 8개 시나리오, package consumer와 고정 장비 9개 회귀 케이스를 통과했다. 10분 final soak는 20회 반복·정합성 실패 0·자원 추세 통과였고, 1시간 재검증은 약 23분까지 오류 없이 수행한 뒤 사용자 승인으로 중단했으며 24시간 실행도 생략했다. |
+| 2026-08-27 | T14, T18 | 인스턴스별 구조화 로그와 선택형 메트릭을 구현하고 observability off/on을 5회씩 비교했다. 공식 9개 시나리오를 각 5회 실행해 오류·누락 0의 초기 기준선을 만들고, 처리량 5%·P99 10% 회귀 게이트를 추가했다. |
+| 2026-08-27 | T06~T11 | 원자적 세션 세대/종료, 추적 가능한 RIO context, drain 기반 종료, 안전한 recv decoder, 부분 송신과 유계 send/app queue를 구현하고 결정적 단위·RIO 통합 테스트로 검증했다. |
+| 2026-08-27 | T13, T15~T16 | 시작 전 메모리 예산, 실행 파일 선택형 mimalloc, 37개 단위 테스트와 12개 실제 RIO 통합 테스트를 구축했다. allocator on/off 3회 비교에서 양쪽 모두 오류와 누락이 0이었다. |
+| 2026-08-27 | T19~T22 | 공개 API 전용 Echo/Chat 예제, IOCP LoadClient의 8개 정상·오류 시나리오, 16개 필수 사용자/API 문서와 자동 링크·명령 검사를 완성했다. |
+| 2026-08-27 | T12, T17 1시간 게이트 | 36회 wait/batch 측정에 성능 카운터 기반 context switch를 추가해 모든 정확성 오류 0으로 기본 adaptive/64 정책을 재확인했다. 1시간 soak 119회·자원 표본 473개에서 정합성 실패와 핸들/스레드 증가가 0이었다. |
+| 2026-08-27 | T23~T24 | 로컬 검증 자동화, 배포 패키지와 독립 consumer, 버전 검증, 공개 API 문서 검사와 최종 P0/P1 추적을 완성했다. 고정 장비 회귀는 9개 케이스 모두 통과했고 WPR ETW는 로컬 정책으로 차단됐지만 기본 context-switch 성능 카운터는 수집된다. GitHub Actions workflow는 사용자 요청으로 배포 대상에서 제외했다. |
 | 2026-08-26 | T00 | `docs/baseline.md`에 도구 체인, 순차 빌드 결과, 환경 특이사항과 KI-001~010을 기록했다. 성능 수치는 T18의 고정 harness가 없으므로 임의 측정값을 만들지 않고 측정 조건만 ADR로 고정했다. |
 | 2026-08-26 | T01 | 지원 플랫폼, callback threading, overload, shutdown과 성능 측정 ADR 5개를 승인 상태로 추가했다. |
 | 2026-08-26 | T02 | 루트 `RIONetLite.sln`, 정적 라이브러리, GoogleTest 단위/통합 프로젝트, 공통 props, root vcpkg manifest와 `tools/build.ps1`을 추가했다. 예제 프로젝트에서 `impl/` 파일 참조를 제거하고 구성별 출력 경로를 분리했다. |
@@ -60,7 +67,7 @@ RIONetLite를 Windows Registered I/O(RIO)에 최적화된 게임 서버용 TCP �
 | 2026-08-26 | T04 | page/size/count/관계식/CQ/등록 메모리 검증과 구조화 오류를 추가하고, 나머지가 있는 세션 분배를 구현했다. |
 | 2026-08-26 | T05 | Winsock, socket, HANDLE, double mapping, RIO registered buffer와 CQ RAII를 추가하고 실제 초기화·세션·버퍼 경로에 연결했다. bind 실패 롤백, outstanding 등록 버퍼 보호와 즉시 Start/Stop 경쟁을 테스트했다. |
 
-T06 이후에서 해결할 위험은 여전히 존재한다. 특히 세션 상태와 generation의 원자적 전이, 모든 RIO context의 outstanding 추적, completion drain을 포함한 graceful shutdown은 각각 T06~T08 범위다.
+T00~T24의 구현과 자동화는 완료됐다. 최종 후보는 단위·통합·정적 분석·ASan·패키지 소비자·고정 장비 회귀와 10분 final soak를 통과했다. 원 계획의 1시간 재검증과 24시간 scheduled soak는 사용자가 현재 검증으로 충분하다고 승인해 최종 릴리스 게이트에서 제외했다.
 
 ## 범위와 원칙
 
@@ -99,7 +106,7 @@ T06 이후에서 해결할 위험은 여전히 존재한다. 특히 세션 상�
 - 측정 장비, CPU 전원 정책, OS, 빌드, 커밋, 설정, 클라이언트 수, 패킷 크기와 측정 시간을 결과에 기록한다.
 - 처리량, 평균/P50/P95/P99 지연, CPU 사용률, 컨텍스트 스위치, 송수신 바이트, 큐 깊이, 실패와 연결 해제 사유를 함께 기록한다.
 - 정상 상태 I/O 경로의 동적 할당 횟수를 측정하며 목표는 초기화 이후 패킷당 할당 0회다. 복사가 필요한 애플리케이션 이벤트는 미리 할당한 풀 또는 명시적 유계 저장소를 사용한다.
-- 기준선이 만들어진 뒤 Release 병합 기준을 처리량 5% 이상 하락 또는 P99 지연 10% 이상 악화 시 실패로 둔다. 장비 변동이 큰 CI에서는 절대 통과 기준 대신 이전 결과 대비 추세와 반복 측정의 중앙값을 사용한다.
+- 기준선이 만들어진 뒤 Release 병합 기준을 처리량 5% 이상 하락 또는 P99 지연 10% 이상 악화 시 실패로 둔다. 장비 변동이 큰 자동 실행 환경에서는 절대 통과 기준 대신 이전 결과 대비 추세와 반복 측정의 중앙값을 사용한다.
 - CPU 100%의 busy polling만으로 얻은 처리량과 CPU 절약 모드를 분리해 보고한다.
 
 ### 사용성
@@ -687,7 +694,7 @@ OS 네트워크 타이밍에 의존하지 않고 상태 머신과 버퍼 불변�
    - server forced close와 stale `SessionId`
    - 여러 client 동시 접속과 세션 풀 포화
    - 서버 stop 중 새 접속과 송신
-3. test timeout과 diagnostic dump를 두어 hang이 단순 CI timeout으로 끝나지 않게 한다.
+3. test timeout과 diagnostic dump를 두어 hang이 단순 자동화 timeout으로 끝나지 않게 한다.
 4. 반환 데이터에는 sequence와 checksum을 넣어 손실, 중복, 순서 변경과 corruption을 검출한다.
 5. 포트, worker 수, buffer 크기를 작은 값으로 바꿔 wrap과 포화 경로를 자주 발생시킨다.
 
@@ -712,7 +719,7 @@ OS 네트워크 타이밍에 의존하지 않고 상태 머신과 버퍼 불변�
 3. 한 슬롯의 connect/close를 반복하는 churn test, 전체 세션을 유지하는 soak test, burst traffic과 slow consumer test를 분리한다.
 4. 핸들 수, private bytes, committed bytes, registered buffer 수와 thread 수를 주기적으로 기록하여 선형 증가를 판정한다.
 5. MSVC AddressSanitizer x64, Application Verifier/PageHeap 실행 구성을 문서화한다. 지원되지 않는 sanitizer를 통과 조건으로 가장하지 않는다.
-6. 장시간 테스트는 10분 smoke, 1시간 pre-merge, 24시간 scheduled 단계로 나눈다.
+6. 장시간 테스트는 10분 smoke, 1시간 pre-merge, 필요 시 수동 24시간 단계로 나눈다.
 7. 실패 시 dump, 최근 로그, 설정, seed와 지표 파일을 artifacts로 보존한다.
 
 **완료 조건**
@@ -861,11 +868,11 @@ docs/api/                         생성된 API 레퍼런스
 **구현 내용**
 
 1. README는 프로젝트 목적, 지원 환경, 빠른 시작, 최소 코드, 예제와 상세 문서 링크에 집중한다.
-2. 공개 헤더 주석에서 API 문서를 생성하고 undocumented public symbol을 CI에서 검출한다.
+2. 공개 헤더 주석에서 API 문서를 생성하고 undocumented public symbol을 `tools/check-docs.ps1`에서 검출한다.
 3. 각 문서에 잘못된 사용 예와 올바른 사용 예를 함께 둔다.
 4. 설정 문서에는 값의 단위, 기본값, 최소/최대, 메모리 영향과 추천 범위를 표로 둔다.
 5. architecture/session/shutdown 문서는 실제 코드 상태와 같은 Mermaid diagram을 사용한다.
-6. 문서의 명령은 CI 또는 smoke script에서 실행하여 경로와 옵션 노후화를 검출한다.
+6. 문서의 명령은 문서 검사 또는 smoke script에서 실행하여 경로와 옵션 노후화를 검출한다.
 7. 모든 텍스트 파일을 UTF-8로 정리하고 깨진 과거 주석은 현재 계약에 맞춰 재작성하거나 삭제한다.
 
 **완료 조건**
@@ -876,7 +883,7 @@ docs/api/                         생성된 API 레퍼런스
 
 **의존성**: T19~T21, 각 설계 문서는 관련 태스크와 병행
 
-### T23. CI, 패키징과 릴리스 절차 구축
+### T23. 검증 자동화, 패키징과 릴리스 절차 구축
 
 **목표**
 
@@ -884,13 +891,13 @@ docs/api/                         생성된 API 레퍼런스
 
 **구현 내용**
 
-1. Windows x64 CI에서 restore, format check, Debug/Release build, unit, integration과 short stress를 순서대로 실행한다.
-2. VS2026 hosted runner가 없으면 self-hosted runner를 사용하고 toolchain 버전을 출력한다. 사용 가능한 이전 도구 체인으로 성공한 결과를 VS2026 검증으로 표기하지 않는다.
+1. Windows x64 로컬 스크립트에서 restore, format check, Debug/Release build, unit, integration과 short stress를 순서대로 실행할 수 있게 한다.
+2. VS2026/v145 toolchain 버전을 출력하고, 이전 도구 체인으로 성공한 결과를 VS2026 검증으로 표기하지 않는다.
 3. `clang-format --dry-run --Werror`, `git diff --check`와 public header compile test를 필수화한다.
 4. release artifact에 headers, `.lib`, PDB, license, version file, changelog와 최소 consumer sample을 넣는다.
 5. vcpkg overlay port 또는 CMake package 제공 여부를 결정한다. VS solution이 기준이어도 소비 프로젝트의 include/lib 설정을 자동화한다.
 6. SemVer, ABI 호환 정책, deprecated 기간과 security/reporting 경로를 문서화한다.
-7. release candidate는 24시간 soak와 고정 장비 benchmark 결과를 링크해야 한다.
+7. release candidate는 승인된 soak 범위와 고정 장비 benchmark 결과를 링크해야 한다.
 
 **완료 조건**
 
@@ -950,7 +957,7 @@ docs/api/                         생성된 API 레퍼런스
 | T20 | T11, T14, T19 | 게임 서버형 Chat 예제 |
 | T21 | T16, T19 | 공식 load client |
 | T22 | T19~T21 | 사용자/설계/API 문서 |
-| T23 | T17, T18, T22 | CI와 release package |
+| T23 | T17, T18, T22 | 검증 자동화와 release package |
 | T24 | T23 | 첫 안정 릴리스 후보 |
 
 ## 태스크 실행 규칙
@@ -995,15 +1002,15 @@ T02 이후에는 다음 작은 단위로 진행한다.
 
 ## 릴리스 전 최종 체크리스트
 
-- [ ] 공개 API와 모든 예제가 `impl/`을 직접 포함하지 않는다.
-- [ ] Debug/Release x64 전체 빌드와 테스트가 통과한다.
-- [ ] 모든 설정 경계와 오류 코드가 문서화되고 테스트된다.
-- [ ] 세션 generation, outstanding 요청과 buffer lifetime 불변식이 검증된다.
-- [ ] partial send, recv fragmentation/coalescing, queue full과 stale completion 테스트가 통과한다.
-- [ ] graceful/immediate stop 후 thread/socket/HANDLE/registered buffer가 남지 않는다.
-- [ ] 24시간 soak와 churn 결과에 크래시, 데이터 오류와 자원 증가가 없다.
-- [ ] 기준 장비 benchmark에서 정의한 회귀 허용치를 만족한다.
-- [ ] mimalloc 적용/미적용의 기능 결과가 같고 성능 결과가 기록된다.
-- [ ] README quick start와 모든 문서 명령이 깨끗한 환경에서 실행된다.
-- [ ] package consumer sample이 배포 artifact만으로 빌드된다.
-- [ ] changelog, version, tag, binary와 symbols가 일치한다.
+- [x] 공개 API와 모든 예제가 `impl/`을 직접 포함하지 않는다.
+- [x] Debug/Release x64 전체 빌드와 테스트가 통과한다.
+- [x] 모든 설정 경계와 오류 코드가 문서화되고 테스트된다.
+- [x] 세션 generation, outstanding 요청과 buffer lifetime 불변식이 검증된다.
+- [x] partial send, recv fragmentation/coalescing, queue full과 stale completion 테스트가 통과한다.
+- [x] graceful/immediate stop 후 thread/socket/HANDLE/registered buffer가 남지 않는다.
+- [x] 사용자 승인으로 장시간 게이트를 10분 final soak까지로 확정했으며 20회 반복에서 크래시·데이터 오류·자원 증가가 없다.
+- [x] 기준 장비 benchmark에서 9개 케이스 모두 정의한 회귀 허용치를 만족한다.
+- [x] mimalloc 적용/미적용의 기능 결과가 같고 성능 결과가 기록된다.
+- [x] README quick start와 문서 명령 검사가 통과한다.
+- [x] package consumer sample이 배포 artifact만으로 빌드된다.
+- [x] changelog, version, tag, binary와 symbols가 일치한다.

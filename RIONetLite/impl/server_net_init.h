@@ -1,8 +1,9 @@
 #pragma once
 
+#include "../../src/detail/rio_api.h"
+#include "../../src/detail/socket_api.h"
 #include "../../src/detail/win32_resources.h"
 #include "..\define.h"
-#include "rio_context.h"
 
 #include <WinSock2.h>
 
@@ -12,6 +13,8 @@ namespace rionetlite {
 struct ServerNetManagerInit {
   static NetErrorCode Initialize(detail::WinsockRuntime& winsock,
                                  detail::UniqueSocket& listen_socket,
+                                 detail::RioApi& rio_api,
+                                 detail::SocketApi& socket_api,
                                  NetConfig net_cfg) {
     if (net_cfg.port_number_ == 0 || net_cfg.io_work_thread_count_ <= 0 ||
         net_cfg.max_session_count_ <= 0 ||
@@ -28,16 +31,16 @@ struct ServerNetManagerInit {
     }
 
     if (auto result = ServerNetManagerInit::BindListenSocket(
-            listen_socket, net_cfg.port_number_);
+            listen_socket, net_cfg.port_number_, socket_api);
         result != NetErrorCode::kNONE) {
       return result;
     }
 
-    if (RIOAPI::SetFunction(listen_socket.get()) == false) {
+    if (!rio_api.Initialize(listen_socket.get())) {
       return NetErrorCode::kRIO_FUNCTION_INIT_FAIL;
     }
 
-    if (SOCKET_ERROR == listen(listen_socket.get(), SOMAXCONN)) {
+    if (SOCKET_ERROR == socket_api.Listen(listen_socket.get(), SOMAXCONN)) {
       return NetErrorCode::kLISTEN_SOCKET_LISTEN_FAIL;
     }
 
@@ -45,39 +48,32 @@ struct ServerNetManagerInit {
   }
 
   static NetErrorCode BindListenSocket(detail::UniqueSocket& listen_socket,
-                                       const UINT16 port) {
+                                       const UINT16 port,
+                                       detail::SocketApi& socket_api) {
     /// create TCP socket with RIO mode
-    detail::UniqueSocket candidate(WSASocketW(
-        AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_REGISTERED_IO));
+    detail::UniqueSocket candidate(socket_api.CreateRegisteredSocket());
     if (!candidate) {
       return NetErrorCode::kLISTEN_SOCKET_CREATE_FAIL;
     }
 
-    int opt = 1;
-    if (setsockopt(candidate.get(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
-                   reinterpret_cast<const char*>(&opt),
-                   sizeof(opt)) == SOCKET_ERROR) {
+    if (socket_api.SetExclusiveAddressUse(candidate.get()) == SOCKET_ERROR) {
       return NetErrorCode::kLISTEN_SOCKET_BIND_FAIL;
     }
 
-    SOCKADDR_IN serveraddr;
-    ZeroMemory(&serveraddr, sizeof(serveraddr));
+    SOCKADDR_IN serveraddr{};
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_port = htons(port);
     serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (SOCKET_ERROR ==
-        bind(candidate.get(), (SOCKADDR*)&serveraddr, sizeof(serveraddr))) {
+        socket_api.Bind(candidate.get(),
+                        reinterpret_cast<const SOCKADDR*>(&serveraddr),
+                        sizeof(serveraddr))) {
       return NetErrorCode::kLISTEN_SOCKET_BIND_FAIL;
     }
 
     listen_socket = std::move(candidate);
 
-    char logmsg[256] = {
-        0,
-    };
-    sprintf_s(logmsg, "success Bind, Listen - Port: %d", port);
-    LogFuncPtr((int)LogLevel::kINFO, logmsg);
     return NetErrorCode::kNONE;
   }
 };

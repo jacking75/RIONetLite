@@ -48,6 +48,7 @@ dlldata.c
 
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
+/benchmarks/results/
 
 # .NET Core
 project.lock.json
@@ -334,3 +335,20 @@ ASALocalRun/
 !/build/
 !/build/*.props
 !/build/*.vcxproj
+
+# RIONetLite generated binaries and crash dumps
+*.dll
+*.exe
+*.exp
+*.lib
+*.dmp
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Keep the checked-in launcher while ignoring other sample build outputs.
+!/samples/bin/
+/samples/bin/*
+!/samples/bin/run_EchoServer.bat

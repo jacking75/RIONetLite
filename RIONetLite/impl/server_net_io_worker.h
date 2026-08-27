@@ -1,18 +1,19 @@
 #pragma once
 
+#include "../../src/detail/processor_topology.h"
+#include "../../src/detail/rio_api.h"
 #include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "../i_net_event.h"
-#include "helper.h"
-#include "send_manager.h"
 #include "server_net_lazyed_dis_conn_manager.h"
 #include "session_manager.h"
 #include "tcp_session.h"
 
+#include <intrin.h>
 #include <atomic>
 #include <cstdint>
-#include <format>
 #include <functional>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -22,62 +23,98 @@ class ServerNetIOWorker {
   ServerNetIOWorker() = default;
   ~ServerNetIOWorker() = default;
 
-  std::function<void(TcpSession*, const uint64_t, const DisconnectReason)>
+  std::function<bool(TcpSession*, const uint64_t, const DisconnectReason)>
       DisConnectFunc;
   void Init(ServerNetLazyedDisConnManager* p_lazyed_dis_conn_mgr,
             SessionManager* p_session_mgr, INetEventManager* p_net_event_mgr,
-            SendManager* p_send_mgr) {
+            detail::RioApi& rio_api) {
     pref_lazyed_dis_conn_mgr_ = p_lazyed_dis_conn_mgr;
     pref_session_mgr_ = p_session_mgr;
     pref_net_event_mgr_ = p_net_event_mgr;
-    pref_send_mgr_ = p_send_mgr;
+    rio_api_ = &rio_api;
   }
 
   bool StartIoThreads(
-      const std::uint32_t rio_thread_count,
-      const std::uint32_t max_send_count_per_1sec,
-      const std::uint32_t max_connection_count,
-      const std::uint32_t io_work_thread_count,
+      const NetConfig& config,
       std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues) {
     is_run_.store(true, std::memory_order_release);
-    pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(rio_thread_count);
+    timed_out_.store(false, std::memory_order_release);
+    corrupt_completion_queue_.store(false, std::memory_order_release);
+    completion_batch_size_ = config.completion_batch_size_;
+    adaptive_spin_count_ = config.adaptive_spin_count_;
+    worker_wait_mode_ = config.worker_wait_mode_;
+    enable_thread_affinity_ = config.enable_thread_affinity_;
+    PrepareAffinityTargets();
+    pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(
+        config.io_work_thread_count_);
 
-    auto max_cq_count_per_thread = MaxCQCountPerThread(
-        max_connection_count, io_work_thread_count, max_send_count_per_1sec);
-
-    for (std::uint32_t i = 0; i < rio_thread_count; ++i) {
-      auto rio_queue =
-          RIO.RIOCreateCompletionQueue(max_cq_count_per_thread, nullptr);
+    rio_completion_queues.reserve(config.io_work_thread_count_);
+    notification_events_.reserve(config.io_work_thread_count_);
+    for (std::int32_t i = 0; i < config.io_work_thread_count_; ++i) {
+      RIO_NOTIFICATION_COMPLETION notification{};
+      PRIO_NOTIFICATION_COMPLETION notification_pointer = nullptr;
+      if (worker_wait_mode_ != 0) {
+        detail::UniqueHandle event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
+        if (!event) {
+          is_run_.store(false, std::memory_order_release);
+          rio_completion_queues.clear();
+          notification_events_.clear();
+          return false;
+        }
+        notification.Type = RIO_EVENT_COMPLETION;
+        notification.Event.EventHandle = event.get();
+        notification.Event.NotifyReset = TRUE;
+        notification_pointer = &notification;
+        notification_events_.push_back(std::move(event));
+      } else {
+        notification_events_.emplace_back();
+      }
+      auto rio_queue = rio_api_->CreateCompletionQueue(
+          config.completion_queue_capacity_, notification_pointer);
       if (rio_queue == RIO_INVALID_CQ) {
         is_run_.store(false, std::memory_order_release);
-        for (auto& thread : io_work_threads_) {
-          if (thread.joinable()) {
-            thread.join();
-          }
-        }
-        io_work_threads_.clear();
         rio_completion_queues.clear();
+        notification_events_.clear();
         return false;
-      } else {
-        rio_completion_queues.emplace_back(RIO, rio_queue);
       }
+      rio_completion_queues.emplace_back(*rio_api_, rio_queue);
+    }
 
-      auto thread_index = i;
-      io_work_threads_.emplace_back([thread_index, rio_queue, this]() {
-        IoWorkerThread(thread_index, rio_queue);
-      });
-
-      // mIOWorkThreads 내부에서 초기화 작업이 있어서 잠시 대기한다
-      std::this_thread::sleep_for(std::chrono::milliseconds(32));
+    try {
+      for (std::int32_t i = 0; i < config.io_work_thread_count_; ++i) {
+        const auto rio_queue = rio_completion_queues[i].get();
+        const auto notification_event = notification_events_[i].get();
+        io_work_threads_.emplace_back(
+            [i, rio_queue, notification_event, this]() {
+              IoWorkerThread(i, rio_queue, notification_event);
+            });
+      }
+    } catch (...) {
+      is_run_.store(false, std::memory_order_release);
+      WakeWorkers();
+      for (auto& thread : io_work_threads_) {
+        if (thread.joinable()) {
+          thread.join();
+        }
+      }
+      io_work_threads_.clear();
+      rio_completion_queues.clear();
+      return false;
     }
 
     return true;
   }
 
-  void Stop() {
-    LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - Start");
-
+  bool Stop(const std::uint32_t timeout_ms) {
     is_run_.store(false, std::memory_order_release);
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(timeout_ms);
+    shutdown_deadline_ns_.store(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            deadline.time_since_epoch())
+            .count(),
+        std::memory_order_release);
+    WakeWorkers();
 
     for (auto& thread : io_work_threads_) {
       if (thread.joinable()) {
@@ -86,32 +123,37 @@ class ServerNetIOWorker {
     }
     io_work_threads_.clear();
 
-    LogFuncPtr((int)LogLevel::kINFO, "ServerNetIOWorker::Stop - End");
+    return !timed_out_.load(std::memory_order_acquire) &&
+           !corrupt_completion_queue_.load(std::memory_order_acquire);
+  }
+
+  [[nodiscard]] bool corrupt_completion_queue() const noexcept {
+    return corrupt_completion_queue_.load(std::memory_order_acquire);
   }
 
  private:
-  void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues) {
-    auto core_count = Helper::GetNumberOfProcessors();
-    std::vector<RIORESULT> results(core_count);
+  void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues,
+                      HANDLE notification_event) {
+    ApplyThreadAffinity(static_cast<std::uint32_t>(thread_index));
+    std::vector<RIORESULT> results(completion_batch_size_);
+    std::uint32_t empty_polls = 0;
+    bool notification_armed = false;
 
-    LogFuncPtr((int)LogLevel::kINFO,
-               std::format("ServerNetIOWorker::IoWorkerThread() - Start. "
-                           "threadIndex: {0}, coreCount: {1}",
-                           thread_index, core_count)
-                   .c_str());
-
-    while (is_run_.load(std::memory_order_acquire)) {
-      ULONG numResults = RIO.RIODequeueCompletion(
-          rio_completion_queues, results.data(), core_count);  // 대기가 없다
+    while (is_run_.load(std::memory_order_acquire) ||
+           pref_session_mgr_->Outstanding() != 0 ||
+           pref_session_mgr_->ActiveCount() != 0) {
+      if (!is_run_.load(std::memory_order_acquire) && ShutdownTimedOut()) {
+        timed_out_.store(true, std::memory_order_release);
+        break;
+      }
+      ULONG numResults = rio_api_->DequeueCompletion(
+          rio_completion_queues, results.data(), completion_batch_size_);
 
       if (RIO_CORRUPT_CQ == numResults) {
-        if (!is_run_.load(std::memory_order_acquire)) {
-          break;
-        }
-
-        LogFuncPtr((int)LogLevel::kFATAL,
-                   "ServerNetIOWorker::IoWorkerThread() - RIO CORRUPT CQ");
-        continue;
+        corrupt_completion_queue_.store(true, std::memory_order_release);
+        is_run_.store(false, std::memory_order_release);
+        pref_net_event_mgr_->OnCorruptCompletionQueue(thread_index);
+        break;
       }
 
       for (ULONG i = 0; i < numResults; ++i) {
@@ -121,69 +163,128 @@ class ServerNetIOWorker {
             pref_session_mgr_->GetSessionObj(context->session_index_);
         auto transferred = results[i].BytesTransferred;
 
-        ProcessRIOCQ(transferred, context, pSession);
+        ProcessRIOCQ(thread_index, results[i].Status, transferred, context,
+                     pSession);
       }
 
       pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(
           thread_index, pref_session_mgr_);
 
       if (0 == numResults) {
-        Sleep(1);  ///< for low cpu-usage
+        WaitForWork(empty_polls, notification_armed, rio_completion_queues,
+                    notification_event, thread_index);
+      } else {
+        empty_polls = 0;
       }
     }
-
-    LogFuncPtr((int)LogLevel::kINFO,
-               std::format(
-                   "ServerNetIOWorker::IoWorkerThread() - End. threadIndex: %d",
-                   thread_index)
-                   .c_str());
-    return;
   }
 
-  void ProcessRIOCQ(const ULONG transferred, RioIoContext* p_context,
+  void ProcessRIOCQ(const int worker, const LONG status,
+                    const ULONG transferred, RioIoContext* p_context,
                     TcpSession* p_session) {
+    if (p_context == nullptr) {
+      pref_net_event_mgr_->OnStaleCompletion(worker, -1, 0);
+      return;
+    }
+    if (p_context->owner_worker_ != static_cast<std::uint32_t>(worker)) {
+      pref_net_event_mgr_->OnTransportError(
+          worker, p_context->session_index_, p_context->session_unique_Id_,
+          "completion_owner_mismatch", p_context->owner_worker_);
+      if (p_session != nullptr &&
+          p_session->GetUID() == p_context->session_unique_Id_) {
+        if (p_context->io_type_ == IOType::kRECV) {
+          p_session->RecvFailed();
+        } else if (p_context->io_type_ == IOType::kSEND) {
+          p_session->SendFailed(p_context);
+        }
+        static_cast<void>(
+            DisConnectFunc(p_session, p_context->session_unique_Id_,
+                           p_context->io_type_ == IOType::kSEND
+                               ? DisconnectReason::kSEND_ERROR
+                               : DisconnectReason::kIO_REQUEST_RECV_ERROR));
+      }
+      return;
+    }
     auto cq_session_uid = p_context->session_unique_Id_;
 
-    if (transferred == 0) {
+    if (p_session == nullptr || p_session->GetUID() != cq_session_uid) {
+      pref_net_event_mgr_->OnStaleCompletion(worker, p_context->session_index_,
+                                             cq_session_uid);
+      return;
+    }
+
+    if (status != NO_ERROR) {
+      pref_net_event_mgr_->OnTransportError(
+          worker, p_context->session_index_, cq_session_uid,
+          p_context->io_type_ == IOType::kRECV ? "receive" : "send",
+          static_cast<std::uint32_t>(status));
+      if (p_context->io_type_ == IOType::kRECV) {
+        p_session->RecvFailed();
+      } else if (p_context->io_type_ == IOType::kSEND) {
+        p_session->SendFailed(p_context);
+      }
       DisConnectFunc(p_session, cq_session_uid,
-                     DisconnectReason::kZERO_COMPLETION);
+                     p_context->io_type_ == IOType::kRECV
+                         ? DisconnectReason::kIO_REQUEST_RECV_ERROR
+                         : DisconnectReason::kSEND_ERROR);
+      return;
+    }
+
+    if (transferred == 0) {
+      if (p_context->io_type_ == IOType::kRECV) {
+        p_session->RecvFailed();
+        p_session->BeginPeerClose();
+        pref_lazyed_dis_conn_mgr_->AddSession(
+            p_session->GetRioThreadId(), p_session->GetIndex(), cq_session_uid,
+            DisconnectReason::kZERO_COMPLETION);
+      } else if (p_context->io_type_ == IOType::kSEND) {
+        p_session->SendFailed(p_context);
+        static_cast<void>(DisConnectFunc(p_session, cq_session_uid,
+                                         DisconnectReason::kZERO_COMPLETION));
+      }
 
     } else if (IOType::kRECV == p_context->io_type_) {
-      RecvCompletion(p_session, transferred);
+      if (!RecvCompletion(worker, p_session, transferred)) {
+        DisConnectFunc(p_session, cq_session_uid,
+                       DisconnectReason::kPROTOCOL_ERROR);
+        return;
+      }
 
       PostRecv(cq_session_uid, p_session);
 
     } else if (IOType::kSEND == p_context->io_type_) {
-#ifndef __USE_SEND_THREAD__
-      if (p_context->Length == transferred) {
-        p_session->SendCompletion(p_context);
-      } else {
+      if (!p_session->SendCompletion(p_context, transferred)) {
         DisConnectFunc(p_session, cq_session_uid,
                        DisconnectReason::kPARITAL_SEND_COMPLETION);
       }
-#else
-      pref_send_mgr_->SendCompletedSession(p_session->GetIndex(), transferred);
-#endif
     } else {
-      LogFuncPtr(
-          (int)LogLevel::kERROR,
-          std::format(
-              "ServerNetIOWorker::ProcessRIOCQ() - Unknown I/O Type: {0}",
-              (int)p_context->io_type_)
-              .c_str());
+      pref_net_event_mgr_->OnTransportError(worker, p_context->session_index_,
+                                            cq_session_uid, "unknown", 0);
     }
   }
 
   // 받기 버퍼의 읽은 위치도 여기서 이동 시키므로 링버퍼의 데이터가 겹치는 것을
   // 막고 싶으면 애플리케이션에서 OnReceive의 데이터를 다 사용할 때까지 잘
   // 보관해야 한다.
-  void RecvCompletion(TcpSession* p_session, const std::uint32_t transferred) {
-    p_session->RecvCompletion(transferred);
+  bool RecvCompletion(const int worker, TcpSession* p_session,
+                      const std::uint32_t transferred) {
+    if (!p_session->RecvCompletion(transferred)) {
+      pref_net_event_mgr_->OnTransportError(
+          worker, p_session->GetIndex(), p_session->GetUID(),
+          "receive_completion_length", transferred);
+      return false;
+    }
 
     auto [readSize, pReadData] = p_session->ReadRecvBuffer();
     auto usedSize = pref_net_event_mgr_->OnReceive(
         p_session->GetIndex(), p_session->GetUID(), readSize, pReadData);
-    p_session->IncremantReadPosRecvBuffer(usedSize);
+    if (!p_session->ConsumeRecvBuffer(usedSize)) {
+      pref_net_event_mgr_->OnTransportError(
+          worker, p_session->GetIndex(), p_session->GetUID(),
+          "receive_callback_consumed_too_much", 0);
+      return false;
+    }
+    return true;
   }
 
   bool PostRecv(uint64_t cq_session_uid, TcpSession* p_session) {
@@ -191,6 +292,9 @@ class ServerNetIOWorker {
       if (result == NetErrorCode::kRECV_RIO_FAIL) {
         DisConnectFunc(p_session, cq_session_uid,
                        DisconnectReason::kIO_REQUEST_RECV_ERROR);
+      } else if (result == NetErrorCode::kRECV_BUFFER_FULL) {
+        DisConnectFunc(p_session, cq_session_uid,
+                       DisconnectReason::kRECV_BUFFER_FULL);
       }
       return false;
     }
@@ -198,27 +302,122 @@ class ServerNetIOWorker {
     return true;
   }
 
-  uint32_t MaxCQCountPerThread(const std::uint32_t max_connection_count,
-                               const std::uint32_t io_work_thread_count,
-                               const std::uint32_t max_send_count_per_1sec) {
-    const auto session_count_per_rio_thread =
-        (static_cast<std::uint64_t>(max_connection_count) +
-         io_work_thread_count - 1) /
-        io_work_thread_count;
-    const auto max_cq_count_per_rio_thread =
-        (1ULL + max_send_count_per_1sec) * session_count_per_rio_thread;
+  void WaitForWork(std::uint32_t& empty_polls, bool& notification_armed,
+                   const RIO_CQ queue, const HANDLE notification_event,
+                   const int worker) {
+    if (worker_wait_mode_ == 0 ||
+        (worker_wait_mode_ == 1 && empty_polls++ < adaptive_spin_count_)) {
+      YieldProcessor();
+      return;
+    }
+    if (notification_event == nullptr) {
+      std::this_thread::yield();
+      return;
+    }
+    if (!notification_armed) {
+      const int notify_result = rio_api_->Notify(queue);
+      if (notify_result == ERROR_SUCCESS || notify_result == WSAEALREADY) {
+        notification_armed = true;
+      } else {
+        pref_net_event_mgr_->OnTransportError(
+            worker, -1, 0, "notify", static_cast<std::uint32_t>(notify_result));
+        std::this_thread::yield();
+        return;
+      }
+    }
+    // A bounded wait also services non-RIO control work such as close queues.
+    if (WaitForSingleObject(notification_event, 50) == WAIT_OBJECT_0) {
+      notification_armed = false;
+    }
+    empty_polls = 0;
+  }
 
-    return static_cast<std::uint32_t>(max_cq_count_per_rio_thread);
+  void WakeWorkers() noexcept {
+    for (const auto& event : notification_events_) {
+      if (event) {
+        static_cast<void>(SetEvent(event.get()));
+      }
+    }
+  }
+
+  void PrepareAffinityTargets() {
+    affinity_targets_.clear();
+    if (!enable_thread_affinity_) return;
+
+    std::vector<detail::ProcessorLocation> processors;
+    bool numa_topology_available = true;
+    const WORD group_count = GetActiveProcessorGroupCount();
+    for (WORD group = 0; group < group_count; ++group) {
+      const DWORD processor_count = GetActiveProcessorCount(group);
+      for (DWORD number = 0; number < processor_count; ++number) {
+        PROCESSOR_NUMBER processor_number{};
+        processor_number.Group = group;
+        processor_number.Number = static_cast<BYTE>(number);
+        USHORT numa_node = 0;
+        if (GetNumaProcessorNodeEx(&processor_number, &numa_node) == FALSE ||
+            numa_node == std::numeric_limits<USHORT>::max()) {
+          numa_topology_available = false;
+          numa_node = 0;
+        }
+        processors.push_back(detail::ProcessorLocation{
+            .group = group,
+            .number = static_cast<std::uint8_t>(number),
+            .numa_node = numa_node});
+      }
+    }
+
+    const auto ordered = numa_topology_available
+                             ? detail::OrderProcessorsForAffinity(processors)
+                             : processors;
+    affinity_targets_.reserve(ordered.size());
+    for (const auto& processor : ordered) {
+      PROCESSOR_NUMBER target{};
+      target.Group = processor.group;
+      target.Number = processor.number;
+      affinity_targets_.push_back(target);
+    }
+  }
+
+  void ApplyThreadAffinity(const std::uint32_t thread_index) {
+    if (!enable_thread_affinity_ || thread_index >= affinity_targets_.size()) {
+      return;
+    }
+    const auto& target = affinity_targets_[thread_index];
+    GROUP_AFFINITY affinity{};
+    affinity.Group = target.Group;
+    affinity.Mask = static_cast<KAFFINITY>(1) << target.Number;
+    static_cast<void>(
+        SetThreadGroupAffinity(GetCurrentThread(), &affinity, nullptr));
+  }
+
+  bool ShutdownTimedOut() const noexcept {
+    const auto deadline = shutdown_deadline_ns_.load(std::memory_order_acquire);
+    if (deadline == 0) {
+      return false;
+    }
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         std::chrono::steady_clock::now().time_since_epoch())
+                         .count();
+    return now >= deadline;
   }
 
   std::atomic<bool> is_run_{false};
+  std::atomic<bool> timed_out_{false};
+  std::atomic<bool> corrupt_completion_queue_{false};
+  std::atomic<std::int64_t> shutdown_deadline_ns_{0};
+  std::uint32_t completion_batch_size_ = 64;
+  std::uint32_t adaptive_spin_count_ = 128;
+  std::uint8_t worker_wait_mode_ = 1;
+  bool enable_thread_affinity_ = false;
 
   ServerNetLazyedDisConnManager* pref_lazyed_dis_conn_mgr_ = nullptr;
   SessionManager* pref_session_mgr_ = nullptr;
   INetEventManager* pref_net_event_mgr_ = nullptr;
-  SendManager* pref_send_mgr_ = nullptr;
+  detail::RioApi* rio_api_ = nullptr;
 
   std::vector<std::thread> io_work_threads_;
+  std::vector<detail::UniqueHandle> notification_events_;
+  std::vector<PROCESSOR_NUMBER> affinity_targets_;
 };
 
 }  // namespace rionetlite

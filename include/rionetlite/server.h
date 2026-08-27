@@ -2,6 +2,7 @@
 
 #include "rionetlite/config.h"
 #include "rionetlite/event_handler.h"
+#include "rionetlite/metrics.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,7 @@
 
 namespace rionetlite {
 
+/// @api ServerState - 공개 서버 수명 상태다.
 enum class ServerState : std::uint8_t {
   kCreated,
   kInitialized,
@@ -19,11 +21,13 @@ enum class ServerState : std::uint8_t {
   kStopped,
 };
 
+/// @api StopMode - graceful 또는 immediate 종료 정책이다.
 enum class StopMode : std::uint8_t {
   kGraceful,
   kImmediate,
 };
 
+/// @api Server - move-only RIO TCP 서버 인스턴스다.
 class Server final {
  public:
   // Validates config and acquires the resources required for kInitialized.
@@ -58,6 +62,9 @@ class Server final {
 
   // Returns a lock-free lifecycle snapshot.
   [[nodiscard]] ServerState state() const noexcept;
+
+  // Returns an eventually consistent, lock-free metrics snapshot.
+  [[nodiscard]] MetricsSnapshot Metrics() const noexcept;
 
  private:
   class Impl;

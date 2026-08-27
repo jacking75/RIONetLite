@@ -1,5 +1,7 @@
 #include "detail/win32_resources.h"
 
+#include "detail/rio_api.h"
+
 #include <cassert>
 #include <limits>
 #include <utility>
@@ -116,6 +118,9 @@ std::expected<DoubleMappedBuffer, DWORD> DoubleMappedBuffer::Create(
     return std::unexpected(GetLastError());
   }
 
+// MEM_PRESERVE_PLACEHOLDER is the documented exception that requires the
+// split range size even though MEM_RELEASE normally requires zero.
+#pragma warning(suppress : 6333 28160)
   if (!VirtualFree(first_placeholder, size,
                    MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER)) {
     const DWORD error = GetLastError();
@@ -196,13 +201,12 @@ RegisteredRioBuffer::~RegisteredRioBuffer() {
   assert(reset);
 }
 
-bool RegisteredRioBuffer::Register(RIO_EXTENSION_FUNCTION_TABLE& rio,
-                                   char* data,
+bool RegisteredRioBuffer::Register(RioApi& rio, char* data,
                                    const std::uint32_t size) noexcept {
   if (data == nullptr || size == 0 || id_ != RIO_INVALID_BUFFERID) {
     return false;
   }
-  const RIO_BUFFERID id = rio.RIORegisterBuffer(data, size);
+  const RIO_BUFFERID id = rio.RegisterBuffer(data, size);
   if (id == RIO_INVALID_BUFFERID) {
     return false;
   }
@@ -219,7 +223,7 @@ bool RegisteredRioBuffer::Reset() noexcept {
   if (outstanding_.load(std::memory_order_acquire) != 0) {
     return false;
   }
-  rio_->RIODeregisterBuffer(id_);
+  rio_->DeregisterBuffer(id_);
   id_ = RIO_INVALID_BUFFERID;
   rio_ = nullptr;
   return true;
@@ -232,6 +236,10 @@ void RegisteredRioBuffer::AddOutstanding() noexcept {
 void RegisteredRioBuffer::CompleteOutstanding() noexcept {
   const auto previous = outstanding_.fetch_sub(1, std::memory_order_acq_rel);
   assert(previous > 0);
+}
+
+void RegisteredRioBuffer::AbandonOutstanding() noexcept {
+  outstanding_.store(0, std::memory_order_release);
 }
 
 UniqueRioCompletionQueue::UniqueRioCompletionQueue(
@@ -253,7 +261,7 @@ UniqueRioCompletionQueue::~UniqueRioCompletionQueue() { Reset(); }
 
 void UniqueRioCompletionQueue::Reset() noexcept {
   if (queue_ != RIO_INVALID_CQ) {
-    rio_->RIOCloseCompletionQueue(queue_);
+    rio_->CloseCompletionQueue(queue_);
     queue_ = RIO_INVALID_CQ;
     rio_ = nullptr;
   }

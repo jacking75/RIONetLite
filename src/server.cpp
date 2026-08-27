@@ -3,28 +3,21 @@
 #include "../RIONetLite/define.h"
 #include "../RIONetLite/i_net_event.h"
 #include "../RIONetLite/impl/server_net.h"
+#include "detail/shutdown_coordinator.h"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <exception>
 #include <limits>
 #include <mutex>
+#include <new>
+#include <optional>
 #include <utility>
+#include <vector>
 
 namespace rionetlite {
 namespace {
-
-std::atomic<bool> g_server_claimed = false;
-std::atomic<Logger*> g_logger = nullptr;
-
-void LegacyLogBridge(const int level, const char* message) {
-  Logger* logger = g_logger.load(std::memory_order_acquire);
-  if (logger == nullptr) {
-    return;
-  }
-  const auto safe_level = std::clamp(level, 0, 5);
-  logger->Log(static_cast<LogSeverity>(safe_level),
-              message == nullptr ? std::string_view{} : message);
-}
 
 Error LifecycleError(std::string message) {
   return Error{
@@ -91,8 +84,9 @@ Error ConvertLegacyError(const NetErrorCode code) {
 CloseReason ConvertCloseReason(const DisconnectReason reason) noexcept {
   switch (reason) {
     case DisconnectReason::kACTIVE:
-    case DisconnectReason::kFORCES_CLOSE_SERVER:
       return CloseReason::kApplicationRequest;
+    case DisconnectReason::kFORCES_CLOSE_SERVER:
+      return CloseReason::kServerStopping;
     case DisconnectReason::kZERO_COMPLETION:
       return CloseReason::kPeerClosed;
     case DisconnectReason::kIO_REQUEST_RECV_ERROR:
@@ -102,6 +96,11 @@ CloseReason ConvertCloseReason(const DisconnectReason reason) noexcept {
     case DisconnectReason::kSEND_THREAD_REAL_SEND_ERROR:
     case DisconnectReason::kFORCES_CLOSE_SEND_ERROR:
       return CloseReason::kSendError;
+    case DisconnectReason::kRECV_BUFFER_FULL:
+    case DisconnectReason::kOVERLOADED:
+      return CloseReason::kOverloaded;
+    case DisconnectReason::kPROTOCOL_ERROR:
+      return CloseReason::kProtocolError;
     case DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR:
     case DisconnectReason::kACCEPT_LOOP_FAIL_ON_CONNECT:
       return CloseReason::kInternalError;
@@ -133,35 +132,144 @@ NetConfig ToLegacyConfig(const ValidatedServerConfig& validated) {
       static_cast<std::int32_t>(source.max_outstanding_sends_per_session);
   target.session_cfg_.max_send_buffer_size_ =
       static_cast<std::int32_t>(source.send_buffer_bytes);
+  target.completion_batch_size_ = source.completion_batch_size;
+  target.completion_queue_capacity_ = validated.completion_queue_capacity;
+  target.adaptive_spin_count_ = source.adaptive_spin_count;
+  target.graceful_shutdown_timeout_ms_ = source.graceful_shutdown_timeout_ms;
+  target.worker_wait_mode_ = static_cast<std::uint8_t>(source.worker_wait_mode);
+  target.enable_thread_affinity_ = source.enable_thread_affinity;
   return target;
 }
 
 }  // namespace
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
+
+struct alignas(64) WorkerMetrics final {
+  std::atomic<std::uint64_t> accepted_connections{0};
+  std::atomic<std::uint64_t> active_connections{0};
+  std::atomic<std::uint64_t> closed_connections{0};
+  std::atomic<std::uint64_t> received_bytes{0};
+  std::atomic<std::uint64_t> sent_bytes{0};
+  std::atomic<std::uint64_t> send_would_block{0};
+  std::atomic<std::uint64_t> stale_operations{0};
+  std::atomic<std::uint64_t> protocol_errors{0};
+  std::atomic<std::uint64_t> receive_operations{0};
+  std::atomic<std::uint64_t> send_operations{0};
+  std::atomic<std::uint64_t> close_peer{0};
+  std::atomic<std::uint64_t> close_application{0};
+  std::atomic<std::uint64_t> close_error{0};
+  std::atomic<std::uint64_t> corrupt_completion_queues{0};
+  std::atomic<std::uint64_t> callback_count{0};
+  std::atomic<std::uint64_t> callback_total_nanoseconds{0};
+  std::atomic<std::uint64_t> callback_max_nanoseconds{0};
+};
+
+static_assert(alignof(WorkerMetrics) == 64);
+
 class Server::Impl final : public INetEventManager {
  public:
   Impl(ValidatedServerConfig config, EventHandler& handler, Logger* logger)
-      : config_(std::move(config)), handler_(handler), logger_(logger) {}
+      : config_(std::move(config)),
+        handler_(handler),
+        logger_(logger),
+        pending_receive_bytes_(config_.value.max_sessions, 0) {
+    worker_metrics_.reserve(config_.value.io_worker_count);
+    for (std::uint32_t worker = 0; worker < config_.value.io_worker_count;
+         ++worker) {
+      worker_metrics_.push_back(std::make_unique<WorkerMetrics>());
+    }
+  }
 
   ~Impl() override {
     const auto current = state_.load(std::memory_order_acquire);
     if (current == ServerState::kInitialized ||
         current == ServerState::kRunning || current == ServerState::kStopping) {
-      legacy_server_.End();
+      static_cast<void>(legacy_server_.End(
+          false, config_.value.graceful_shutdown_timeout_ms));
     }
-    if (claimed_) {
-      if (logger_ != nullptr) {
-        g_logger.store(nullptr, std::memory_order_release);
-        LogFuncPtr = &DefaultLog;
-      }
-      g_server_claimed.store(false, std::memory_order_release);
+  }
+
+  void Emit(const LogSeverity level, const std::string_view component,
+            const SessionId session, const std::string_view operation,
+            const ErrorCode error, const std::uint32_t native_error,
+            const std::string_view message,
+            const std::int32_t worker = -1) const {
+    if (logger_ == nullptr || !logger_->IsEnabled(level)) {
+      return;
+    }
+    const auto now = std::chrono::system_clock::now().time_since_epoch();
+    logger_->Log(LogEvent{
+        .timestamp_unix_ns = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(now).count()),
+        .level = level,
+        .component = component,
+        .worker = worker,
+        .session = session,
+        .operation = operation,
+        .error = error,
+        .native_error = native_error,
+        .message = message,
+    });
+  }
+
+  WorkerMetrics& MetricsForWorker(const std::uint32_t worker) noexcept {
+    return *worker_metrics_[std::min<std::size_t>(worker,
+                                                  worker_metrics_.size() - 1)];
+  }
+
+  WorkerMetrics& MetricsForSession(const std::uint32_t index) noexcept {
+    const std::uint32_t worker_count = config_.value.io_worker_count;
+    const std::uint32_t session_count = config_.value.max_sessions;
+    const std::uint32_t base = session_count / worker_count;
+    const std::uint32_t remainder = session_count % worker_count;
+    const std::uint64_t larger_span =
+        static_cast<std::uint64_t>(base + 1) * remainder;
+    const std::uint32_t bounded_index = std::min(index, session_count - 1);
+    const std::uint32_t worker =
+        bounded_index < larger_span
+            ? bounded_index / (base + 1)
+            : remainder + static_cast<std::uint32_t>(
+                              (bounded_index - larger_span) / base);
+    return MetricsForWorker(worker);
+  }
+
+  void RecordCallbackDuration(
+      WorkerMetrics& metrics,
+      const std::chrono::steady_clock::time_point begin) noexcept {
+    const auto duration = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - begin)
+            .count());
+    metrics.callback_count.fetch_add(1, std::memory_order_relaxed);
+    metrics.callback_total_nanoseconds.fetch_add(duration,
+                                                 std::memory_order_relaxed);
+    auto maximum =
+        metrics.callback_max_nanoseconds.load(std::memory_order_relaxed);
+    while (maximum < duration &&
+           !metrics.callback_max_nanoseconds.compare_exchange_weak(
+               maximum, duration, std::memory_order_relaxed)) {
     }
   }
 
   void OnConnect(const std::int32_t index,
                  const std::uint64_t generation) override {
+    WorkerMetrics* metrics = nullptr;
+    if (config_.value.enable_metrics) {
+      metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
+      pending_receive_bytes_[static_cast<std::size_t>(index)] = 0;
+      metrics->accepted_connections.fetch_add(1, std::memory_order_relaxed);
+      metrics->active_connections.fetch_add(1, std::memory_order_relaxed);
+    }
+    const auto begin = config_.value.enable_metrics
+                           ? std::chrono::steady_clock::now()
+                           : std::chrono::steady_clock::time_point{};
     handler_.OnConnected(SessionId{.index = static_cast<std::uint32_t>(index),
                                    .generation = generation});
+    if (metrics != nullptr) RecordCallbackDuration(*metrics, begin);
   }
 
   std::uint32_t OnReceive(const std::int32_t index,
@@ -169,18 +277,107 @@ class Server::Impl final : public INetEventManager {
                           const std::uint32_t size, char* data) override {
     const auto bytes = std::span<const std::byte>(
         reinterpret_cast<const std::byte*>(data), size);
+    const auto begin = config_.value.enable_metrics
+                           ? std::chrono::steady_clock::now()
+                           : std::chrono::steady_clock::time_point{};
     const auto consumed =
         handler_.OnData(SessionId{.index = static_cast<std::uint32_t>(index),
                                   .generation = generation},
                         bytes);
-    return static_cast<std::uint32_t>(std::min<std::size_t>(consumed, size));
+    WorkerMetrics* metrics = nullptr;
+    if (config_.value.enable_metrics) {
+      metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
+      RecordCallbackDuration(*metrics, begin);
+      auto& pending = pending_receive_bytes_[static_cast<std::size_t>(index)];
+      const auto newly_received = size >= pending ? size - pending : size;
+      metrics->received_bytes.fetch_add(newly_received,
+                                        std::memory_order_relaxed);
+      metrics->receive_operations.fetch_add(1, std::memory_order_relaxed);
+      pending =
+          consumed <= size ? size - static_cast<std::uint32_t>(consumed) : 0;
+    }
+    if (consumed > size) {
+      if (metrics != nullptr) {
+        metrics->protocol_errors.fetch_add(1, std::memory_order_relaxed);
+      }
+      Emit(LogSeverity::kError, "session",
+           {static_cast<std::uint32_t>(index), generation}, "receive_callback",
+           ErrorCode::kInternalError, 0,
+           "handler consumed more bytes than provided");
+      static_cast<void>(legacy_server_.ForcedClose(
+          index, generation, DisconnectReason::kPROTOCOL_ERROR));
+      return 0;
+    }
+    return static_cast<std::uint32_t>(consumed);
   }
 
   void OnClose(const std::int32_t index, const std::uint64_t generation,
                const DisconnectReason reason) override {
+    WorkerMetrics* metrics = nullptr;
+    if (config_.value.enable_metrics) {
+      metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
+      metrics->active_connections.fetch_sub(1, std::memory_order_relaxed);
+      metrics->closed_connections.fetch_add(1, std::memory_order_relaxed);
+      switch (ConvertCloseReason(reason)) {
+        case CloseReason::kPeerClosed:
+          metrics->close_peer.fetch_add(1, std::memory_order_relaxed);
+          break;
+        case CloseReason::kApplicationRequest:
+        case CloseReason::kServerStopping:
+          metrics->close_application.fetch_add(1, std::memory_order_relaxed);
+          break;
+        default:
+          metrics->close_error.fetch_add(1, std::memory_order_relaxed);
+          break;
+      }
+    }
+    const auto begin = config_.value.enable_metrics
+                           ? std::chrono::steady_clock::now()
+                           : std::chrono::steady_clock::time_point{};
     handler_.OnClosed(SessionId{.index = static_cast<std::uint32_t>(index),
                                 .generation = generation},
                       ConvertCloseReason(reason));
+    if (metrics != nullptr) RecordCallbackDuration(*metrics, begin);
+  }
+
+  void OnTransportError(const std::int32_t worker, const std::int32_t index,
+                        const std::uint64_t generation,
+                        const std::string_view operation,
+                        const std::uint32_t native_error) override {
+    Emit(LogSeverity::kError, "rio",
+         {static_cast<std::uint32_t>(index), generation}, operation,
+         ErrorCode::kInternalError, native_error,
+         "RIO request completed with an error", worker);
+  }
+
+  void OnStaleCompletion(const std::int32_t worker, const std::int32_t index,
+                         const std::uint64_t generation) override {
+    if (config_.value.enable_metrics) {
+      MetricsForWorker(worker < 0 ? 0U : static_cast<std::uint32_t>(worker))
+          .stale_operations.fetch_add(1, std::memory_order_relaxed);
+    }
+    Emit(LogSeverity::kWarning, "rio",
+         {index < 0 ? 0U : static_cast<std::uint32_t>(index), generation},
+         "completion", ErrorCode::kInternalError, 0,
+         "stale or invalid RIO completion ignored", worker);
+  }
+
+  void OnCorruptCompletionQueue(const std::int32_t worker) override {
+    if (config_.value.enable_metrics) {
+      MetricsForWorker(worker < 0 ? 0U : static_cast<std::uint32_t>(worker))
+          .corrupt_completion_queues.fetch_add(1, std::memory_order_relaxed);
+    }
+    Emit(LogSeverity::kFatal, "rio", {}, "dequeue", ErrorCode::kInternalError,
+         0, "RIO completion queue is corrupt", worker);
+  }
+
+  void OnRejectedConnection(const std::uint32_t native_error) override {
+    if (config_.value.enable_metrics) {
+      rejected_connections_.fetch_add(1, std::memory_order_relaxed);
+    }
+    Emit(LogSeverity::kWarning, "accept", {}, "accept",
+         ErrorCode::kResourceAllocationFailed, native_error,
+         "connection was rejected");
   }
 
   ValidatedServerConfig config_;
@@ -188,8 +385,17 @@ class Server::Impl final : public INetEventManager {
   Logger* logger_ = nullptr;
   ServerNetManagerImpl legacy_server_;
   std::atomic<ServerState> state_{ServerState::kCreated};
-  bool claimed_ = false;
+  std::vector<std::unique_ptr<WorkerMetrics>> worker_metrics_;
+  alignas(64) std::atomic<std::uint64_t> rejected_connections_{0};
+  std::vector<std::uint32_t> pending_receive_bytes_;
+  std::mutex lifecycle_mutex_;
+  detail::ShutdownCoordinator shutdown_;
+  std::optional<Error> stop_error_;
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 std::expected<Server, Error> Server::Create(ServerConfig config,
                                             EventHandler& handler,
@@ -199,32 +405,35 @@ std::expected<Server, Error> Server::Create(ServerConfig config,
     return std::unexpected(std::move(validated.error()));
   }
 
-  bool expected = false;
-  if (!g_server_claimed.compare_exchange_strong(expected, true,
-                                                std::memory_order_acq_rel)) {
+  try {
+    auto impl = std::make_unique<Impl>(std::move(*validated), handler, logger);
+
+    const NetErrorCode result = impl->legacy_server_.Initialize(
+        ToLegacyConfig(impl->config_), impl.get());
+    if (result != NetErrorCode::kNONE) {
+      return std::unexpected(ConvertLegacyError(result));
+    }
+    impl->state_.store(ServerState::kInitialized, std::memory_order_release);
+    impl->Emit(LogSeverity::kInfo, "server", {}, "create", ErrorCode::kNone, 0,
+               "server initialized");
+    return Server(std::move(impl));
+  } catch (const std::bad_alloc&) {
     return std::unexpected(Error{
-        .category = ErrorCategory::kLifecycle,
-        .code = ErrorCode::kAlreadyInitialized,
+        .category = ErrorCategory::kResource,
+        .code = ErrorCode::kResourceAllocationFailed,
         .native_code = 0,
-        .field = "server",
-        .message = "only one active RIONetLite Server is supported",
+        .field = "memory",
+        .message = "server resource allocation failed",
+    });
+  } catch (const std::exception& exception) {
+    return std::unexpected(Error{
+        .category = ErrorCategory::kInternal,
+        .code = ErrorCode::kInternalError,
+        .native_code = 0,
+        .field = "create",
+        .message = exception.what(),
     });
   }
-
-  auto impl = std::make_unique<Impl>(std::move(*validated), handler, logger);
-  impl->claimed_ = true;
-  if (logger != nullptr) {
-    g_logger.store(logger, std::memory_order_release);
-    LogFuncPtr = &LegacyLogBridge;
-  }
-
-  const NetErrorCode result = impl->legacy_server_.Initialize(
-      ToLegacyConfig(impl->config_), impl.get());
-  if (result != NetErrorCode::kNONE) {
-    return std::unexpected(ConvertLegacyError(result));
-  }
-  impl->state_.store(ServerState::kInitialized, std::memory_order_release);
-  return Server(std::move(impl));
 }
 
 Server::Server(std::unique_ptr<Impl> impl) noexcept : impl_(std::move(impl)) {}
@@ -236,41 +445,93 @@ std::expected<void, Error> Server::Start() {
   if (!impl_) {
     return std::unexpected(LifecycleError("server was moved from"));
   }
-  ServerState expected = ServerState::kInitialized;
-  if (!impl_->state_.compare_exchange_strong(expected, ServerState::kRunning,
-                                             std::memory_order_acq_rel)) {
+  std::scoped_lock lifecycle_lock(impl_->lifecycle_mutex_);
+  if (impl_->state_.load(std::memory_order_acquire) !=
+      ServerState::kInitialized) {
     return std::unexpected(LifecycleError("Start requires initialized state"));
   }
+  impl_->state_.store(ServerState::kRunning, std::memory_order_release);
 
   const NetErrorCode result = impl_->legacy_server_.Start();
   if (result != NetErrorCode::kNONE) {
     impl_->state_.store(ServerState::kStopping, std::memory_order_release);
-    impl_->legacy_server_.End();
+    static_cast<void>(impl_->legacy_server_.End(
+        false, impl_->config_.value.graceful_shutdown_timeout_ms));
     impl_->state_.store(ServerState::kStopped, std::memory_order_release);
     return std::unexpected(ConvertLegacyError(result));
   }
+  impl_->Emit(LogSeverity::kInfo, "server", {}, "start", ErrorCode::kNone, 0,
+              "server started");
   return {};
 }
 
-std::expected<void, Error> Server::Stop(const StopMode) noexcept {
+std::expected<void, Error> Server::Stop(const StopMode mode) noexcept {
   if (!impl_) {
     return std::unexpected(LifecycleError("server was moved from"));
   }
 
-  ServerState current = impl_->state_.load(std::memory_order_acquire);
-  while (current == ServerState::kInitialized ||
-         current == ServerState::kRunning) {
-    if (impl_->state_.compare_exchange_weak(current, ServerState::kStopping,
-                                            std::memory_order_acq_rel)) {
-      impl_->legacy_server_.End();
-      impl_->state_.store(ServerState::kStopped, std::memory_order_release);
-      return {};
+  std::unique_lock lifecycle_lock(impl_->lifecycle_mutex_);
+  auto current = impl_->state_.load(std::memory_order_acquire);
+  if (current == ServerState::kStopping) {
+    lifecycle_lock.unlock();
+    impl_->shutdown_.Wait();
+    lifecycle_lock.lock();
+    if (impl_->stop_error_) {
+      return std::unexpected(*impl_->stop_error_);
     }
-  }
-  if (current == ServerState::kStopped || current == ServerState::kStopping) {
     return {};
   }
-  return std::unexpected(LifecycleError("Stop requires initialized state"));
+  if (current == ServerState::kStopped) {
+    if (impl_->stop_error_) {
+      return std::unexpected(*impl_->stop_error_);
+    }
+    return {};
+  }
+  if (current != ServerState::kInitialized &&
+      current != ServerState::kRunning) {
+    return std::unexpected(LifecycleError("Stop requires initialized state"));
+  }
+
+  if (!impl_->shutdown_.Begin(mode)) {
+    return std::unexpected(LifecycleError("shutdown ownership was lost"));
+  }
+  impl_->state_.store(ServerState::kStopping, std::memory_order_release);
+  lifecycle_lock.unlock();
+  const bool stopped = impl_->legacy_server_.End(
+      mode == StopMode::kGraceful,
+      impl_->config_.value.graceful_shutdown_timeout_ms);
+  lifecycle_lock.lock();
+  if (!stopped) {
+    impl_->stop_error_ = Error{
+        .category = ErrorCategory::kLifecycle,
+        .code = impl_->legacy_server_.corrupt_completion_queue()
+                    ? ErrorCode::kInternalError
+                    : ErrorCode::kShutdownTimedOut,
+        .native_code = 0,
+        .field = "shutdown",
+        .message =
+            impl_->legacy_server_.corrupt_completion_queue()
+                ? "RIO completion queue became corrupt"
+                : "shutdown exceeded graceful_shutdown_timeout_ms; "
+                  "remaining_outstanding=" +
+                      std::to_string(
+                          impl_->legacy_server_.remaining_outstanding()) +
+                      "; remaining_active_sessions=" +
+                      std::to_string(
+                          impl_->legacy_server_.remaining_active_sessions()),
+    };
+  }
+  impl_->state_.store(ServerState::kStopped, std::memory_order_release);
+  lifecycle_lock.unlock();
+  impl_->shutdown_.Complete();
+  if (impl_->stop_error_) {
+    impl_->Emit(LogSeverity::kError, "server", {}, "stop",
+                impl_->stop_error_->code, 0, impl_->stop_error_->message);
+    return std::unexpected(*impl_->stop_error_);
+  }
+  impl_->Emit(LogSeverity::kInfo, "server", {}, "stop", ErrorCode::kNone, 0,
+              "server stopped");
+  return {};
 }
 
 SendResult Server::Send(const SessionId session,
@@ -290,30 +551,102 @@ SendResult Server::Send(const SessionId session,
       reinterpret_cast<const char*>(data.data()));
   switch (result) {
     case NetErrorCode::kNONE:
+      if (impl_->config_.value.enable_metrics) {
+        auto& metrics = impl_->MetricsForSession(session.index);
+        metrics.sent_bytes.fetch_add(data.size(), std::memory_order_relaxed);
+        metrics.send_operations.fetch_add(1, std::memory_order_relaxed);
+      }
       return SendResult::kQueued;
     case NetErrorCode::kSEND_INVALID_SESSION:
+      if (impl_->config_.value.enable_metrics) {
+        impl_->MetricsForSession(session.index)
+            .stale_operations.fetch_add(1, std::memory_order_relaxed);
+      }
       return SendResult::kStaleSession;
     case NetErrorCode::kSEND_SESSION_NETWORK_DISABLE:
       return SendResult::kClosing;
     case NetErrorCode::kSEND_THREAD_BUFFER_FULL:
+      if (impl_->config_.value.enable_metrics) {
+        impl_->MetricsForSession(session.index)
+            .send_would_block.fetch_add(1, std::memory_order_relaxed);
+      }
       return SendResult::kWouldBlock;
+    case NetErrorCode::kSEND_MESSAGE_TOO_LARGE:
+      return SendResult::kMessageTooLarge;
     default:
       return SendResult::kUnavailable;
   }
 }
 
-bool Server::RequestClose(const SessionId session, const CloseReason) noexcept {
+bool Server::RequestClose(const SessionId session,
+                          const CloseReason reason) noexcept {
   if (!impl_ ||
       impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
     return false;
   }
+  DisconnectReason legacy_reason = DisconnectReason::kACTIVE;
+  if (reason == CloseReason::kProtocolError) {
+    legacy_reason = DisconnectReason::kPROTOCOL_ERROR;
+    if (impl_->config_.value.enable_metrics) {
+      impl_->MetricsForSession(session.index)
+          .protocol_errors.fetch_add(1, std::memory_order_relaxed);
+    }
+  } else if (reason == CloseReason::kOverloaded) {
+    legacy_reason = DisconnectReason::kOVERLOADED;
+  }
   return impl_->legacy_server_.ForcedClose(
-      static_cast<std::int32_t>(session.index), session.generation);
+      static_cast<std::int32_t>(session.index), session.generation,
+      legacy_reason);
 }
 
 ServerState Server::state() const noexcept {
   return impl_ ? impl_->state_.load(std::memory_order_acquire)
                : ServerState::kStopped;
+}
+
+MetricsSnapshot Server::Metrics() const noexcept {
+  if (!impl_ || !impl_->config_.value.enable_metrics) {
+    return {};
+  }
+  MetricsSnapshot snapshot;
+  snapshot.rejected_connections =
+      impl_->rejected_connections_.load(std::memory_order_relaxed);
+  for (const auto& metrics : impl_->worker_metrics_) {
+    snapshot.accepted_connections +=
+        metrics->accepted_connections.load(std::memory_order_relaxed);
+    snapshot.active_connections +=
+        metrics->active_connections.load(std::memory_order_relaxed);
+    snapshot.closed_connections +=
+        metrics->closed_connections.load(std::memory_order_relaxed);
+    snapshot.received_bytes +=
+        metrics->received_bytes.load(std::memory_order_relaxed);
+    snapshot.sent_bytes += metrics->sent_bytes.load(std::memory_order_relaxed);
+    snapshot.send_would_block +=
+        metrics->send_would_block.load(std::memory_order_relaxed);
+    snapshot.stale_operations +=
+        metrics->stale_operations.load(std::memory_order_relaxed);
+    snapshot.protocol_errors +=
+        metrics->protocol_errors.load(std::memory_order_relaxed);
+    snapshot.receive_operations +=
+        metrics->receive_operations.load(std::memory_order_relaxed);
+    snapshot.send_operations +=
+        metrics->send_operations.load(std::memory_order_relaxed);
+    snapshot.close_peer += metrics->close_peer.load(std::memory_order_relaxed);
+    snapshot.close_application +=
+        metrics->close_application.load(std::memory_order_relaxed);
+    snapshot.close_error +=
+        metrics->close_error.load(std::memory_order_relaxed);
+    snapshot.corrupt_completion_queues +=
+        metrics->corrupt_completion_queues.load(std::memory_order_relaxed);
+    snapshot.callback_count +=
+        metrics->callback_count.load(std::memory_order_relaxed);
+    snapshot.callback_total_nanoseconds +=
+        metrics->callback_total_nanoseconds.load(std::memory_order_relaxed);
+    snapshot.callback_max_nanoseconds = std::max(
+        snapshot.callback_max_nanoseconds,
+        metrics->callback_max_nanoseconds.load(std::memory_order_relaxed));
+  }
+  return snapshot;
 }
 
 }  // namespace rionetlite

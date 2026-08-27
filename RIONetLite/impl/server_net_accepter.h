@@ -1,18 +1,18 @@
 #pragma once
 
+#include "../../src/detail/rio_api.h"
 #include "../../src/detail/win32_resources.h"
 #include "../define.h"
 #include "../i_net_event.h"
-#include "helper.h"
-#include "send_manager.h"
 #include "session_manager.h"
 #include "tcp_session.h"
 
 #include <atomic>
 #include <cstdint>
-#include <format>
 #include <functional>
+#include <thread>
 #include <utility>
+#include <vector>
 
 namespace rionetlite {
 class Accepter {
@@ -20,68 +20,52 @@ class Accepter {
   Accepter() = default;
   ~Accepter() = default;
 
-  std::function<void(TcpSession*, const uint64_t, const DisconnectReason)>
+  std::function<bool(TcpSession*, const uint64_t, const DisconnectReason)>
       DisConnectFunc;
 
-  void Start(
+  bool Start(
       SessionNetConfig net_cfg, detail::UniqueSocket& listen_socket,
       std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues,
       SessionManager& session_mgr, INetEventManager* p_net_event_mgr,
-      [[maybe_unused]] SendManager* p_send_mgr) {
+      detail::RioApi& rio_api) {
+    rio_api_ = &rio_api;
+    net_event_mgr_ = p_net_event_mgr;
     listen_socket_ = &listen_socket;
     is_run_.store(true, std::memory_order_release);
-    work_thread_ = std::thread([&, p_net_event_mgr, p_send_mgr]() {
-      Run(net_cfg, listen_socket, rio_completion_queues, session_mgr,
-          p_net_event_mgr, p_send_mgr);
-    });
+    try {
+      work_thread_ =
+          std::thread([net_cfg, &listen_socket, &rio_completion_queues,
+                       &session_mgr, p_net_event_mgr, this]() {
+            Run(net_cfg, listen_socket, rio_completion_queues, session_mgr,
+                p_net_event_mgr);
+          });
+    } catch (...) {
+      is_run_.store(false, std::memory_order_release);
+      listen_socket_ = nullptr;
+      return false;
+    }
+    return true;
   }
 
   void Run(SessionNetConfig net_cfg, detail::UniqueSocket& listen_socket,
            std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues,
-           SessionManager& session_mgr, INetEventManager* net_event_mgr,
-           [[maybe_unused]] SendManager* p_send_mgr) {
-    LogFuncPtr((int)LogLevel::kINFO, "Accepter::Run() - Start~~~");
-
+           SessionManager& session_mgr, INetEventManager* net_event_mgr) {
     while (is_run_.load(std::memory_order_acquire)) {
-      WSAPOLLFD poll_descriptor{
-          .fd = listen_socket.get(),
-          .events = POLLRDNORM,
-          .revents = 0,
-      };
-      const int poll_result = WSAPoll(&poll_descriptor, 1, 100);
-      if (!is_run_.load(std::memory_order_acquire)) {
-        break;
-      }
-      if (poll_result == 0) {
-        continue;
-      }
-      if (poll_result == SOCKET_ERROR ||
-          (poll_descriptor.revents & POLLRDNORM) == 0) {
-        LogFuncPtr((int)LogLevel::kERROR,
-                   "Accepter::Run() - listen socket poll failed");
-        continue;
-      }
-
       detail::UniqueSocket accepted_socket(
           accept(listen_socket.get(), nullptr, nullptr));
       if (!accepted_socket) {
         if (!is_run_.load(std::memory_order_acquire)) {
           break;
         }
-        LogFuncPtr((int)LogLevel::kERROR,
-                   "Accepter::Run() - accept invalid socket");
+        net_event_mgr->OnRejectedConnection(
+            static_cast<std::uint32_t>(WSAGetLastError()));
         continue;
       }
 
-      auto cur_time_sec = Helper::CurrentSecond();
-
-      auto p_session = session_mgr.AllocClientSession(cur_time_sec);
+      auto p_session = session_mgr.AllocClientSession();
       if (p_session == nullptr) {
-        // 사용할 수 있는 세션이 없는 상태이므로 연결을 끊고, 잠시 대기한다
-        LogFuncPtr((int)LogLevel::kDEBUG,
-                   "Accepter::Run() - Empry Session Pool");
         accepted_socket.Reset();
-        Sleep(1000);
+        net_event_mgr->OnRejectedConnection(WSAENOBUFS);
         continue;
       }
 
@@ -93,20 +77,20 @@ class Accepter {
         continue;
       }
 
-#ifdef __USE_SEND_THREAD__
-      p_send_mgr->OnConnectSession(p_session->GetIndex(), p_session->GetUID(),
-                                   p_session->GetRIORQ());
-#endif
-
       net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUID());
+      if (p_session->PostRecv() != NetErrorCode::kNONE) {
+        net_event_mgr->OnTransportError(
+            p_session->GetRioThreadId(), p_session->GetIndex(),
+            p_session->GetUID(), "initial_receive",
+            static_cast<std::uint32_t>(WSAGetLastError()));
+        static_cast<void>(
+            DisConnectFunc(p_session, p_session->GetUID(),
+                           DisconnectReason::kIO_REQUEST_RECV_ERROR));
+      }
     }
-
-    LogFuncPtr((int)LogLevel::kINFO, "Accepter::Run() - End!!!");
   }
 
   void Stop() {
-    LogFuncPtr((int)LogLevel::kINFO, "Accepter::Stop - Start");
-
     is_run_.store(false, std::memory_order_release);
 
     if (listen_socket_ != nullptr) {
@@ -116,21 +100,18 @@ class Accepter {
     if (work_thread_.joinable()) {
       work_thread_.join();
     }
-
-    LogFuncPtr((int)LogLevel::kINFO, "Accepter::Stop - End");
   }
 
  private:
   bool NewSession(detail::UniqueSocket accepted_socket, TcpSession* p_session,
                   int32_t max_send_count_per_1sec,
                   RIO_CQ rio_completion_queue) {
-    if (auto rio_rq = RIO.RIOCreateRequestQueue(
+    if (auto rio_rq = rio_api_->CreateRequestQueue(
             accepted_socket.get(), 1, 1,  // 받기는 연속으로 요청하지 않으므로 1
             max_send_count_per_1sec, 1, rio_completion_queue,
-            rio_completion_queue, NULL);
+            rio_completion_queue, nullptr);
         rio_rq != RIO_INVALID_RQ) {
-      ++connect_sequence_id_;
-      if (p_session->OnConnect(connect_sequence_id_, std::move(accepted_socket),
+      if (p_session->OnConnect(p_session->GetUID(), std::move(accepted_socket),
                                rio_rq) == false) {
         DisConnectFunc(p_session, 0,
                        DisconnectReason::kACCEPT_LOOP_FAIL_ON_CONNECT);
@@ -145,10 +126,12 @@ class Accepter {
   }
 
   void FailCreateRIOQueue(TcpSession* p_session) {
-    LogFuncPtr((int)LogLevel::kERROR,
-               std::format("Accepter::Run() - RIOCreateRequestQueue Error: {0}",
-                           GetLastError())
-                   .c_str());
+    if (net_event_mgr_ != nullptr) {
+      net_event_mgr_->OnTransportError(
+          p_session->GetRioThreadId(), p_session->GetIndex(),
+          p_session->GetUID(), "create_request_queue",
+          static_cast<std::uint32_t>(GetLastError()));
+    }
 
     DisConnectFunc(p_session, 0,
                    DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR);
@@ -156,9 +139,9 @@ class Accepter {
 
   std::atomic<bool> is_run_{false};
 
-  uint64_t connect_sequence_id_ = 0;
-
   detail::UniqueSocket* listen_socket_ = nullptr;
+  detail::RioApi* rio_api_ = nullptr;
+  INetEventManager* net_event_mgr_ = nullptr;
 
   std::thread work_thread_;
 };

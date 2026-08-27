@@ -19,23 +19,31 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration"><ConfigurationType>Application</ConfigurationType><UseDebugLibraries>false</UseDebugLibraries><PlatformToolset>v145</PlatformToolset><WholeProgramOptimization>true</WholeProgramOptimization></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup><VcpkgRoot Condition="'$(VcpkgRoot)' == ''">$(VCInstallDir)vcpkg</VcpkgRoot></PropertyGroup>
-  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.props" Condition="'$(VcpkgPropsImported)' != 'true'" />
   <ImportGroup Label="PropertySheets"><Import Project="..\..\build\RIONetLite.Common.props" /></ImportGroup>
   <PropertyGroup>
     <OutDir>$(ProjectDir)..\..\bin\tests\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)..\..\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile><AdditionalIncludeDirectories>$(ProjectDir)..\..\include;$(ProjectDir)..\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <ClCompile><AdditionalIncludeDirectories>$(ProjectDir)..\..\include;$(ProjectDir)..\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><DisableSpecificWarnings Condition="'$(RunCodeAnalysis)' == 'true'">26439;26495;%(DisableSpecificWarnings)</DisableSpecificWarnings></ClCompile>
     <Link><AdditionalDependencies>gtest.lib;gtest_main.lib;ws2_32.lib;mswsock.lib;mincore.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies><SubSystem>Console</SubSystem></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="allocation_test.cpp" />
     <ClCompile Include="config_test.cpp" />
+    <ClCompile Include="correctness_primitives_test.cpp" />
     <ClCompile Include="public_api_test.cpp" />
+    <ClCompile Include="public_helpers_test.cpp" />
+    <ClCompile Include="rio_request_test.cpp" />
     <ClCompile Include="session_partition_test.cpp" />
     <ClCompile Include="win32_resources_test.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fake_rio_api.h" />
+    <ClInclude Include="fake_socket_api.h" />
+  </ItemGroup>
   <ItemGroup><ProjectReference Include="..\..\build\RIONetLite.vcxproj"><Project>{A1111111-1111-4111-8111-111111111111}</Project></ProjectReference></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" />
+  <Import Project="$(VcpkgRoot)\scripts\buildsystems\msbuild\vcpkg.targets" Condition="'$(_ZVcpkgRoot)' == ''" />
 </Project>

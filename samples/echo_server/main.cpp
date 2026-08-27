@@ -1,129 +1,221 @@
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "mswsock.lib")
-#pragma comment(lib, "DbgHelp.lib")
-#pragma comment(lib, "winmm.lib")
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
-#include "echo_server.h"
+#include "rionetlite/packet_decoder.h"
+#include "rionetlite/server.h"
 
-#include "../thirdparty/flags.h"
+#include <conio.h>
 
+#include <atomic>
+#include <charconv>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <iostream>
+#include <span>
+#include <string>
+#include <string_view>
+#include <thread>
 
-rionetlite::NetConfig GetConfig(int argc, char* argv[]);
+namespace {
+std::atomic<bool> g_stop_requested = false;
 
-int main(int argc, char* argv[]) {
-  std::cout << "Start EchoServer" << std::endl;
-
-  auto net_config = GetConfig(argc, argv);
-
-  EchoServer echo_server;
-  if (echo_server.Init(net_config) == false) {
-    return -1;
+BOOL WINAPI HandleConsoleSignal(const DWORD signal) {
+  if (signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT ||
+      signal == CTRL_CLOSE_EVENT) {
+    g_stop_requested.store(true, std::memory_order_release);
+    return TRUE;
   }
+  return FALSE;
+}
 
-  echo_server.Start();
+class ConsoleLogger final : public rionetlite::Logger {
+ public:
+  void Log(rionetlite::LogSeverity, std::string_view message) override {
+    std::cout << "[RIONetLite] " << message << '\n';
+  }
+};
 
-  std::cout << "Server quits when you press (quit) !!!" << std::endl;
-  while (true) {
-    std::string inputCmd;
-    std::getline(std::cin, inputCmd);
-
-    if (inputCmd == "quit") {
-      break;
+class EchoHandler final : public rionetlite::EventHandler {
+ public:
+  EchoHandler(const std::uint32_t max_message_bytes,
+              const bool observability_enabled)
+      : decoder_(max_message_bytes),
+        observability_enabled_(observability_enabled) {}
+  void Attach(rionetlite::Server& server) noexcept { server_ = &server; }
+  void OnConnected(const rionetlite::SessionId session) override {
+    if (observability_enabled_) {
+      std::cout << "connected: " << session.index << ':' << session.generation
+                << '\n';
+    }
+  }
+  std::size_t OnData(const rionetlite::SessionId session,
+                     const std::span<const std::byte> data) override {
+    const rionetlite::DecodeResult decoded =
+        decoder_.Decode(data, [&](const std::span<const std::byte> packet) {
+          if (server_ == nullptr) return;
+          const auto result = server_->Send(session, packet);
+          if (observability_enabled_ &&
+              result != rionetlite::SendResult::kQueued) {
+            std::cerr << "send rejected: " << session.index << ':'
+                      << session.generation
+                      << " result=" << rionetlite::ToString(result) << '\n';
+          }
+          if (result == rionetlite::SendResult::kWouldBlock ||
+              result == rionetlite::SendResult::kUnavailable) {
+            static_cast<void>(server_->RequestClose(
+                session, rionetlite::CloseReason::kOverloaded));
+          }
+        });
+    if (decoded.error != rionetlite::DecodeError::kNone && server_ != nullptr) {
+      static_cast<void>(server_->RequestClose(
+          session, rionetlite::CloseReason::kProtocolError));
+      return data.size();
+    }
+    return decoded.consumed_bytes;
+  }
+  void OnClosed(const rionetlite::SessionId session,
+                const rionetlite::CloseReason reason) override {
+    if (observability_enabled_) {
+      std::cout << "closed: " << session.index << ':' << session.generation
+                << " reason=" << rionetlite::ToString(reason) << '\n';
     }
   }
 
-  echo_server.End();
+ private:
+  rionetlite::LengthPrefixedDecoder decoder_;
+  rionetlite::Server* server_ = nullptr;
+  bool observability_enabled_ = true;
+};
 
-  return 0;
+bool ParseOptions(const int argc, char* argv[],
+                  rionetlite::ServerConfig& config,
+                  std::uint32_t& duration_seconds, bool& observability_enabled,
+                  std::string& stop_file) {
+  for (int index = 1; index < argc; ++index) {
+    if (index + 1 >= argc) return false;
+    const std::string_view key(argv[index]);
+    const std::string_view value(argv[++index]);
+    if (key == "--stop-file") {
+      stop_file = value;
+      continue;
+    }
+    if (key == "--observability") {
+      if (value == "on") {
+        observability_enabled = true;
+        config.enable_metrics = true;
+      } else if (value == "off") {
+        observability_enabled = false;
+        config.enable_metrics = false;
+      } else {
+        return false;
+      }
+      continue;
+    }
+    if (key == "--affinity") {
+      if (value == "on") {
+        config.enable_thread_affinity = true;
+      } else if (value == "off") {
+        config.enable_thread_affinity = false;
+      } else {
+        return false;
+      }
+      continue;
+    }
+    if (key == "--wait-mode") {
+      if (value == "polling") {
+        config.worker_wait_mode = rionetlite::WorkerWaitMode::kPolling;
+      } else if (value == "adaptive") {
+        config.worker_wait_mode = rionetlite::WorkerWaitMode::kAdaptive;
+      } else if (value == "notification") {
+        config.worker_wait_mode = rionetlite::WorkerWaitMode::kNotification;
+      } else {
+        return false;
+      }
+      continue;
+    }
+    std::uint32_t parsed = 0;
+    const auto [end, error] =
+        std::from_chars(value.data(), value.data() + value.size(), parsed);
+    if (error != std::errc{} || end != value.data() + value.size()) {
+      return false;
+    }
+    if (key == "--port" && parsed != 0 && parsed <= 65535) {
+      config.port = static_cast<std::uint16_t>(parsed);
+    } else if (key == "--duration") {
+      duration_seconds = parsed;
+    } else if (key == "--workers") {
+      config.io_worker_count = parsed;
+    } else if (key == "--batch") {
+      config.completion_batch_size = parsed;
+    } else if (key == "--spin") {
+      config.adaptive_spin_count = parsed;
+    } else if (key == "--max-sessions") {
+      config.max_sessions = parsed;
+    } else {
+      return false;
+    }
+  }
+  return true;
 }
+}  // namespace
 
-// EchoServerConsole.exe --PortNumber=32452 --IoWorkThreadCount=4
-// --IoSendThreadCount=2 --MaxConnectionCount=256 --MaxRecvPacketSize=1024
-// --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5
-// --MaxRecvBufferSize=12288 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5
-// --MaxSendBufferSize=12288
-rionetlite::NetConfig GetConfig(int argc, char* argv[]) {
-  rionetlite::NetConfig config;
-
-  const flags::args args(argc, argv);
-  const auto port_number = args.get<UINT16>("PortNumber");
-  if (!port_number) {
-    std::cerr << "No PortNumber. :(" << std::endl;
-    return config;
+int main(int argc, char* argv[]) {
+  rionetlite::ServerConfig config;
+  config.port = 32452;
+  std::uint32_t duration_seconds = 0;
+  bool observability_enabled = true;
+  std::string stop_file;
+  if (!ParseOptions(argc, argv, config, duration_seconds, observability_enabled,
+                    stop_file)) {
+    std::cerr << "usage: EchoServer [--port n] [--duration n] [--workers n] "
+                 "[--batch n] [--spin n] [--max-sessions n] "
+                 "[--wait-mode polling|adaptive|notification] "
+                 "[--affinity on|off] [--observability on|off] "
+                 "[--stop-file path]\n";
+    return 2;
   }
-  config.port_number_ = *port_number;
-
-  const auto io_work_thread_count = args.get<UINT16>("IoWorkThreadCount");
-  if (!io_work_thread_count) {
-    std::cerr << "No IoWorkThreadCount. :(" << std::endl;
-    return config;
+  ConsoleLogger logger;
+  EchoHandler handler(config.max_message_bytes, observability_enabled);
+  auto server = rionetlite::Server::Create(
+      config, handler, observability_enabled ? &logger : nullptr);
+  if (!server) {
+    std::cerr << "create failed: " << server.error().message << '\n';
+    return 3;
   }
-  config.io_work_thread_count_ = *io_work_thread_count;
-
-  const auto io_send_thread_count = args.get<UINT16>("IoSendThreadCount");
-  if (!io_send_thread_count) {
-    std::cerr << "No IoSendThreadCount. :(" << std::endl;
-    return config;
+  handler.Attach(*server);
+  if (auto started = server->Start(); !started) {
+    std::cerr << "start failed: " << started.error().message << '\n';
+    return 4;
   }
-  config.io_send_thread_count_ = *io_send_thread_count;
 
-  const auto max_connection_count = args.get<UINT16>("MaxConnectionCount");
-  if (!max_connection_count) {
-    std::cerr << "No MaxConnectionCount. :(" << std::endl;
-    return config;
+  SetConsoleCtrlHandler(&HandleConsoleSignal, TRUE);
+  std::cout << "EchoServer listening on port " << config.port
+            << ". Type quit or press Ctrl+C to stop.\n";
+  const auto deadline = duration_seconds == 0
+                            ? std::chrono::steady_clock::time_point::max()
+                            : std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(duration_seconds);
+  while (!g_stop_requested.load(std::memory_order_acquire)) {
+    if (std::chrono::steady_clock::now() >= deadline) break;
+    if (!stop_file.empty()) {
+      std::error_code error;
+      if (std::filesystem::exists(stop_file, error) && !error) break;
+    }
+    if (_kbhit() != 0) {
+      std::string command;
+      std::getline(std::cin, command);
+      if (command == "quit") {
+        g_stop_requested.store(true, std::memory_order_release);
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
-  config.max_session_count_ = *max_connection_count;
-
-  const auto max_recv_packet_size = args.get<UINT16>("MaxRecvPacketSize");
-  if (!max_recv_packet_size) {
-    std::cerr << "No MaxRecvPacketSize. :(" << std::endl;
-    return config;
+  SetConsoleCtrlHandler(&HandleConsoleSignal, FALSE);
+  if (auto stopped = server->Stop(rionetlite::StopMode::kGraceful); !stopped) {
+    std::cerr << "stop failed: " << stopped.error().message << '\n';
+    return 5;
   }
-  config.session_cfg_.max_recv_packet_size_ = *max_recv_packet_size;
-
-  const auto max_try_1recv_buffer_size =
-      args.get<UINT16>("MaxTry1RecvBufferSize");
-  if (!max_try_1recv_buffer_size) {
-    std::cerr << "No MaxTry1RecvBufferSize. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_try_1recv_buffer_size = *max_try_1recv_buffer_size;
-
-  const auto max_recv_count_per_1sec = args.get<UINT16>("MAXRecvCountPer1Sec");
-  if (!max_recv_count_per_1sec) {
-    std::cerr << "No MAXRecvCountPer1Sec. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_recv_count_per_1sec_ = *max_recv_count_per_1sec;
-
-  const auto max_recv_buffer_size = args.get<UINT16>("MaxRecvBufferSize");
-  if (!max_recv_buffer_size) {
-    std::cerr << "No MaxRecvBufferSize. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_recv_buffer_size_ = *max_recv_buffer_size;
-
-  const auto max_send_packet_size = args.get<UINT16>("MaxSendPacketSize");
-  if (!max_send_packet_size) {
-    std::cerr << "No MaxSendPacketSize. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_send_packet_size_ = *max_send_packet_size;
-
-  const auto max_send_count_per_1sec = args.get<UINT16>("MAXSendCountPer1Sec");
-  if (!max_send_count_per_1sec) {
-    std::cerr << "No MAXSendCountPer1Sec. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_send_count_per_1sec_ = *max_send_count_per_1sec;
-
-  const auto max_send_buffer_size = args.get<UINT16>("MaxSendBufferSize");
-  if (!max_send_buffer_size) {
-    std::cerr << "No MaxSendBufferSize. :(" << std::endl;
-    return config;
-  }
-  config.session_cfg_.max_send_buffer_size_ = *max_send_buffer_size;
-
-  return config;
+  return 0;
 }
