@@ -177,6 +177,12 @@ void DoubleMappedBuffer::Reset() noexcept {
   size_ = 0;
 }
 
+void DoubleMappedBuffer::Release() noexcept {
+  first_view_ = nullptr;
+  second_view_ = nullptr;
+  size_ = 0;
+}
+
 RegisteredRioBuffer::RegisteredRioBuffer(RegisteredRioBuffer&& other) noexcept
     : rio_(std::exchange(other.rio_, nullptr)),
       id_(std::exchange(other.id_, RIO_INVALID_BUFFERID)),
@@ -229,6 +235,12 @@ bool RegisteredRioBuffer::Reset() noexcept {
   return true;
 }
 
+void RegisteredRioBuffer::Release() noexcept {
+  id_ = RIO_INVALID_BUFFERID;
+  rio_ = nullptr;
+  outstanding_.store(0, std::memory_order_release);
+}
+
 void RegisteredRioBuffer::AddOutstanding() noexcept {
   outstanding_.fetch_add(1, std::memory_order_acq_rel);
 }
@@ -265,6 +277,11 @@ void UniqueRioCompletionQueue::Reset() noexcept {
     queue_ = RIO_INVALID_CQ;
     rio_ = nullptr;
   }
+}
+
+void UniqueRioCompletionQueue::Release() noexcept {
+  queue_ = RIO_INVALID_CQ;
+  rio_ = nullptr;
 }
 
 }  // namespace rionetlite::detail

@@ -94,6 +94,8 @@ std::string_view ToString(const CloseReason reason) noexcept {
       return "server_stopping";
     case CloseReason::kOverloaded:
       return "overloaded";
+    case CloseReason::kIdleTimeout:
+      return "idle_timeout";
     case CloseReason::kInternalError:
       return "internal_error";
   }

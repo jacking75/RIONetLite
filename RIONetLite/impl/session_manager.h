@@ -32,9 +32,12 @@ class SessionManager {
   bool PrepareSessionPool(NetConfig net_cfg, detail::RioApi& rio_api) {
     std::uint32_t client_index = 0;
     auto rioThreadCount = net_cfg.io_work_thread_count_;
+    worker_partitions_.clear();
+    worker_partitions_.reserve(static_cast<std::size_t>(rioThreadCount));
     for (decltype(rioThreadCount) i = 0; i < rioThreadCount; ++i) {
       const auto partition = detail::PartitionSessions(
           net_cfg.max_session_count_, rioThreadCount, i);
+      worker_partitions_.push_back(partition);
       for (std::uint32_t j = 0; j < partition.count; ++j) {
         auto client = std::make_unique<TcpSession>(client_index, i);
 
@@ -45,8 +48,6 @@ class SessionManager {
         }
 
         sessions_.push_back(std::move(client));
-        free_session_indexs_.emplace_back(
-            SessionIndexContext{.index_ = client_index});
         pool_states_.push_back(SessionPoolState::kFree);
 
         ++client_index;
@@ -54,6 +55,7 @@ class SessionManager {
     }
 
     max_session_count_ = client_index;
+    BuildInterleavedFreeList();
     return true;
   }
 
@@ -71,6 +73,7 @@ class SessionManager {
     free_session_indexs_.clear();
     quarantined_session_indexs_.clear();
     pool_states_.clear();
+    worker_partitions_.clear();
     max_session_count_ = 0;
   }
 
@@ -182,10 +185,47 @@ class SessionManager {
     return total;
   }
 
-  void AbandonOutstanding() noexcept {
+  // 종료 대기 루프용 조건이다. 첫 활성 세션에서 즉시 반환하므로 세션 수가 큰
+  // 구성에서도 매 반복 전체 풀을 합산하지 않는다.
+  [[nodiscard]] bool AnyOutstandingOrActive() const noexcept {
     for (const auto& session : sessions_) {
-      session->AbandonOutstanding();
+      if (session->Outstanding() != 0 || session->HasOpenSocket()) {
+        return true;
+      }
     }
+    return false;
+  }
+
+  [[nodiscard]] bool AnyOutstanding() const noexcept {
+    for (const auto& session : sessions_) {
+      if (session->Outstanding() != 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 종료 타임아웃 경로에서 커널이 미완료 요청을 취소하도록 소켓만 먼저 닫는다.
+  void AbortAllSockets() noexcept {
+    for (const auto& session : sessions_) {
+      session->AbortSocket();
+    }
+  }
+
+  // 드레인에 실패한 경우에만 사용한다. 커널이 여전히 참조할 수 있는 등록
+  // 버퍼와 매핑을 해제하지 않고 소유권만 포기해 use-after-free를 막는다.
+  void LeakRegisteredResources() noexcept {
+    for (const auto& session : sessions_) {
+      session->LeakRegisteredResources();
+    }
+  }
+
+  [[nodiscard]] detail::SessionPartition WorkerPartition(
+      const std::uint32_t worker_index) const noexcept {
+    if (worker_index >= worker_partitions_.size()) {
+      return {};
+    }
+    return worker_partitions_[worker_index];
   }
 
   NetErrorCode SendData(const std::int32_t session_index,
@@ -203,6 +243,24 @@ class SessionManager {
     return session->PostSend(session_uid, data_size, p_data);
   }
 
+  NetErrorCode SendData(const std::int32_t session_index,
+                        const std::uint64_t session_uid,
+                        const std::uint32_t header_size, const char* p_header,
+                        const std::uint32_t payload_size,
+                        const char* p_payload) {
+    auto session = GetSessionObj(session_index, session_uid);
+    if (session == nullptr) {
+      return NetErrorCode::kSEND_INVALID_SESSION;
+    }
+
+    if (session->IsEnableNetwork() == false) {
+      return NetErrorCode::kSEND_SESSION_NETWORK_DISABLE;
+    }
+
+    return session->PostSend(session_uid, header_size, p_header, payload_size,
+                             p_payload);
+  }
+
   int ForcedClose(const std::int32_t session_index,
                   const std::uint64_t session_uid) {
     auto session = GetSessionObj(session_index, session_uid);
@@ -217,12 +275,32 @@ class SessionManager {
   }
 
  private:
+  // 초기 free list를 worker 파티션 순서대로 채우면 기동 직후의 첫 접속들이
+  // 모두 worker 0에 배정된다. 라운드로빈으로 섞어 cold-start 편중을 없앤다.
+  void BuildInterleavedFreeList() {
+    free_session_indexs_.clear();
+    for (std::uint32_t offset = 0;; ++offset) {
+      bool pushed = false;
+      for (const auto& partition : worker_partitions_) {
+        if (offset < partition.count) {
+          free_session_indexs_.emplace_back(
+              SessionIndexContext{.index_ = partition.first_index + offset});
+          pushed = true;
+        }
+      }
+      if (!pushed) {
+        break;
+      }
+    }
+  }
+
   FastSpinlock lock_;
 
   std::uint32_t max_session_count_ = 0;
   std::deque<SessionIndexContext> free_session_indexs_;
   std::deque<SessionIndexContext> quarantined_session_indexs_;
   std::vector<SessionPoolState> pool_states_;
+  std::vector<detail::SessionPartition> worker_partitions_;
   std::vector<std::unique_ptr<TcpSession>> sessions_;
 };
 

@@ -44,9 +44,10 @@ class ServerNetIOWorker {
     adaptive_spin_count_ = config.adaptive_spin_count_;
     worker_wait_mode_ = config.worker_wait_mode_;
     enable_thread_affinity_ = config.enable_thread_affinity_;
+    idle_timeout_ms_ = config.idle_timeout_ms_;
     PrepareAffinityTargets();
     pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(
-        config.io_work_thread_count_);
+        config.io_work_thread_count_, config.peer_close_drain_timeout_ms_);
 
     rio_completion_queues.reserve(config.io_work_thread_count_);
     notification_events_.reserve(config.io_work_thread_count_);
@@ -138,10 +139,10 @@ class ServerNetIOWorker {
     std::vector<RIORESULT> results(completion_batch_size_);
     std::uint32_t empty_polls = 0;
     bool notification_armed = false;
+    std::uint64_t next_idle_sweep_ms = GetTickCount64() + kIdleSweepIntervalMs;
 
     while (is_run_.load(std::memory_order_acquire) ||
-           pref_session_mgr_->Outstanding() != 0 ||
-           pref_session_mgr_->ActiveCount() != 0) {
+           pref_session_mgr_->AnyOutstandingOrActive()) {
       if (!is_run_.load(std::memory_order_acquire) && ShutdownTimedOut()) {
         timed_out_.store(true, std::memory_order_release);
         break;
@@ -169,6 +170,13 @@ class ServerNetIOWorker {
 
       pref_lazyed_dis_conn_mgr_->ProcessLazyedDisConnectSession(
           thread_index, pref_session_mgr_);
+
+      if (idle_timeout_ms_ != 0) {
+        if (const auto now = GetTickCount64(); now >= next_idle_sweep_ms) {
+          SweepIdleSessions(thread_index, now);
+          next_idle_sweep_ms = now + kIdleSweepIntervalMs;
+        }
+      }
 
       if (0 == numResults) {
         WaitForWork(empty_polls, notification_armed, rio_completion_queues,
@@ -244,13 +252,44 @@ class ServerNetIOWorker {
       }
 
     } else if (IOType::kRECV == p_context->io_type_) {
-      if (!RecvCompletion(worker, p_session, transferred)) {
+      // 종료가 먼저 관찰된 세션의 지연 완료다. OnClose 뒤에 OnData를 전달하지
+      // 않도록 콜백 없이 요청만 정리한다.
+      if (!p_session->IsConnected()) {
+        p_session->RecvFailed();
+        return;
+      }
+
+      if (!p_session->RecvCompletion(transferred)) {
+        pref_net_event_mgr_->OnTransportError(
+            worker, p_session->GetIndex(), cq_session_uid,
+            "receive_completion_length", transferred);
         DisConnectFunc(p_session, cq_session_uid,
                        DisconnectReason::kPROTOCOL_ERROR);
         return;
       }
 
-      PostRecv(cq_session_uid, p_session);
+      // 콜백이 도는 동안에도 커널이 수신할 수 있도록 여유가 있으면 다음 수신을
+      // 먼저 게시한다. 커널이 쓰는 구간과 콜백이 읽는 구간은 링에서 서로
+      // 겹치지 않는다.
+      bool posted = false;
+      if (const auto result = p_session->PostRecv();
+          result == NetErrorCode::kNONE) {
+        posted = true;
+      } else if (result != NetErrorCode::kRECV_BUFFER_FULL) {
+        DisConnectFunc(p_session, cq_session_uid,
+                       DisconnectReason::kIO_REQUEST_RECV_ERROR);
+        return;
+      }
+
+      if (!InvokeReceiveCallback(worker, p_session)) {
+        DisConnectFunc(p_session, cq_session_uid,
+                       DisconnectReason::kPROTOCOL_ERROR);
+        return;
+      }
+
+      if (!posted) {
+        PostRecv(cq_session_uid, p_session);
+      }
 
     } else if (IOType::kSEND == p_context->io_type_) {
       if (!p_session->SendCompletion(p_context, transferred)) {
@@ -266,15 +305,7 @@ class ServerNetIOWorker {
   // 받기 버퍼의 읽은 위치도 여기서 이동 시키므로 링버퍼의 데이터가 겹치는 것을
   // 막고 싶으면 애플리케이션에서 OnReceive의 데이터를 다 사용할 때까지 잘
   // 보관해야 한다.
-  bool RecvCompletion(const int worker, TcpSession* p_session,
-                      const std::uint32_t transferred) {
-    if (!p_session->RecvCompletion(transferred)) {
-      pref_net_event_mgr_->OnTransportError(
-          worker, p_session->GetIndex(), p_session->GetUID(),
-          "receive_completion_length", transferred);
-      return false;
-    }
-
+  bool InvokeReceiveCallback(const int worker, TcpSession* p_session) {
     auto [readSize, pReadData] = p_session->ReadRecvBuffer();
     auto usedSize = pref_net_event_mgr_->OnReceive(
         p_session->GetIndex(), p_session->GetUID(), readSize, pReadData);
@@ -300,6 +331,26 @@ class ServerNetIOWorker {
     }
 
     return true;
+  }
+
+  // 자기 파티션의 세션만 약 1초 주기로 훑는다. 무통신 상태로 사라진 피어가
+  // 세션 슬롯과 등록 버퍼를 영구히 점유하는 것을 막는다.
+  void SweepIdleSessions(const int thread_index, const std::uint64_t now_ms) {
+    const auto partition = pref_session_mgr_->WorkerPartition(
+        static_cast<std::uint32_t>(thread_index));
+    for (std::uint32_t offset = 0; offset < partition.count; ++offset) {
+      const std::uint32_t index = partition.first_index + offset;
+      auto* session = pref_session_mgr_->GetSessionObj(index);
+      if (session == nullptr || !session->IsConnected() ||
+          !session->IsIdleFor(now_ms, idle_timeout_ms_)) {
+        continue;
+      }
+      const auto uid = session->GetUID();
+      session->SetDisableNetwork();
+      pref_lazyed_dis_conn_mgr_->AddSession(
+          thread_index, static_cast<std::int32_t>(index), uid,
+          DisconnectReason::kIDLE_TIMEOUT);
+    }
   }
 
   void WaitForWork(std::uint32_t& empty_polls, bool& notification_armed,
@@ -401,12 +452,15 @@ class ServerNetIOWorker {
     return now >= deadline;
   }
 
+  static constexpr std::uint64_t kIdleSweepIntervalMs = 1000;
+
   std::atomic<bool> is_run_{false};
   std::atomic<bool> timed_out_{false};
   std::atomic<bool> corrupt_completion_queue_{false};
   std::atomic<std::int64_t> shutdown_deadline_ns_{0};
   std::uint32_t completion_batch_size_ = 64;
   std::uint32_t adaptive_spin_count_ = 128;
+  std::uint32_t idle_timeout_ms_ = 0;
   std::uint8_t worker_wait_mode_ = 1;
   bool enable_thread_affinity_ = false;
 

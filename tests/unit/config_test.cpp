@@ -16,7 +16,6 @@ ServerConfig ValidConfig() {
   config.receive_buffer_bytes = 64 * 1024;
   config.max_message_bytes = 16 * 1024;
   config.send_buffer_bytes = 128 * 1024;
-  config.max_outstanding_sends_per_session = 8;
   config.completion_batch_size = 64;
   return config;
 }
@@ -25,7 +24,8 @@ TEST(ConfigValidationTest, AcceptsNonDivisibleSessionCount) {
   auto validated = ValidateServerConfig(ValidConfig());
   ASSERT_TRUE(validated.has_value());
   EXPECT_EQ(validated->max_sessions_per_worker, 65U);
-  EXPECT_EQ(validated->completion_queue_capacity, 585U);
+  // 세션당 in-flight 요청은 수신 1개와 송신 1개다.
+  EXPECT_EQ(validated->completion_queue_capacity, 130U);
 }
 
 TEST(ConfigValidationTest, RejectsZeroWorkerCountBeforeDivision) {
@@ -86,21 +86,45 @@ TEST(ConfigValidationTest, PreservesMetricsOptOut) {
   EXPECT_FALSE(result->value.enable_metrics);
 }
 
-TEST(ConfigValidationTest, RejectsImpossibleAggregateBudgetBeforeAllocation) {
+TEST(ConfigValidationTest, RejectsCompletionQueueCapacityAboveRioLimit) {
   ServerConfig config;
   config.port = 32452;
-  config.io_worker_count = 256;
+  config.io_worker_count = 1;
   config.max_sessions =
       static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
   config.receive_buffer_bytes = 4096;
-  config.send_buffer_bytes = 1024U * 1024U * 1024U;
+  config.send_buffer_bytes = 4096;
   config.max_receive_chunk_bytes = 1;
   config.max_message_bytes = 1;
-  config.max_outstanding_sends_per_session = 1024U * 1024U * 1024U;
 
   const auto result = ValidateServerConfig(config);
   ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().field, "max_outstanding_sends_per_session");
+  EXPECT_EQ(result.error().field, "max_sessions");
+}
+
+TEST(ConfigValidationTest, RejectsIdleTimeoutBelowTheSweepInterval) {
+  auto config = ValidConfig();
+  config.idle_timeout_ms = 999;
+  const auto result = ValidateServerConfig(config);
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().field, "idle_timeout_ms");
+}
+
+TEST(ConfigValidationTest, RejectsZeroPeerCloseDrainTimeout) {
+  auto config = ValidConfig();
+  config.peer_close_drain_timeout_ms = 0;
+  const auto result = ValidateServerConfig(config);
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().field, "peer_close_drain_timeout_ms");
+}
+
+TEST(ConfigValidationTest, RejectsKeepaliveWithoutInterval) {
+  auto config = ValidConfig();
+  config.keepalive_time_ms = 30'000;
+  config.keepalive_interval_ms = 0;
+  const auto result = ValidateServerConfig(config);
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().field, "keepalive_interval_ms");
 }
 
 }  // namespace

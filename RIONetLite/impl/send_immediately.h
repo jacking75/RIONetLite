@@ -7,14 +7,20 @@
 #include "ring_buffer.h"
 #include "rio_context.h"
 
-#include <cstddef>
+#include <atomic>
 #include <cstdint>
-#include <cstring>
-#include <memory>
-#include <thread>
-#include <vector>
+#include <tuple>
 
 namespace rionetlite {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
+
+// 세션당 in-flight 송신 요청을 1개로 고정하고, 애플리케이션이 쌓은 바이트를
+// 완료 시점에 하나의 RIO_BUF로 묶어 다시 게시한다. 링이 double-mapped라
+// wrap 구간도 연속 주소로 게시할 수 있어 추가 복사가 없다. 배압은 슬롯 수가
+// 아니라 링에 남은 바이트로 판정한다.
 class SendImmediately {
  public:
   SendImmediately() = default;
@@ -27,19 +33,15 @@ class SendImmediately {
     rio_api_ = &rio_api;
     session_index_ = session_index;
     max_send_packet_size_ = net_cfg.max_send_packet_size_;
-    max_send_count_per_1sec_ = net_cfg.max_send_count_per_1sec_;
     max_send_ring_buffer_size_ = net_cfg.max_send_buffer_size_;
 
     if (const auto create_result =
-            send_buffer_.Create(true, max_send_ring_buffer_size_);
+            send_buffer_.Create(max_send_ring_buffer_size_);
         std::get<0>(create_result) != static_cast<int>(NetErrorCode::kNONE)) {
       return false;
     }
 
-    send_contexts_.resize(max_send_count_per_1sec_);
-    for (auto& context : send_contexts_) {
-      context.Init(session_index_, IOType::kSEND, owner_worker);
-    }
+    send_context_.Init(session_index_, IOType::kSEND, owner_worker);
 
     if (!send_rio_buffer_.Register(*rio_api_, send_buffer_.GetBuffer(),
                                    send_buffer_.RegisteredSpanSize())) {
@@ -54,8 +56,6 @@ class SendImmediately {
   void Dispose() {
     BeginClose();
     static_cast<void>(send_rio_buffer_.Reset());
-
-    send_contexts_.clear();
   }
 
   void OnConnect(RIO_RQ request_queue, const std::uint64_t session_uid) {
@@ -80,11 +80,81 @@ class SendImmediately {
 
   NetErrorCode PostSend(const std::uint64_t session_uid,
                         const std::uint32_t data_size, const char* p_data) {
-    if (data_size == 0 ||
-        data_size > static_cast<std::uint32_t>(max_send_packet_size_)) {
+    return PostSendScatter(session_uid, data_size, p_data, 0, nullptr);
+  }
+
+  NetErrorCode PostSend(const std::uint64_t session_uid,
+                        const std::uint32_t header_size, const char* p_header,
+                        const std::uint32_t payload_size,
+                        const char* p_payload) {
+    return PostSendScatter(session_uid, header_size, p_header, payload_size,
+                           p_payload);
+  }
+
+  bool Completed(RioIoContext* send_context, const std::uint32_t transferred) {
+    {
+      FastSpinlockGuard guard(lock_);
+      if (send_context != &send_context_ ||
+          !send_context_.CompleteSend(transferred)) {
+        FailUnlocked();
+        return false;
+      }
+      send_context_.Retire();
+      send_rio_buffer_.CompleteOutstanding();
+      in_flight_ = false;
+      send_buffer_.IncremantReadPos(transferred);
+
+      if (send_buffer_.GetUsedSize() == 0 ||
+          !accepting_posts_.load(std::memory_order_acquire)) {
+        return true;
+      }
+      if (!PreparePostLocked()) {
+        return false;
+      }
+    }
+    return IssuePost() == NetErrorCode::kNONE;
+  }
+
+  void Failed(RioIoContext* send_context) {
+    FastSpinlockGuard guard(lock_);
+    if (send_context != nullptr && send_context != &send_context_) {
+      return;
+    }
+    FailUnlocked();
+  }
+
+  std::uint32_t Outstanding() const noexcept {
+    return send_rio_buffer_.outstanding();
+  }
+
+  // 종료 타임아웃처럼 완료를 더 이상 기대할 수 없는 경로에서만 사용한다.
+  void AbandonOutstanding() noexcept {
+    BeginClose();
+    FastSpinlockGuard guard(lock_);
+    send_context_.Fail();
+    in_flight_ = false;
+    send_rio_buffer_.AbandonOutstanding();
+  }
+
+  void LeakRegisteredResources() noexcept {
+    send_rio_buffer_.Release();
+    send_buffer_.ReleaseStorage();
+  }
+
+ private:
+  NetErrorCode PostSendScatter(const std::uint64_t session_uid,
+                               const std::uint32_t first_size,
+                               const char* p_first,
+                               const std::uint32_t second_size,
+                               const char* p_second) {
+    const std::uint64_t total = static_cast<std::uint64_t>(first_size) +
+                                static_cast<std::uint64_t>(second_size);
+    if (total == 0 ||
+        total > static_cast<std::uint64_t>(max_send_packet_size_)) {
       return NetErrorCode::kSEND_MESSAGE_TOO_LARGE;
     }
-    RioIoContext* send_context = nullptr;
+    const auto total_size = static_cast<std::uint32_t>(total);
+
     {
       FastSpinlockGuard guard(lock_);
       if (!accepting_posts_.load(std::memory_order_acquire)) {
@@ -93,108 +163,74 @@ class SendImmediately {
       if (session_uid == 0 || session_uid != active_session_uid_) {
         return NetErrorCode::kSEND_INVALID_SESSION;
       }
-      std::size_t current_position = 0;
-      for (std::size_t offset = 0; offset < send_contexts_.size(); ++offset) {
-        current_position = (send_sequence_ + offset) % send_contexts_.size();
-        if (send_contexts_[current_position].IsIdle()) {
-          send_context = &send_contexts_[current_position];
-          send_sequence_ = current_position + 1;
-          break;
-        }
+      if (send_buffer_.GetWritableSize() < total_size) {
+        return NetErrorCode::kSEND_THREAD_BUFFER_FULL;
       }
-      if (send_context == nullptr) {
+      if (first_size != 0 &&
+          send_buffer_.Write(first_size, p_first) == nullptr) {
+        return NetErrorCode::kSEND_THREAD_BUFFER_FULL;
+      }
+      if (second_size != 0 &&
+          send_buffer_.Write(second_size, p_second) == nullptr) {
         return NetErrorCode::kSEND_THREAD_BUFFER_FULL;
       }
 
-      const auto writable_position = static_cast<std::uint32_t>(
-          current_position * static_cast<std::size_t>(max_send_packet_size_));
-      std::memcpy(send_buffer_.GetBuffer() + writable_position, p_data,
-                  data_size);
-
-      if (!send_context->BeginRequest(session_uid, send_rio_buffer_.get(),
-                                      writable_position, data_size,
-                                      send_buffer_.RegisteredSpanSize())) {
-        return NetErrorCode::kSEND_THREAD_BUFFER_FULL;
+      // 이미 요청이 진행 중이면 완료 처리가 이어서 게시한다.
+      if (in_flight_) {
+        return NetErrorCode::kNONE;
       }
-      send_rio_buffer_.AddOutstanding();
-      posts_in_flight_.fetch_add(1, std::memory_order_acq_rel);
+      if (!PreparePostLocked()) {
+        return NetErrorCode::kSEND_IO_FAIL;
+      }
     }
 
-    if (!rio_api_->Send(rio_rq_, reinterpret_cast<PRIO_BUF>(send_context), 1, 0,
-                        send_context)) {
-      FinishPost();
-      Failed(send_context);
-      return NetErrorCode::kSEND_IO_FAIL;
-    }
-    FinishPost();
-
-    return NetErrorCode::kNONE;
+    return IssuePost();
   }
 
-  bool Completed(RioIoContext* send_context, const std::uint32_t transferred) {
-    {
-      FastSpinlockGuard guard(lock_);
-      if (!send_context->CompleteSend(transferred)) {
-        FailUnlocked(send_context);
-        return false;
-      }
-      if (send_context->IsIdle()) {
-        send_rio_buffer_.CompleteOutstanding();
-        return true;
-      }
-      if (!accepting_posts_.load(std::memory_order_acquire)) {
-        FailUnlocked(send_context);
-        return false;
-      }
-      posts_in_flight_.fetch_add(1, std::memory_order_acq_rel);
-    }
-    const bool posted = rio_api_->Send(
-        rio_rq_, reinterpret_cast<PRIO_BUF>(send_context), 1, 0, send_context);
-    FinishPost();
-    if (!posted) {
-      Failed(send_context);
+  // lock을 보유한 상태에서 링에 쌓인 전체 구간을 하나의 요청으로 준비한다.
+  bool PreparePostLocked() {
+    if (!send_context_.BeginRequest(active_session_uid_, send_rio_buffer_.get(),
+                                    send_buffer_.GetReadPos(),
+                                    send_buffer_.GetUsedSize(),
+                                    send_buffer_.RegisteredSpanSize())) {
       return false;
     }
+    send_rio_buffer_.AddOutstanding();
+    in_flight_ = true;
+    posts_in_flight_.fetch_add(1, std::memory_order_acq_rel);
     return true;
   }
 
-  void Failed(RioIoContext* send_context) {
-    FastSpinlockGuard guard(lock_);
-    FailUnlocked(send_context);
-  }
-
-  std::uint32_t Outstanding() const noexcept {
-    return send_rio_buffer_.outstanding();
-  }
-
-  void AbandonOutstanding() noexcept {
-    BeginClose();
-    FastSpinlockGuard guard(lock_);
-    for (auto& context : send_contexts_) {
-      context.Fail();
+  // syscall을 lock 밖에서 수행한다. posts_in_flight_가 rio_rq_ 수명을 보호한다.
+  NetErrorCode IssuePost() {
+    const bool posted =
+        rio_api_->Send(rio_rq_, reinterpret_cast<PRIO_BUF>(&send_context_), 1,
+                       0, &send_context_);
+    FinishPost();
+    if (!posted) {
+      Failed(&send_context_);
+      return NetErrorCode::kSEND_IO_FAIL;
     }
-    send_rio_buffer_.AbandonOutstanding();
+    return NetErrorCode::kNONE;
   }
 
- private:
   void Clear() {
     FastSpinlockGuard guard(lock_);
     ClearUnlocked();
   }
 
   void ClearUnlocked() {
-    for (auto& context : send_contexts_) {
-      context.Fail();
-    }
-
+    send_context_.Fail();
+    in_flight_ = false;
     send_buffer_.Clear();
   }
 
-  void FailUnlocked(RioIoContext* send_context) noexcept {
-    if (!send_context->IsIdle()) {
-      send_context->Fail();
+  void FailUnlocked() noexcept {
+    if (!send_context_.IsIdle()) {
+      send_context_.Fail();
       send_rio_buffer_.CompleteOutstanding();
     }
+    in_flight_ = false;
   }
 
   void FinishPost() noexcept {
@@ -205,12 +241,11 @@ class SendImmediately {
 
   std::int32_t session_index_ = 0;
   std::int32_t max_send_packet_size_ = 0;
-  std::uint64_t max_send_count_per_1sec_ = 0;
   std::int32_t max_send_ring_buffer_size_ = 0;
 
-  std::uint64_t send_sequence_ = 0;
   std::uint64_t active_session_uid_ = 0;
-  std::vector<RioIoContext> send_contexts_;
+  bool in_flight_ = false;
+  RioIoContext send_context_{};
 
   RIO_RQ rio_rq_ = RIO_INVALID_RQ;
   RingBufferVA2 send_buffer_;
@@ -220,5 +255,9 @@ class SendImmediately {
   std::atomic<bool> accepting_posts_{false};
   std::atomic<std::uint32_t> posts_in_flight_{0};
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace rionetlite

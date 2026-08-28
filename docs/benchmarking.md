@@ -6,7 +6,7 @@ Latency(32/128 B), throughput(1/4/16 KiB), fan-in, burst, slow consumer, churn�
 
 LoadClient JSON의 `data_errors`, `dropped_packets`, `timeouts`가 모두 0인 결과만 사용한다. 정상 응답 시나리오는 측정 종료 뒤 최대 5초 동안 진행 중 왕복을 drain하므로 종료 경계의 미수신 패킷도 성공으로 숨기지 않는다.
 
-고정 장비의 승인된 `aggregate.csv`를 기준선으로 보관한 뒤 `-BaselineCsv <path>`를 지정하면 같은 case/wait/batch/observability를 비교한다. 기준 디렉터리에는 `approval.json`과 `environment.json`이 함께 있어야 하며 현재 컴퓨터명, CPU, 논리 코어 수와 측정 조건이 모두 일치해야 실행된다. 0.2.x 기준은 `benchmarks/baselines/heungbae-1-vs2026/`다. 기본 실패 조건은 처리량 중앙값 5% 초과 하락 또는 P99 중앙값 10% 초과 증가이며 `regression.csv`를 남긴다.
+고정 장비의 승인된 `aggregate.csv`를 기준선으로 보관한 뒤 `-BaselineCsv <path>`를 지정하면 같은 case/wait/batch/observability를 비교한다. 기준 디렉터리에는 `approval.json`과 `environment.json`이 함께 있어야 하며 현재 컴퓨터명, CPU, 논리 코어 수와 측정 조건이 모두 일치해야 실행된다. 0.2.x 기준은 `benchmarks/baselines/heungbae-1-vs2026/`다. 0.3.0의 송신 경로 변경으로 이 기준선과는 직접 비교하지 않는다. 기본 실패 조건은 처리량 중앙값 5% 초과 하락 또는 P99 중앙값 10% 초과 증가이며 `regression.csv`를 남긴다.
 
 하네스는 각 측정 중 `\Thread(EchoServer*)\Context Switches/sec`를 1초마다 표본화한다. `summary.csv`에는 실행별 평균·최댓값·표본 수, `aggregate.csv`에는 중앙값을 기록하므로 관리자 권한이 없는 장비에서도 wait mode 비교가 가능하다. `-CaptureEtw`는 추가로 WPR CPU file-mode trace를 `cpu-context-switches.etl`로 저장하며, 스레드별 스케줄링 원인 분석용이다. WPR 시스템 성능 프로파일 정책이 허용된 관리자 또는 CI 계정이 필요하다. 2026-08-27 로컬 실행에서는 정책 오류 `0xc5585011`로 ETW trace 시작이 거부됐지만 성능 카운터 계측은 정상 동작했다.
 

@@ -10,6 +10,7 @@
 #include "server_net_lazyed_dis_conn_manager.h"
 #include "session_manager.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -65,9 +66,8 @@ class ServerNetManagerImpl {
     if (!io_worker_.StartIoThreads(net_config_, rio_completion_queues_)) {
       return NetErrorCode::kIO_THREAD_START_FAIL;
     }
-    if (!accepter_.Start(net_config_.session_cfg_, listen_socket_,
-                         rio_completion_queues_, session_mgr_, net_event_mgr_,
-                         rio_api_)) {
+    if (!accepter_.Start(listen_socket_, rio_completion_queues_, session_mgr_,
+                         net_event_mgr_, rio_api_)) {
       static_cast<void>(
           io_worker_.Stop(net_config_.graceful_shutdown_timeout_ms_));
       rio_completion_queues_.clear();
@@ -103,16 +103,16 @@ class ServerNetManagerImpl {
       }
       drained_ = io_worker_.Stop(timeout_ms);
       corrupt_completion_queue_ = io_worker_.corrupt_completion_queue();
-      remaining_outstanding_ = session_mgr_.Outstanding();
-      remaining_active_sessions_ = session_mgr_.ActiveCount();
+      if (!drained_ || corrupt_completion_queue_) {
+        ForceDrainAfterTimeout();
+      } else {
+        remaining_outstanding_ = session_mgr_.Outstanding();
+        remaining_active_sessions_ = session_mgr_.ActiveCount();
+      }
     } else {
       listen_socket_.Reset();
     }
 
-    if (!drained_) {
-      rio_completion_queues_.clear();
-      session_mgr_.AbandonOutstanding();
-    }
     session_mgr_.Dispose();
     rio_completion_queues_.clear();
     winsock_runtime_.Reset();
@@ -141,7 +141,28 @@ class ServerNetManagerImpl {
                                          p_data);
         ret != NetErrorCode::kNONE) {
       if (ret == NetErrorCode::kSEND_IO_FAIL) {
-        ForcedClose(session_index, DisconnectReason::kSEND_ERROR);
+        // 세대를 함께 전달해야 실패와 종료 사이에 슬롯이 재사용된 경우
+        // 새 세션을 끊지 않는다.
+        static_cast<void>(ForcedClose(session_index, session_uid,
+                                      DisconnectReason::kSEND_ERROR));
+      }
+      return ret;
+    }
+    return NetErrorCode::kNONE;
+  }
+
+  NetErrorCode SendData(const std::int32_t session_index,
+                        const std::uint64_t session_uid,
+                        const std::uint32_t header_size, const char* p_header,
+                        const std::uint32_t payload_size,
+                        const char* p_payload) {
+    if (auto ret =
+            session_mgr_.SendData(session_index, session_uid, header_size,
+                                  p_header, payload_size, p_payload);
+        ret != NetErrorCode::kNONE) {
+      if (ret == NetErrorCode::kSEND_IO_FAIL) {
+        static_cast<void>(ForcedClose(session_index, session_uid,
+                                      DisconnectReason::kSEND_ERROR));
       }
       return ret;
     }
@@ -163,6 +184,70 @@ class ServerNetManagerImpl {
   }
 
  private:
+  // worker가 시간 안에 드레인하지 못했을 때의 안전한 회수 순서다. 소켓을 먼저
+  // 닫아 커널이 미완료 요청을 취소하게 하고, 취소 완료를 이 스레드에서 짧게
+  // 드레인한다. 그래도 남으면 커널이 참조 중인 등록 버퍼·매핑·CQ를 해제하지
+  // 않고 의도적으로 누수시켜 use-after-free를 막는다.
+  void ForceDrainAfterTimeout() {
+    session_mgr_.AbortAllSockets();
+
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(kForcedDrainTimeoutMs);
+    std::vector<RIORESULT> results(
+        std::max<std::size_t>(1, net_config_.completion_batch_size_));
+    bool corrupt = false;
+    while (!corrupt && session_mgr_.AnyOutstanding() &&
+           std::chrono::steady_clock::now() < deadline) {
+      bool progressed = false;
+      for (auto& queue : rio_completion_queues_) {
+        if (!queue) {
+          continue;
+        }
+        const ULONG count = rio_api_.DequeueCompletion(
+            queue.get(), results.data(), static_cast<ULONG>(results.size()));
+        if (count == RIO_CORRUPT_CQ) {
+          corrupt = true;
+          corrupt_completion_queue_ = true;
+          break;
+        }
+        for (ULONG index = 0; index < count; ++index) {
+          RetireCompletion(results[index]);
+        }
+        progressed = progressed || count != 0;
+      }
+      if (!progressed) {
+        std::this_thread::yield();
+      }
+    }
+
+    remaining_outstanding_ = session_mgr_.Outstanding();
+    remaining_active_sessions_ = session_mgr_.ActiveCount();
+
+    if (remaining_outstanding_ != 0) {
+      session_mgr_.LeakRegisteredResources();
+      for (auto& queue : rio_completion_queues_) {
+        queue.Release();
+      }
+    }
+  }
+
+  void RetireCompletion(const RIORESULT& result) {
+    auto* context = reinterpret_cast<RioIoContext*>(result.RequestContext);
+    if (context == nullptr) {
+      return;
+    }
+    auto* session = session_mgr_.GetSessionObj(
+        static_cast<std::uint32_t>(context->session_index_));
+    if (session == nullptr) {
+      return;
+    }
+    if (context->io_type_ == IOType::kRECV) {
+      session->RecvFailed();
+    } else if (context->io_type_ == IOType::kSEND) {
+      session->SendFailed(context);
+    }
+  }
+
   bool DisConnect(TcpSession* p_session, const std::uint64_t session_uid,
                   const DisconnectReason reason) {
     auto session_index = p_session->GetIndex();
@@ -188,16 +273,6 @@ class ServerNetManagerImpl {
     return true;
   }
 
-  void ForcedClose(const std::int32_t session_index, DisconnectReason reason) {
-    // 이 함수를 호출할 때는 절대 session_index는 유효한 값이다.
-    auto p_session = session_mgr_.GetSessionObj(session_index);
-    p_session->SetDisableNetwork();
-
-    lazyed_dis_conn_mgr_.AddSession(p_session->GetRioThreadId(),
-                                    p_session->GetIndex(), p_session->GetUID(),
-                                    reason);
-  }
-
   void SetDelegateDisConnect() {
     auto dis_connect_func = [&](TcpSession* p_session,
                                 const uint64_t session_uid,
@@ -210,6 +285,8 @@ class ServerNetManagerImpl {
   }
 
  private:
+  static constexpr std::uint32_t kForcedDrainTimeoutMs = 500;
+
   NetConfig net_config_;
 
   INetEventManager* net_event_mgr_ = nullptr;

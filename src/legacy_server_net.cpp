@@ -24,6 +24,8 @@ DisconnectReason ToLegacyReason(const CloseReason reason) noexcept {
       return DisconnectReason::kIO_REQUEST_RECV_ERROR;
     case CloseReason::kSendError:
       return DisconnectReason::kSEND_ERROR;
+    case CloseReason::kIdleTimeout:
+      return DisconnectReason::kIDLE_TIMEOUT;
     case CloseReason::kServerStopping:
     case CloseReason::kOverloaded:
     case CloseReason::kInternalError:
@@ -47,8 +49,6 @@ ServerConfig ToServerConfig(const NetConfig& source) {
                source.session_cfg_.max_send_packet_size_));
   target.send_buffer_bytes =
       static_cast<std::uint32_t>(source.session_cfg_.max_send_buffer_size_);
-  target.max_outstanding_sends_per_session =
-      static_cast<std::uint32_t>(source.session_cfg_.max_send_count_per_1sec_);
   return target;
 }
 

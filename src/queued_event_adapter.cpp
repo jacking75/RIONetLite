@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <deque>
 #include <limits>
 #include <mutex>
 #include <utility>
@@ -49,13 +50,19 @@ class QueuedEventAdapter::Impl final {
     std::size_t head = 0;
     std::size_t tail = 0;
     std::size_t count = 0;
+    // 링이 가득 차 보류된 close 이벤트의 세션 index다. 종료 이벤트를 버리면
+    // 게임 로직의 플레이어 객체가 영구히 누수되므로 드롭 대상이 아니다.
+    std::deque<std::uint32_t> parked_sessions;
   };
 
   struct SessionGate final {
     std::uint64_t generation = 0;
     std::uint64_t next_sequence = 0;
+    std::uint32_t in_ring = 0;
     bool connected = false;
     bool closed = false;
+    bool close_parked = false;
+    CloseReason parked_reason = CloseReason::kNone;
   };
 
   Impl(std::uint32_t shard_count, std::uint32_t events_per_shard,
@@ -95,7 +102,9 @@ class QueuedEventAdapter::Impl final {
     SessionGate next_gate = gate;
     switch (header.type) {
       case QueuedEventType::kConnected:
-        if (header.session.generation == 0 ||
+        // 이전 세대의 보류된 close를 소비자가 보기 전에는 새 세대를 받지
+        // 않는다. 그래야 종료 이벤트가 덮어써지지 않는다.
+        if (header.session.generation == 0 || gate.close_parked ||
             header.session.generation < gate.generation ||
             (header.session.generation == gate.generation && gate.connected)) {
           rejected.fetch_add(1, std::memory_order_relaxed);
@@ -103,6 +112,7 @@ class QueuedEventAdapter::Impl final {
         }
         next_gate = SessionGate{.generation = header.session.generation,
                                 .next_sequence = 1,
+                                .in_ring = gate.in_ring,
                                 .connected = true,
                                 .closed = false};
         break;
@@ -124,7 +134,13 @@ class QueuedEventAdapter::Impl final {
     }
     if (shard.count == shard.slots.size()) {
       if (header.type == QueuedEventType::kClosed) {
+        // 드롭하지 않고 보류한다. 이 세션의 남은 이벤트를 모두 소비한 뒤
+        // TryPop이 close를 합성해 전달한다.
+        next_gate.close_parked = true;
+        next_gate.parked_reason = header.close_reason;
         gate = next_gate;
+        shard.parked_sessions.push_back(header.session.index);
+        return true;
       }
       rejected.fetch_add(1, std::memory_order_relaxed);
       return false;
@@ -139,6 +155,7 @@ class QueuedEventAdapter::Impl final {
     }
     shard.tail = (shard.tail + 1) % shard.slots.size();
     ++shard.count;
+    ++next_gate.in_ring;
     gate = next_gate;
     const std::uint64_t current_depth =
         depth.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -246,6 +263,28 @@ PollEventResult QueuedEventAdapter::TryPop(
   }
   Impl::Shard& shard = *impl_->shards[shard_index];
   std::scoped_lock lock(shard.mutex);
+
+  // 링이 가득 차 보류됐던 close는 해당 세션의 이벤트를 모두 소비한 시점에
+  // 합성해 전달한다. 그래야 순서를 지키면서도 종료를 유실하지 않는다.
+  for (auto iterator = shard.parked_sessions.begin();
+       iterator != shard.parked_sessions.end(); ++iterator) {
+    Impl::SessionGate& gate = impl_->session_gates[*iterator];
+    if (!gate.close_parked || gate.in_ring != 0) {
+      continue;
+    }
+    header = QueuedEventHeader{
+        .type = QueuedEventType::kClosed,
+        .session = SessionId{.index = *iterator, .generation = gate.generation},
+        .close_reason = gate.parked_reason,
+        .sequence = gate.next_sequence++,
+        .payload_bytes = 0,
+    };
+    gate.close_parked = false;
+    shard.parked_sessions.erase(iterator);
+    impl_->dequeued.fetch_add(1, std::memory_order_relaxed);
+    return PollEventResult::kEvent;
+  }
+
   if (shard.count == 0) {
     return PollEventResult::kEmpty;
   }
@@ -263,6 +302,10 @@ PollEventResult QueuedEventAdapter::TryPop(
       std::chrono::duration_cast<std::chrono::nanoseconds>(wait).count());
   shard.head = (shard.head + 1) % shard.slots.size();
   --shard.count;
+  if (Impl::SessionGate& gate = impl_->session_gates[header.session.index];
+      gate.in_ring != 0) {
+    --gate.in_ring;
+  }
   impl_->depth.fetch_sub(1, std::memory_order_relaxed);
   impl_->dequeued.fetch_add(1, std::memory_order_relaxed);
   impl_->wait_total_nanoseconds.fetch_add(wait_nanoseconds,

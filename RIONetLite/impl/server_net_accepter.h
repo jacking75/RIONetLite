@@ -7,6 +7,7 @@
 #include "session_manager.h"
 #include "tcp_session.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -24,7 +25,7 @@ class Accepter {
       DisConnectFunc;
 
   bool Start(
-      SessionNetConfig net_cfg, detail::UniqueSocket& listen_socket,
+      detail::UniqueSocket& listen_socket,
       std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues,
       SessionManager& session_mgr, INetEventManager* p_net_event_mgr,
       detail::RioApi& rio_api) {
@@ -33,12 +34,10 @@ class Accepter {
     listen_socket_ = &listen_socket;
     is_run_.store(true, std::memory_order_release);
     try {
-      work_thread_ =
-          std::thread([net_cfg, &listen_socket, &rio_completion_queues,
-                       &session_mgr, p_net_event_mgr, this]() {
-            Run(net_cfg, listen_socket, rio_completion_queues, session_mgr,
-                p_net_event_mgr);
-          });
+      work_thread_ = std::thread([&listen_socket, &rio_completion_queues,
+                                  &session_mgr, p_net_event_mgr, this]() {
+        Run(listen_socket, rio_completion_queues, session_mgr, p_net_event_mgr);
+      });
     } catch (...) {
       is_run_.store(false, std::memory_order_release);
       listen_socket_ = nullptr;
@@ -47,18 +46,24 @@ class Accepter {
     return true;
   }
 
-  void Run(SessionNetConfig net_cfg, detail::UniqueSocket& listen_socket,
+  void Run(detail::UniqueSocket& listen_socket,
            std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues,
            SessionManager& session_mgr, INetEventManager* net_event_mgr) {
+    // Stop이 다른 스레드에서 소켓을 닫아 blocked accept를 깨우므로 핸들 값은
+    // 루프 진입 시 한 번만 읽는다. 소켓 생성은 이 스레드만 수행한다.
+    const SOCKET listen_handle = listen_socket.get();
+    std::uint32_t consecutive_failures = 0;
+
     while (is_run_.load(std::memory_order_acquire)) {
       detail::UniqueSocket accepted_socket(
-          accept(listen_socket.get(), nullptr, nullptr));
+          accept(listen_handle, nullptr, nullptr));
       if (!accepted_socket) {
         if (!is_run_.load(std::memory_order_acquire)) {
           break;
         }
         net_event_mgr->OnRejectedConnection(
             static_cast<std::uint32_t>(WSAGetLastError()));
+        BackOff(consecutive_failures);
         continue;
       }
 
@@ -66,13 +71,14 @@ class Accepter {
       if (p_session == nullptr) {
         accepted_socket.Reset();
         net_event_mgr->OnRejectedConnection(WSAENOBUFS);
+        BackOff(consecutive_failures);
         continue;
       }
+      consecutive_failures = 0;
 
       auto thread_index = p_session->GetRioThreadId();
       auto rio_completion_queue = rio_completion_queues[thread_index].get();
       if (NewSession(std::move(accepted_socket), p_session,
-                     net_cfg.max_send_count_per_1sec_,
                      rio_completion_queue) == false) {
         continue;
       }
@@ -103,12 +109,19 @@ class Accepter {
   }
 
  private:
+  // 핸들 고갈이나 세션 풀 고갈처럼 지속되는 실패에서 accept 스레드가 CPU를
+  // 소진하고 로그를 폭주시키지 않도록 상한이 있는 지수 백오프를 적용한다.
+  void BackOff(std::uint32_t& consecutive_failures) const noexcept {
+    ++consecutive_failures;
+    Sleep(std::min<DWORD>(kMaxBackOffMs, consecutive_failures));
+  }
+
   bool NewSession(detail::UniqueSocket accepted_socket, TcpSession* p_session,
-                  int32_t max_send_count_per_1sec,
                   RIO_CQ rio_completion_queue) {
+    // 받기와 보내기 모두 세션당 in-flight 요청이 1개다. 보내기는 링에 쌓인
+    // 바이트를 하나의 RIO_BUF로 묶어 게시한다.
     if (auto rio_rq = rio_api_->CreateRequestQueue(
-            accepted_socket.get(), 1, 1,  // 받기는 연속으로 요청하지 않으므로 1
-            max_send_count_per_1sec, 1, rio_completion_queue,
+            accepted_socket.get(), 1, 1, 1, 1, rio_completion_queue,
             rio_completion_queue, nullptr);
         rio_rq != RIO_INVALID_RQ) {
       if (p_session->OnConnect(p_session->GetUID(), std::move(accepted_socket),
@@ -136,6 +149,8 @@ class Accepter {
     DisConnectFunc(p_session, 0,
                    DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR);
   }
+
+  static constexpr DWORD kMaxBackOffMs = 100;
 
   std::atomic<bool> is_run_{false};
 

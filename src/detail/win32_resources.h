@@ -86,6 +86,8 @@ class DoubleMappedBuffer final {
       std::uint32_t size) noexcept;
 
   void Reset() noexcept;
+  // 커널이 아직 참조할 수 있는 매핑을 해제하지 않고 소유권만 포기한다.
+  void Release() noexcept;
   [[nodiscard]] char* data() const noexcept {
     return static_cast<char*>(first_view_);
   }
@@ -112,6 +114,8 @@ class RegisteredRioBuffer final {
 
   bool Register(RioApi& rio, char* data, std::uint32_t size) noexcept;
   bool Reset() noexcept;
+  // 미완료 요청이 남은 상태에서 deregister 하지 않고 소유권만 포기한다.
+  void Release() noexcept;
   void AddOutstanding() noexcept;
   void CompleteOutstanding() noexcept;
   void AbandonOutstanding() noexcept;
@@ -143,6 +147,8 @@ class UniqueRioCompletionQueue final {
   ~UniqueRioCompletionQueue();
 
   void Reset() noexcept;
+  // 미완료 요청이 남은 상태에서 CQ를 닫지 않고 소유권만 포기한다.
+  void Release() noexcept;
   [[nodiscard]] RIO_CQ get() const noexcept { return queue_; }
   [[nodiscard]] explicit operator bool() const noexcept {
     return queue_ != RIO_INVALID_CQ;

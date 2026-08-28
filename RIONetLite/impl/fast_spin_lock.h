@@ -1,76 +1,42 @@
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN
-#include <mmsystem.h>
 #include <windows.h>
 
-#include <algorithm>
-
 namespace rionetlite {
-class CustomSpinLockCriticalSection {
-  const int kSPIN_LOCK_COUNT = 1000;
-
- public:
-  CustomSpinLockCriticalSection() {
-    (void)InitializeCriticalSectionAndSpinCount(&cs_lock_, kSPIN_LOCK_COUNT);
-  }
-
-  ~CustomSpinLockCriticalSection() { DeleteCriticalSection(&cs_lock_); }
-
-  void EnterLock() { EnterCriticalSection(&cs_lock_); }
-
-  void LeaveLock() { LeaveCriticalSection(&cs_lock_); }
-
- private:
-  CRITICAL_SECTION cs_lock_;
-};
-
+// 세션 송신 경로와 세션 풀이 사용하는 짧은 임계 구역용 락이다. SRWLOCK은
+// 비경합에서 인터락드 1회로 끝나고 경합 시에도 짧은 스핀 뒤 커널 대기로
+// 넘어가므로, 경합마다 타이머 해상도를 바꾸며 Sleep 하던 이전 구현과 달리
+// 지연 스파이크를 만들지 않는다. 재귀 획득은 지원하지 않는다.
 class FastSpinlock {
  public:
   FastSpinlock() = default;
   ~FastSpinlock() = default;
 
-  void EnterLock() {
-    for (int nloops = 0;; nloops++) {
-      if (InterlockedExchange(&lock_flag_, 1) == 0) {
-        return;
-      }
+  FastSpinlock(const FastSpinlock&) = delete;
+  FastSpinlock& operator=(const FastSpinlock&) = delete;
 
-      UINT uTimerRes = 1;
-      timeBeginPeriod(uTimerRes);
-      Sleep(static_cast<DWORD>(std::min(10, nloops)));
-      timeEndPeriod(uTimerRes);
-    }
-  }
+  void EnterLock() noexcept { AcquireSRWLockExclusive(&lock_); }
 
-  void LeaveLock() { InterlockedExchange(&lock_flag_, 0); }
+  void LeaveLock() noexcept { ReleaseSRWLockExclusive(&lock_); }
 
  private:
-  FastSpinlock(const FastSpinlock& rhs);
-  FastSpinlock& operator=(const FastSpinlock& rhs);
-
-  volatile long lock_flag_ = 0;
+  SRWLOCK lock_ = SRWLOCK_INIT;
 };
 
 class FastSpinlockGuard {
  public:
-  FastSpinlockGuard(FastSpinlock& lock) : lock_(lock) { lock_.EnterLock(); }
+  explicit FastSpinlockGuard(FastSpinlock& lock) noexcept : lock_(lock) {
+    lock_.EnterLock();
+  }
 
   ~FastSpinlockGuard() { lock_.LeaveLock(); }
 
+  FastSpinlockGuard(const FastSpinlockGuard&) = delete;
+  FastSpinlockGuard& operator=(const FastSpinlockGuard&) = delete;
+
  private:
   FastSpinlock& lock_;
-};
-
-template <class LockType>
-class SpinlockGuard {
- public:
-  SpinlockGuard(LockType& lock) : lock_(lock) { lock_.EnterLock(); }
-
-  ~SpinlockGuard() { lock_.LeaveLock(); }
-
- private:
-  LockType& lock_;
 };
 
 }  // namespace rionetlite

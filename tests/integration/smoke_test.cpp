@@ -2,6 +2,7 @@
 
 #include "rionetlite/config.h"
 #include "rionetlite/packet_decoder.h"
+#include "rionetlite/queued_event_adapter.h"
 #include "rionetlite/server.h"
 
 #include <gtest/gtest.h>
@@ -197,6 +198,109 @@ class OverConsumingHandler final : public EventHandler {
   bool closed_ = false;
 };
 
+// OnData가 OnClosed 뒤에 오지 않는지 확인하기 위해 관찰 순서를 기록한다.
+class OrderingHandler final : public EventHandler {
+ public:
+  void Attach(Server& server) noexcept { server_ = &server; }
+
+  void OnConnected(const SessionId session) override {
+    Record(QueuedEventType::kConnected);
+    std::scoped_lock lock(mutex_);
+    session_ = session;
+    condition_.notify_all();
+  }
+
+  std::size_t OnData(const SessionId session,
+                     const std::span<const std::byte> data) override {
+    Record(QueuedEventType::kData);
+    if (server_ != nullptr && close_on_data_.load(std::memory_order_acquire)) {
+      static_cast<void>(server_->RequestClose(session));
+    }
+    return data.size();
+  }
+
+  void OnClosed(SessionId, CloseReason) override {
+    Record(QueuedEventType::kClosed);
+    std::scoped_lock lock(mutex_);
+    closed_ = true;
+    condition_.notify_all();
+  }
+
+  void set_close_on_data(const bool value) noexcept {
+    close_on_data_.store(value, std::memory_order_release);
+  }
+
+  bool WaitForConnected() {
+    std::unique_lock lock(mutex_);
+    return condition_.wait_for(lock, std::chrono::seconds(3),
+                               [&]() { return session_.generation != 0; });
+  }
+
+  bool WaitForClosed() {
+    std::unique_lock lock(mutex_);
+    return condition_.wait_for(lock, std::chrono::seconds(3),
+                               [&]() { return closed_; });
+  }
+
+  SessionId session() const {
+    std::scoped_lock lock(mutex_);
+    return session_;
+  }
+
+  std::vector<QueuedEventType> events() const {
+    std::scoped_lock lock(mutex_);
+    return events_;
+  }
+
+ private:
+  void Record(const QueuedEventType type) {
+    std::scoped_lock lock(mutex_);
+    events_.push_back(type);
+  }
+
+  mutable std::mutex mutex_;
+  std::condition_variable condition_;
+  Server* server_ = nullptr;
+  std::atomic<bool> close_on_data_{false};
+  std::vector<QueuedEventType> events_;
+  SessionId session_{};
+  bool closed_ = false;
+};
+
+// 콜백에서 벗어난 예외가 I/O worker를 죽이지 않는지 확인한다.
+class ThrowingHandler final : public EventHandler {
+ public:
+  void OnConnected(SessionId) override {}
+
+  std::size_t OnData(SessionId, std::span<const std::byte>) override {
+    throw std::runtime_error("handler failure");
+  }
+
+  void OnClosed(SessionId, const CloseReason reason) override {
+    std::scoped_lock lock(mutex_);
+    close_reason_ = reason;
+    closed_ = true;
+    condition_.notify_all();
+  }
+
+  bool WaitForClose() {
+    std::unique_lock lock(mutex_);
+    return condition_.wait_for(lock, std::chrono::seconds(3),
+                               [&]() { return closed_; });
+  }
+
+  CloseReason close_reason() const {
+    std::scoped_lock lock(mutex_);
+    return close_reason_;
+  }
+
+ private:
+  mutable std::mutex mutex_;
+  std::condition_variable condition_;
+  CloseReason close_reason_ = CloseReason::kNone;
+  bool closed_ = false;
+};
+
 class WinsockScope final {
  public:
   WinsockScope() { EXPECT_EQ(WSAStartup(MAKEWORD(2, 2), &data_), 0); }
@@ -239,7 +343,6 @@ ServerConfig SmallConfig(const std::uint16_t port) {
   config.receive_buffer_bytes = 4096;
   config.max_message_bytes = 1024;
   config.send_buffer_bytes = 4096;
-  config.max_outstanding_sends_per_session = 2;
   config.completion_batch_size = 8;
   return config;
 }
@@ -733,6 +836,98 @@ TEST(IntegrationSmokeTest, ClosesWhenCallbackConsumesBeyondReadableBytes) {
   ASSERT_TRUE(handler.WaitForClose());
   EXPECT_EQ(handler.close_reason(), CloseReason::kProtocolError);
   EXPECT_EQ(server->Metrics().protocol_errors, 1U);
+  closesocket(client);
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
+TEST(IntegrationSmokeTest, NeverDeliversDataAfterCloseWhenClosingFromCallback) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  OrderingHandler handler;
+  auto server = Server::Create(SmallConfig(port), handler);
+  ASSERT_TRUE(server.has_value()) << server.error().message;
+  handler.Attach(*server);
+  ASSERT_TRUE(server->Start().has_value());
+
+  const SOCKET client = ConnectLoopback(port);
+  ASSERT_NE(client, INVALID_SOCKET);
+  ASSERT_TRUE(handler.WaitForConnected());
+  handler.set_close_on_data(true);
+
+  // 종료를 요청한 뒤에도 커널이 이미 완료시킨 수신이 남아 있을 수 있다.
+  const std::array payload{std::byte{1}, std::byte{2}, std::byte{3}};
+  for (int attempt = 0; attempt < 16; ++attempt) {
+    if (!SendAll(client, payload)) {
+      break;
+    }
+  }
+  ASSERT_TRUE(handler.WaitForClosed());
+  closesocket(client);
+  EXPECT_TRUE(server->Stop().has_value());
+
+  const auto events = handler.events();
+  ASSERT_FALSE(events.empty());
+  EXPECT_EQ(events.front(), QueuedEventType::kConnected);
+  EXPECT_EQ(events.back(), QueuedEventType::kClosed);
+  EXPECT_EQ(std::count(events.begin(), events.end(), QueuedEventType::kClosed),
+            1);
+}
+
+TEST(IntegrationSmokeTest, IsolatesHandlerExceptionsAndKeepsServing) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  ThrowingHandler handler;
+  auto server = Server::Create(SmallConfig(port), handler);
+  ASSERT_TRUE(server.has_value()) << server.error().message;
+  ASSERT_TRUE(server->Start().has_value());
+
+  const SOCKET client = ConnectLoopback(port);
+  ASSERT_NE(client, INVALID_SOCKET);
+  const std::array payload{std::byte{1}, std::byte{2}};
+  ASSERT_TRUE(SendAll(client, payload));
+  ASSERT_TRUE(handler.WaitForClose());
+  EXPECT_EQ(handler.close_reason(), CloseReason::kProtocolError);
+  closesocket(client);
+
+  // 예외를 던진 세션만 닫히고 서버는 계속 접속을 받아야 한다.
+  EXPECT_EQ(server->state(), ServerState::kRunning);
+  const SOCKET second = ConnectLoopback(port);
+  EXPECT_NE(second, INVALID_SOCKET);
+  if (second != INVALID_SOCKET) {
+    closesocket(second);
+  }
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
+TEST(IntegrationSmokeTest, EchoesHeaderAndPayloadSentAsOneScatterMessage) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  RecordingHandler handler;
+  auto server = Server::Create(SmallConfig(port), handler);
+  ASSERT_TRUE(server.has_value()) << server.error().message;
+  ASSERT_TRUE(server->Start().has_value());
+
+  const SOCKET client = ConnectLoopback(port);
+  ASSERT_NE(client, INVALID_SOCKET);
+  ASSERT_TRUE(handler.WaitForConnected(1));
+  const SessionId session = handler.connected(0);
+
+  const std::array header{std::byte{0}, std::byte{0}, std::byte{0},
+                          std::byte{8}};
+  const std::array body{std::byte{'p'}, std::byte{'i'}, std::byte{'n'},
+                        std::byte{'g'}};
+  EXPECT_EQ(server->Send(session, header, body), SendResult::kQueued);
+
+  std::array<std::byte, 8> received{};
+  ASSERT_TRUE(ReceiveAll(client, received));
+  EXPECT_TRUE(std::equal(header.begin(), header.end(), received.begin()));
+  EXPECT_TRUE(std::equal(body.begin(), body.end(), received.begin() + 4));
   closesocket(client);
   EXPECT_TRUE(server->Stop().has_value());
 }

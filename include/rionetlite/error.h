@@ -65,6 +65,7 @@ enum class CloseReason : std::uint8_t {
   kSendError,
   kServerStopping,
   kOverloaded,
+  kIdleTimeout,
   kInternalError,
 };
 

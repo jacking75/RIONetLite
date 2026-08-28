@@ -112,7 +112,53 @@ TEST(QueuedEventAdapterTest, RejectsDataAfterCloseEvenWhenCloseQueueIsFull) {
   adapter.OnConnected(session);
   adapter.OnClosed(session, CloseReason::kPeerClosed);
   EXPECT_EQ(adapter.OnData(session, payload), 0U);
-  EXPECT_EQ(adapter.metrics().event_queue_rejections, 2U);
+  // 종료 이벤트는 큐가 가득 차도 버리지 않으므로 rejection은 data 1건뿐이다.
+  EXPECT_EQ(adapter.metrics().event_queue_rejections, 1U);
+}
+
+TEST(QueuedEventAdapterTest, DeliversCloseAfterTheRingDrainsWhenQueueWasFull) {
+  QueuedEventAdapter adapter(1, 1, 4, 1, EventQueueFullPolicy::kRejectNewest);
+  const SessionId session{0, 1};
+  adapter.OnConnected(session);
+  adapter.OnClosed(session, CloseReason::kPeerClosed);
+
+  std::array<std::byte, 4> output{};
+  QueuedEventHeader event;
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  EXPECT_EQ(event.type, QueuedEventType::kConnected);
+  const std::uint64_t connect_sequence = event.sequence;
+
+  // 보류된 close는 해당 세션의 이벤트를 모두 소비한 다음 순서를 지켜 나온다.
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  EXPECT_EQ(event.type, QueuedEventType::kClosed);
+  EXPECT_EQ(event.close_reason, CloseReason::kPeerClosed);
+  EXPECT_EQ(event.session, session);
+  EXPECT_GT(event.sequence, connect_sequence);
+  EXPECT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEmpty);
+}
+
+TEST(QueuedEventAdapterTest, HoldsBackANewGenerationUntilTheParkedCloseIsSeen) {
+  QueuedEventAdapter adapter(1, 1, 4, 1, EventQueueFullPolicy::kRejectNewest);
+  const SessionId first{0, 1};
+  const SessionId second{0, 2};
+  adapter.OnConnected(first);
+  adapter.OnClosed(first, CloseReason::kPeerClosed);
+
+  std::array<std::byte, 4> output{};
+  QueuedEventHeader event;
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  EXPECT_EQ(event.type, QueuedEventType::kConnected);
+
+  // 이전 세대의 close가 아직 전달되지 않았으면 새 세대를 받지 않는다.
+  adapter.OnConnected(second);
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  EXPECT_EQ(event.type, QueuedEventType::kClosed);
+  EXPECT_EQ(event.session.generation, first.generation);
+
+  adapter.OnConnected(second);
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  EXPECT_EQ(event.type, QueuedEventType::kConnected);
+  EXPECT_EQ(event.session.generation, second.generation);
 }
 
 TEST(QueuedEventAdapterTest, ReportsPreallocatedMemoryBudget) {

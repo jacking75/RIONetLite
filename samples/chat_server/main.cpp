@@ -6,6 +6,7 @@
 
 #include <conio.h>
 
+#include <array>
 #include <atomic>
 #include <charconv>
 #include <chrono>
@@ -47,27 +48,23 @@ std::uint32_t ReadU32(const std::byte* data) {
          static_cast<std::uint32_t>(data[3]);
 }
 
-void AppendU16(std::vector<std::byte>& output, const std::uint16_t value) {
-  output.push_back(static_cast<std::byte>((value >> 8U) & 0xffU));
-  output.push_back(static_cast<std::byte>(value & 0xffU));
-}
+// 헤더는 고정 크기이므로 스택에 만들고 payload는 그대로 넘긴다. scatter Send가
+// 두 span을 한 메시지로 보내므로 송신마다 임시 버퍼를 할당하지 않는다.
+using PacketHeader = std::array<std::byte, kHeaderBytes>;
 
-void AppendU32(std::vector<std::byte>& output, const std::uint32_t value) {
-  output.push_back(static_cast<std::byte>((value >> 24U) & 0xffU));
-  output.push_back(static_cast<std::byte>((value >> 16U) & 0xffU));
-  output.push_back(static_cast<std::byte>((value >> 8U) & 0xffU));
-  output.push_back(static_cast<std::byte>(value & 0xffU));
-}
-
-std::vector<std::byte> EncodePacket(const std::uint16_t type,
-                                    const std::span<const std::byte> payload) {
-  std::vector<std::byte> packet;
-  packet.reserve(kHeaderBytes + payload.size());
-  AppendU32(packet, static_cast<std::uint32_t>(kHeaderBytes + payload.size()));
-  AppendU16(packet, kProtocolVersion);
-  AppendU16(packet, type);
-  packet.insert(packet.end(), payload.begin(), payload.end());
-  return packet;
+PacketHeader EncodeHeader(const std::uint16_t type,
+                          const std::size_t payload_bytes) {
+  const auto length = static_cast<std::uint32_t>(kHeaderBytes + payload_bytes);
+  return PacketHeader{
+      static_cast<std::byte>((length >> 24U) & 0xffU),
+      static_cast<std::byte>((length >> 16U) & 0xffU),
+      static_cast<std::byte>((length >> 8U) & 0xffU),
+      static_cast<std::byte>(length & 0xffU),
+      static_cast<std::byte>((kProtocolVersion >> 8U) & 0xffU),
+      static_cast<std::byte>(kProtocolVersion & 0xffU),
+      static_cast<std::byte>((type >> 8U) & 0xffU),
+      static_cast<std::byte>(type & 0xffU),
+  };
 }
 
 class ConsoleLogger final : public rionetlite::Logger {
@@ -140,10 +137,11 @@ class ChatApplication final {
     }
   }
 
-  bool Send(const rionetlite::SessionId session,
-            const std::span<const std::byte> packet) {
+  bool Send(const rionetlite::SessionId session, const std::uint16_t type,
+            const std::span<const std::byte> payload) {
     if (server_ == nullptr) return false;
-    const auto result = server_->Send(session, packet);
+    const PacketHeader header = EncodeHeader(type, payload.size());
+    const auto result = server_->Send(session, header, payload);
     if (result == rionetlite::SendResult::kWouldBlock ||
         result == rionetlite::SendResult::kUnavailable) {
       RequestClose(session, rionetlite::CloseReason::kOverloaded);
@@ -165,21 +163,20 @@ class ChatApplication final {
       player.name.assign(reinterpret_cast<const char*>(payload.data() + 2),
                          length);
       player.phase = Phase::kLobby;
-      return Send(player.id, EncodePacket(101, {}));
+      return Send(player.id, 101, {});
     }
     if (type == 2 && player.phase == Phase::kLobby && payload.size() == 4) {
       player.room = ReadU32(payload.data());
       player.phase = Phase::kRoom;
-      return Send(player.id, EncodePacket(102, payload));
+      return Send(player.id, 102, payload);
     }
     if (type == 3 && player.phase == Phase::kRoom && payload.size() >= 2) {
       const auto length = ReadU16(payload.data());
       if (length > 256 || payload.size() != 2U + length) return false;
-      const auto response = EncodePacket(103, payload);
       for (auto& [index, peer] : players) {
         static_cast<void>(index);
         if (peer.phase == Phase::kRoom && peer.room == player.room) {
-          static_cast<void>(Send(peer.id, response));
+          static_cast<void>(Send(peer.id, 103, payload));
         }
       }
       return true;

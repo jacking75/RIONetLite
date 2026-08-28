@@ -9,11 +9,13 @@
 #include "rio_context.h"
 #include "send_immediately.h"
 
+#include <mstcpip.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <tuple>
 #include <utility>
-#include <vector>
 
 namespace rionetlite {
 #ifdef _MSC_VER
@@ -58,6 +60,8 @@ class alignas(64) TcpSession {
                      detail::RioApi& rio_api) {
     rio_api_ = &rio_api;
     max_try_1recv_buffer_size_ = net_config.max_try_1recv_buffer_size;
+    keepalive_time_ms_ = net_config.keepalive_time_ms_;
+    keepalive_interval_ms_ = net_config.keepalive_interval_ms_;
 
     if (io_sender_.Init(index_, net_config, rio_api,
                         static_cast<std::uint32_t>(rio_thread_id_)) == false) {
@@ -65,7 +69,7 @@ class alignas(64) TcpSession {
     }
 
     if (const auto create_result =
-            recv_buffer_.Create(false, net_config.max_recv_buffer_size_);
+            recv_buffer_.Create(net_config.max_recv_buffer_size_);
         std::get<0>(create_result) != static_cast<int>(NetErrorCode::kNONE)) {
       return false;
     }
@@ -99,10 +103,24 @@ class alignas(64) TcpSession {
       return false;
     }
 
+    // keepalive는 무통신 상태로 사라진 피어의 미완료 수신을 오류로 완료시켜
+    // 기존 오류 경로가 세션 슬롯을 회수하게 한다.
+    if (keepalive_time_ms_ != 0 && keepalive_interval_ms_ != 0) {
+      tcp_keepalive keepalive{};
+      keepalive.onoff = 1;
+      keepalive.keepalivetime = keepalive_time_ms_;
+      keepalive.keepaliveinterval = keepalive_interval_ms_;
+      DWORD returned = 0;
+      static_cast<void>(WSAIoctl(socket.get(), SIO_KEEPALIVE_VALS, &keepalive,
+                                 sizeof(keepalive), nullptr, 0, &returned,
+                                 nullptr, nullptr));
+    }
+
     socket_ = std::move(socket);
     rio_rq_ = rio_rq;
     io_sender_.OnConnect(rio_rq_, uid);
     recv_buffer_.Clear();
+    TouchActivity();
     enable_network_.store(true, std::memory_order_release);
     accepting_application_sends_.store(true, std::memory_order_release);
     socket_closed_.store(false, std::memory_order_release);
@@ -131,6 +149,19 @@ class alignas(64) TcpSession {
     }
 
     return io_sender_.PostSend(expected_uid, data_size, p_data);
+  }
+
+  NetErrorCode PostSend(const std::uint64_t expected_uid,
+                        const std::uint32_t header_size, const char* p_header,
+                        const std::uint32_t payload_size,
+                        const char* p_payload) {
+    if (IsConnected() == false ||
+        !accepting_application_sends_.load(std::memory_order_acquire)) {
+      return NetErrorCode::kSEND_SESSION_NETWORK_DISABLE;
+    }
+
+    return io_sender_.PostSend(expected_uid, header_size, p_header,
+                               payload_size, p_payload);
   }
 
   bool SendCompletion(RioIoContext* p_send_context,
@@ -166,9 +197,33 @@ class alignas(64) TcpSession {
 
   bool ReadyForPeerClose() const noexcept { return SendOutstanding() == 0; }
 
-  void AbandonOutstanding() noexcept {
-    recv_rio_buffer_.AbandonOutstanding();
-    io_sender_.AbandonOutstanding();
+  // 종료 타임아웃 경로에서 커널이 미완료 요청을 취소하도록 소켓만 닫는다.
+  void AbortSocket() noexcept {
+    if (!socket_) {
+      return;
+    }
+    socket_closed_.store(true, std::memory_order_release);
+    enable_network_.store(false, std::memory_order_release);
+    accepting_application_sends_.store(false, std::memory_order_release);
+    socket_.Reset();
+  }
+
+  // 드레인에 실패했을 때만 사용한다. 등록 버퍼와 매핑을 해제하지 않고 소유권만
+  // 포기해 커널이 참조 중인 메모리를 회수하지 않는다.
+  void LeakRegisteredResources() noexcept {
+    recv_rio_buffer_.Release();
+    recv_buffer_.ReleaseStorage();
+    io_sender_.LeakRegisteredResources();
+  }
+
+  void TouchActivity() noexcept {
+    last_activity_ms_.store(GetTickCount64(), std::memory_order_relaxed);
+  }
+
+  [[nodiscard]] bool IsIdleFor(const std::uint64_t now_ms,
+                               const std::uint64_t timeout_ms) const noexcept {
+    const auto last = last_activity_ms_.load(std::memory_order_relaxed);
+    return now_ms > last && now_ms - last >= timeout_ms;
   }
 
   NetErrorCode PostRecv() {
@@ -212,6 +267,7 @@ class alignas(64) TcpSession {
       recv_context_.Fail();
       return false;
     }
+    TouchActivity();
     return true;
   }
 
@@ -295,12 +351,15 @@ class alignas(64) TcpSession {
 
   int index_ = -1;
   std::uint32_t max_try_1recv_buffer_size_ = 0;
+  std::uint32_t keepalive_time_ms_ = 0;
+  std::uint32_t keepalive_interval_ms_ = 0;
   int rio_thread_id_ = -1;
 
   detail::SessionLifecycle lifecycle_;
   std::atomic<bool> enable_network_{false};
   std::atomic<bool> accepting_application_sends_{false};
   std::atomic<bool> socket_closed_{true};
+  std::atomic<std::uint64_t> last_activity_ms_{0};
 
   detail::UniqueSocket socket_;
   SOCKADDR_IN client_addr_{};

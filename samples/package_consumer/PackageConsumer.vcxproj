@@ -14,7 +14,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile><AdditionalIncludeDirectories>$(RIONetLitePackageRoot)\include</AdditionalIncludeDirectories><LanguageStandard>stdcpplatest</LanguageStandard><AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions><WarningLevel>Level4</WarningLevel></ClCompile>
-    <Link><AdditionalLibraryDirectories>$(RIONetLitePackageRoot)\lib</AdditionalLibraryDirectories><AdditionalDependencies>RIONetLite.lib;ws2_32.lib;mswsock.lib;mincore.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <Link><AdditionalLibraryDirectories>$(RIONetLitePackageRoot)\lib</AdditionalLibraryDirectories><AdditionalDependencies>RIONetLite.lib;ws2_32.lib;mswsock.lib;mincore.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="main.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

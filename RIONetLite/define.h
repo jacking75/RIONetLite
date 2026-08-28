@@ -25,8 +25,11 @@ struct SessionNetConfig {
 
   std::int32_t max_send_packet_size_ = 0;
   std::int32_t max_send_count_per_1sec_ =
-      0;  // 정한 것 보다 조금 더 넉넉하게 주는 것을 추천
+      0;  // 0.2.x 호환 입력이다. 송신은 링 바이트로 배압을 판정한다.
   std::int32_t max_send_buffer_size_ = 0;
+
+  std::uint32_t keepalive_time_ms_ = 0;      // 0이면 사용하지 않는다.
+  std::uint32_t keepalive_interval_ms_ = 0;  // 0이면 사용하지 않는다.
 };
 
 struct NetConfig {
@@ -41,6 +44,8 @@ struct NetConfig {
   std::uint32_t completion_queue_capacity_ = 0;
   std::uint32_t adaptive_spin_count_ = 128;
   std::uint32_t graceful_shutdown_timeout_ms_ = 5000;
+  std::uint32_t peer_close_drain_timeout_ms_ = 5000;
+  std::uint32_t idle_timeout_ms_ = 0;  // 0이면 사용하지 않는다.
   std::uint8_t worker_wait_mode_ = 1;
   bool enable_thread_affinity_ = false;
 
@@ -70,6 +75,7 @@ enum class DisconnectReason {
   kRECV_BUFFER_FULL,
   kPROTOCOL_ERROR,
   kOVERLOADED,
+  kIDLE_TIMEOUT,
   kEND
 };
 inline char DisconnectReasonStr[static_cast<std::int32_t>(
@@ -86,7 +92,8 @@ inline char DisconnectReasonStr[static_cast<std::int32_t>(
                                     "forces_close_send_error",
                                     "recv_buffer_full",
                                     "protocol_error",
-                                    "overloaded"};
+                                    "overloaded",
+                                    "idle_timeout"};
 
 // 0 ~ 100
 enum class NetErrorCode : std::int16_t {
@@ -115,6 +122,9 @@ struct LazyedDisConnectSession {
   std::int32_t session_index_ = -1;
   std::uint64_t uid = 0;
   DisconnectReason reason_ = DisconnectReason::kNONE;
+  // peer FIN 이후 송신 드레인을 기다리는 항목의 마감 tick이다. 0이면 아직
+  // 보류된 적이 없다는 뜻이다.
+  std::uint64_t drain_deadline_ms_ = 0;
 };
 
 }  // namespace rionetlite

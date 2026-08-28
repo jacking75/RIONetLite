@@ -108,7 +108,7 @@ TEST(RecvBufferTest, DistinguishesFullFromEmptyAndRejectsOverCommit) {
   GetSystemInfo(&system_info);
   const auto capacity = static_cast<std::uint32_t>(system_info.dwPageSize);
   RingBufferVA2 buffer;
-  ASSERT_EQ(std::get<0>(buffer.Create(false, capacity)), 0);
+  ASSERT_EQ(std::get<0>(buffer.Create(capacity)), 0);
   EXPECT_EQ(buffer.GetWritableSize(), capacity);
   ASSERT_TRUE(buffer.Write(capacity));
   EXPECT_EQ(buffer.GetWritableSize(), 0U);
@@ -128,7 +128,7 @@ TEST(RecvBufferTest, ExposesContiguousSpansAcrossWrapBoundary) {
   GetSystemInfo(&system_info);
   const auto capacity = static_cast<std::uint32_t>(system_info.dwPageSize);
   RingBufferVA2 buffer;
-  ASSERT_EQ(std::get<0>(buffer.Create(false, capacity)), 0);
+  ASSERT_EQ(std::get<0>(buffer.Create(capacity)), 0);
   ASSERT_TRUE(buffer.Write(capacity - 4));
   buffer.IncremantReadPos(capacity - 8);
   const std::array payload = {'r', 'i', 'o', 'n', 'e', 't', '!', '!'};
@@ -166,6 +166,15 @@ TEST(IoContextTest, TracksPostRollbackPartialAndFinalCompletion) {
   EXPECT_FALSE(context.CompleteSend(5));
   context.Fail();
   EXPECT_TRUE(context.IsIdle());
+
+  // 링 버퍼가 진행 상태의 원본이므로 부분 완료 후 컨텍스트를 idle로 되돌려
+  // 남은 바이트와 새로 쌓인 바이트를 하나의 요청으로 다시 게시한다.
+  ASSERT_TRUE(context.BeginRequest(11, buffer_id, 0, 8, 16));
+  ASSERT_TRUE(context.CompleteSend(3));
+  EXPECT_FALSE(context.IsIdle());
+  context.Retire();
+  EXPECT_TRUE(context.IsIdle());
+  EXPECT_TRUE(context.BeginRequest(11, buffer_id, 3, 5, 16));
 }
 
 TEST(ShutdownCoordinatorTest, ElectsOneOwnerAndPreservesFirstStopMode) {
@@ -260,6 +269,45 @@ TEST(SocketApiTest, FailsConfiguredNthInitializationCallAndRollsBackSocket) {
                  NetErrorCode::kLISTEN_SOCKET_BIND_FAIL);
   verify_failure([](auto& api) { api.listen_fail_on_call = 2; },
                  NetErrorCode::kLISTEN_SOCKET_LISTEN_FAIL);
+}
+
+NetConfig MultiWorkerConfig() {
+  NetConfig config = FaultInjectionConfig();
+  config.io_work_thread_count_ = 3;
+  config.max_session_count_ = 7;
+  return config;
+}
+
+TEST(SessionPoolTest, LeasesSessionsRoundRobinAcrossWorkersFromColdStart) {
+  test::FakeRioApi rio;
+  SessionManager sessions;
+  ASSERT_TRUE(sessions.PrepareSessionPool(MultiWorkerConfig(), rio));
+
+  // 기동 직후 첫 접속들이 worker 0에 몰리지 않아야 한다.
+  const std::array expected_workers = {0, 1, 2, 0, 1, 2, 0};
+  for (std::size_t index = 0; index < expected_workers.size(); ++index) {
+    auto* session = sessions.AllocClientSession();
+    ASSERT_NE(session, nullptr) << "index=" << index;
+    EXPECT_EQ(session->GetRioThreadId(), expected_workers[index])
+        << "index=" << index;
+  }
+  EXPECT_EQ(sessions.AllocClientSession(), nullptr);
+  sessions.Dispose();
+}
+
+TEST(SessionPoolTest, ForcedCloseIgnoresAStaleGeneration) {
+  test::FakeRioApi rio;
+  SessionManager sessions;
+  ASSERT_TRUE(sessions.PrepareSessionPool(MultiWorkerConfig(), rio));
+  auto* session = sessions.AllocClientSession();
+  ASSERT_NE(session, nullptr);
+  const auto index = static_cast<std::int32_t>(session->GetIndex());
+  const auto generation = session->GetUID();
+
+  // 송신 실패와 종료 사이에 슬롯이 재사용되어도 새 세션을 끊으면 안 된다.
+  EXPECT_EQ(sessions.ForcedClose(index, generation + 1), -1);
+  EXPECT_GE(sessions.ForcedClose(index, generation), 0);
+  sessions.Dispose();
 }
 
 TEST(RioApiTest, SessionPoolRollsBackSuccessfulBuffersOnNthRegisterFailure) {

@@ -1,10 +1,27 @@
 # 성능 튜닝
 
+## 2026-08-28 송신 링 코얼레싱 A/B
+
+`36a03af`(고정 슬롯 송신)와 0.3.0(링 코얼레싱)의 EchoServer를 동일한 LoadClient로 비교했다. 20 logical processor(i7-12700KF), Release, adaptive/64, observability off, echo 시나리오, 조합별 3초×5회 중앙값이다. 20회 모두 data error, dropped packet과 timeout이 0이었다.
+
+| 연결 수 | payload | baseline packets/s | 0.3.0 packets/s | baseline P99 µs | 0.3.0 P99 µs |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 128 B | 48,242 | 116,929 | 280 | 114 |
+| 64 | 128 B | 72,089 | 162,328 | 2,390 | 1,273 |
+| 64 | 1 KiB | 70,725 | 163,819 | 2,325 | 1,296 |
+| 256 | 128 B | 103,125 | 161,047 | 3,828 | 3,691 |
+
+모든 조합에서 처리량이 1.6~2.4배 오르고 P99가 같거나 낮았다. 요청당 완료 이벤트가 패킷 수가 아니라 burst 수에 비례하게 바뀐 효과이며, 저부하(8연결)에서도 회귀가 없다. 짧은 로컬 측정이므로 고정 장비의 승인된 회귀선을 대신하지 않는다.
+
+## 기본 정책
+
 기본값은 logical processor에서 한 코어의 애플리케이션 여유를 남긴 worker 수, batch 64, adaptive 128 spin이다. polling은 최고 부하에서 지연을 낮출 수 있지만 idle 코어를 소비하고, notification은 idle 효율이 좋으며, adaptive는 둘의 절충이다. affinity는 NUMA와 processor group을 측정한 뒤에만 켠다.
 
 한 번에 worker, batch(32/64/128/256), wait mode, buffer, allocator 중 하나만 바꾸고 `tools\run-benchmark.ps1` 결과를 비교한다. correctness error가 0이 아닌 결과를 성능 개선으로 채택하면 안 된다. mimalloc은 최종 executable이 선택적으로 링크하며 RIO 등록 메모리 소유와 무관하다.
 
-## 2026-08-27 짧은 기준 측정
+## 2026-08-27 짧은 기준 측정 (0.2.0 기준, 이력)
+
+아래 절들은 고정 슬롯 송신을 쓰던 0.2.0 기준의 측정이다. wait mode와 batch 선택 근거는 그대로 유효하지만 절대 수치는 0.3.0과 직접 비교하지 않는다.
 
 20 logical processor 장비, Release, 8개 연결, 128-byte payload, 조합별 1초×5회 중앙값이다. 모든 데이터 오류는 0이었다. 짧은 로컬 측정이므로 릴리스용 고정 장비 결과를 대신하지 않는다.
 
@@ -57,7 +74,7 @@ polling은 이 20 logical processor 장비에서 worker가 경쟁해 처리량�
 | 8개 scatter `RIO_BUF` 준비 | 3.211ns/회 |
 | 8×128바이트를 연속 1KiB로 복사해 준비 | 28.0525ns/회 |
 
-arena 등록은 초기화 시간이 64.4% 짧았지만 현재 세션별 double-mapped 저장소는 세션 수명과 실패 롤백을 독립적으로 격리하고 wrap 복사를 없앤다. 등록 비용은 시작 시 한 번만 발생하므로 0.2.0은 현재 구조를 유지하며, 대규모 세션 구성에서 시작 시간이 병목으로 확인될 때 worker arena와 정렬된 offset 타입을 도입한다. 송신은 scatter 준비가 연속 복사보다 약 8.7배 짧았으므로 고정 슬롯의 단일 `RIO_BUF`를 직접 게시하는 현재 경로를 유지한다. 원본 결과는 `benchmarks/results/20260827-171244-7d80c68-design`에 있다.
+arena 등록은 초기화 시간이 64.4% 짧았지만 현재 세션별 double-mapped 저장소는 세션 수명과 실패 롤백을 독립적으로 격리하고 wrap 복사를 없앤다. 등록 비용은 시작 시 한 번만 발생하므로 현재 구조를 유지하며, 대규모 세션 구성에서 시작 시간이 병목으로 확인될 때 worker arena와 정렬된 offset 타입을 도입한다. 송신은 scatter 준비가 연속 복사보다 약 8.7배 짧았으므로 단일 `RIO_BUF`를 직접 게시하는 경로를 유지한다. 0.3.0은 여기에 링 코얼레싱을 더해 요청 자체를 burst 단위로 줄였다. 원본 결과는 `benchmarks/results/20260827-171244-7d80c68-design`에 있다.
 
 같은 장비에서 adaptive/64, metrics off, 32연결, 128바이트 payload를 affinity off/on 각각 1초×3회 측정했다. 모든 오류 카운터는 0이었다.
 

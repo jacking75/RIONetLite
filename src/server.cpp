@@ -3,6 +3,7 @@
 #include "../RIONetLite/define.h"
 #include "../RIONetLite/i_net_event.h"
 #include "../RIONetLite/impl/server_net.h"
+#include "detail/session_partition.h"
 #include "detail/shutdown_coordinator.h"
 
 #include <algorithm>
@@ -13,6 +14,7 @@
 #include <mutex>
 #include <new>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -99,6 +101,8 @@ CloseReason ConvertCloseReason(const DisconnectReason reason) noexcept {
     case DisconnectReason::kRECV_BUFFER_FULL:
     case DisconnectReason::kOVERLOADED:
       return CloseReason::kOverloaded;
+    case DisconnectReason::kIDLE_TIMEOUT:
+      return CloseReason::kIdleTimeout;
     case DisconnectReason::kPROTOCOL_ERROR:
       return CloseReason::kProtocolError;
     case DisconnectReason::kACCEPT_LOOP_REQUEST_QUEUE_ERROR:
@@ -128,17 +132,34 @@ NetConfig ToLegacyConfig(const ValidatedServerConfig& validated) {
       static_cast<std::int32_t>(source.receive_buffer_bytes);
   target.session_cfg_.max_send_packet_size_ =
       static_cast<std::int32_t>(source.max_message_bytes);
-  target.session_cfg_.max_send_count_per_1sec_ =
-      static_cast<std::int32_t>(source.max_outstanding_sends_per_session);
+  target.session_cfg_.max_send_count_per_1sec_ = 1;
   target.session_cfg_.max_send_buffer_size_ =
       static_cast<std::int32_t>(source.send_buffer_bytes);
+  target.session_cfg_.keepalive_time_ms_ = source.keepalive_time_ms;
+  target.session_cfg_.keepalive_interval_ms_ = source.keepalive_interval_ms;
   target.completion_batch_size_ = source.completion_batch_size;
   target.completion_queue_capacity_ = validated.completion_queue_capacity;
   target.adaptive_spin_count_ = source.adaptive_spin_count;
   target.graceful_shutdown_timeout_ms_ = source.graceful_shutdown_timeout_ms;
+  target.peer_close_drain_timeout_ms_ = source.peer_close_drain_timeout_ms;
+  target.idle_timeout_ms_ = source.idle_timeout_ms;
   target.worker_wait_mode_ = static_cast<std::uint8_t>(source.worker_wait_mode);
   target.enable_thread_affinity_ = source.enable_thread_affinity;
   return target;
+}
+
+std::vector<std::uint16_t> BuildSessionWorkerTable(
+    const std::uint32_t max_sessions, const std::uint32_t worker_count) {
+  std::vector<std::uint16_t> table(max_sessions, 0);
+  for (std::uint32_t worker = 0; worker < worker_count; ++worker) {
+    const auto partition =
+        detail::PartitionSessions(max_sessions, worker_count, worker);
+    for (std::uint32_t offset = 0; offset < partition.count; ++offset) {
+      table[partition.first_index + offset] =
+          static_cast<std::uint16_t>(worker);
+    }
+  }
+  return table;
 }
 
 }  // namespace
@@ -176,7 +197,9 @@ class Server::Impl final : public INetEventManager {
       : config_(std::move(config)),
         handler_(handler),
         logger_(logger),
-        pending_receive_bytes_(config_.value.max_sessions, 0) {
+        pending_receive_bytes_(config_.value.max_sessions, 0),
+        session_worker_table_(BuildSessionWorkerTable(
+            config_.value.max_sessions, config_.value.io_worker_count)) {
     worker_metrics_.reserve(config_.value.io_worker_count);
     for (std::uint32_t worker = 0; worker < config_.value.io_worker_count;
          ++worker) {
@@ -221,25 +244,26 @@ class Server::Impl final : public INetEventManager {
                                                   worker_metrics_.size() - 1)];
   }
 
+  // 조회 테이블을 미리 만들어 두면 수신·송신마다 worker를 나눗셈으로 역산하지
+  // 않는다.
   WorkerMetrics& MetricsForSession(const std::uint32_t index) noexcept {
-    const std::uint32_t worker_count = config_.value.io_worker_count;
-    const std::uint32_t session_count = config_.value.max_sessions;
-    const std::uint32_t base = session_count / worker_count;
-    const std::uint32_t remainder = session_count % worker_count;
-    const std::uint64_t larger_span =
-        static_cast<std::uint64_t>(base + 1) * remainder;
-    const std::uint32_t bounded_index = std::min(index, session_count - 1);
-    const std::uint32_t worker =
-        bounded_index < larger_span
-            ? bounded_index / (base + 1)
-            : remainder + static_cast<std::uint32_t>(
-                              (bounded_index - larger_span) / base);
-    return MetricsForWorker(worker);
+    const std::uint32_t bounded_index =
+        std::min<std::uint32_t>(index, config_.value.max_sessions - 1);
+    return MetricsForWorker(session_worker_table_[bounded_index]);
+  }
+
+  [[nodiscard]] std::chrono::steady_clock::time_point CallbackBegin()
+      const noexcept {
+    return callback_timing_enabled_ ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{};
   }
 
   void RecordCallbackDuration(
       WorkerMetrics& metrics,
       const std::chrono::steady_clock::time_point begin) noexcept {
+    if (!callback_timing_enabled_) {
+      return;
+    }
     const auto duration = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::steady_clock::now() - begin)
@@ -264,11 +288,20 @@ class Server::Impl final : public INetEventManager {
       metrics->accepted_connections.fetch_add(1, std::memory_order_relaxed);
       metrics->active_connections.fetch_add(1, std::memory_order_relaxed);
     }
-    const auto begin = config_.value.enable_metrics
-                           ? std::chrono::steady_clock::now()
-                           : std::chrono::steady_clock::time_point{};
-    handler_.OnConnected(SessionId{.index = static_cast<std::uint32_t>(index),
-                                   .generation = generation});
+    const SessionId session{.index = static_cast<std::uint32_t>(index),
+                            .generation = generation};
+    const auto begin = CallbackBegin();
+    // 사용자 콜백에서 벗어난 예외가 I/O worker 스택을 뚫고 나가면 서버 전체가
+    // std::terminate로 죽는다. 여기서 격리한다.
+    try {
+      handler_.OnConnected(session);
+    } catch (const std::exception& exception) {
+      Emit(LogSeverity::kError, "session", session, "connect_callback",
+           ErrorCode::kInternalError, 0, exception.what());
+    } catch (...) {
+      Emit(LogSeverity::kError, "session", session, "connect_callback",
+           ErrorCode::kInternalError, 0, "unknown exception");
+    }
     if (metrics != nullptr) RecordCallbackDuration(*metrics, begin);
   }
 
@@ -277,13 +310,17 @@ class Server::Impl final : public INetEventManager {
                           const std::uint32_t size, char* data) override {
     const auto bytes = std::span<const std::byte>(
         reinterpret_cast<const std::byte*>(data), size);
-    const auto begin = config_.value.enable_metrics
-                           ? std::chrono::steady_clock::now()
-                           : std::chrono::steady_clock::time_point{};
-    const auto consumed =
-        handler_.OnData(SessionId{.index = static_cast<std::uint32_t>(index),
-                                  .generation = generation},
-                        bytes);
+    const SessionId session{.index = static_cast<std::uint32_t>(index),
+                            .generation = generation};
+    const auto begin = CallbackBegin();
+    std::size_t consumed = 0;
+    try {
+      consumed = handler_.OnData(session, bytes);
+    } catch (const std::exception& exception) {
+      return RejectReceiveCallback(index, generation, exception.what());
+    } catch (...) {
+      return RejectReceiveCallback(index, generation, "unknown exception");
+    }
     WorkerMetrics* metrics = nullptr;
     if (config_.value.enable_metrics) {
       metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
@@ -297,18 +334,25 @@ class Server::Impl final : public INetEventManager {
           consumed <= size ? size - static_cast<std::uint32_t>(consumed) : 0;
     }
     if (consumed > size) {
-      if (metrics != nullptr) {
-        metrics->protocol_errors.fetch_add(1, std::memory_order_relaxed);
-      }
-      Emit(LogSeverity::kError, "session",
-           {static_cast<std::uint32_t>(index), generation}, "receive_callback",
-           ErrorCode::kInternalError, 0,
-           "handler consumed more bytes than provided");
-      static_cast<void>(legacy_server_.ForcedClose(
-          index, generation, DisconnectReason::kPROTOCOL_ERROR));
-      return 0;
+      return RejectReceiveCallback(index, generation,
+                                   "handler consumed more bytes than provided");
     }
     return static_cast<std::uint32_t>(consumed);
+  }
+
+  std::uint32_t RejectReceiveCallback(const std::int32_t index,
+                                      const std::uint64_t generation,
+                                      const std::string_view message) {
+    if (config_.value.enable_metrics) {
+      MetricsForSession(static_cast<std::uint32_t>(index))
+          .protocol_errors.fetch_add(1, std::memory_order_relaxed);
+    }
+    Emit(LogSeverity::kError, "session",
+         {static_cast<std::uint32_t>(index), generation}, "receive_callback",
+         ErrorCode::kInternalError, 0, message);
+    static_cast<void>(legacy_server_.ForcedClose(
+        index, generation, DisconnectReason::kPROTOCOL_ERROR));
+    return 0;
   }
 
   void OnClose(const std::int32_t index, const std::uint64_t generation,
@@ -331,12 +375,18 @@ class Server::Impl final : public INetEventManager {
           break;
       }
     }
-    const auto begin = config_.value.enable_metrics
-                           ? std::chrono::steady_clock::now()
-                           : std::chrono::steady_clock::time_point{};
-    handler_.OnClosed(SessionId{.index = static_cast<std::uint32_t>(index),
-                                .generation = generation},
-                      ConvertCloseReason(reason));
+    const SessionId session{.index = static_cast<std::uint32_t>(index),
+                            .generation = generation};
+    const auto begin = CallbackBegin();
+    try {
+      handler_.OnClosed(session, ConvertCloseReason(reason));
+    } catch (const std::exception& exception) {
+      Emit(LogSeverity::kError, "session", session, "close_callback",
+           ErrorCode::kInternalError, 0, exception.what());
+    } catch (...) {
+      Emit(LogSeverity::kError, "session", session, "close_callback",
+           ErrorCode::kInternalError, 0, "unknown exception");
+    }
     if (metrics != nullptr) RecordCallbackDuration(*metrics, begin);
   }
 
@@ -388,6 +438,9 @@ class Server::Impl final : public INetEventManager {
   std::vector<std::unique_ptr<WorkerMetrics>> worker_metrics_;
   alignas(64) std::atomic<std::uint64_t> rejected_connections_{0};
   std::vector<std::uint32_t> pending_receive_bytes_;
+  std::vector<std::uint16_t> session_worker_table_;
+  const bool callback_timing_enabled_ =
+      config_.value.enable_metrics && config_.value.enable_callback_timing;
   std::mutex lifecycle_mutex_;
   detail::ShutdownCoordinator shutdown_;
   std::optional<Error> stop_error_;
@@ -536,24 +589,33 @@ std::expected<void, Error> Server::Stop(const StopMode mode) noexcept {
 
 SendResult Server::Send(const SessionId session,
                         const std::span<const std::byte> data) noexcept {
+  return Send(session, data, {});
+}
+
+SendResult Server::Send(const SessionId session,
+                        const std::span<const std::byte> header,
+                        const std::span<const std::byte> payload) noexcept {
   if (!impl_ ||
       impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
     return SendResult::kClosing;
   }
-  if (data.empty() || data.size() > impl_->config_.value.max_message_bytes ||
-      data.size() > std::numeric_limits<std::uint32_t>::max()) {
+  const std::uint64_t total = static_cast<std::uint64_t>(header.size()) +
+                              static_cast<std::uint64_t>(payload.size());
+  if (total == 0 || total > impl_->config_.value.max_message_bytes) {
     return SendResult::kMessageTooLarge;
   }
 
   const NetErrorCode result = impl_->legacy_server_.SendData(
       static_cast<std::int32_t>(session.index), session.generation,
-      static_cast<std::uint32_t>(data.size()),
-      reinterpret_cast<const char*>(data.data()));
+      static_cast<std::uint32_t>(header.size()),
+      reinterpret_cast<const char*>(header.data()),
+      static_cast<std::uint32_t>(payload.size()),
+      reinterpret_cast<const char*>(payload.data()));
   switch (result) {
     case NetErrorCode::kNONE:
       if (impl_->config_.value.enable_metrics) {
         auto& metrics = impl_->MetricsForSession(session.index);
-        metrics.sent_bytes.fetch_add(data.size(), std::memory_order_relaxed);
+        metrics.sent_bytes.fetch_add(total, std::memory_order_relaxed);
         metrics.send_operations.fetch_add(1, std::memory_order_relaxed);
       }
       return SendResult::kQueued;

@@ -94,18 +94,6 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
                    "max_message_bytes must fit in both receive and send "
                    "buffers");
   }
-  if (config.max_outstanding_sends_per_session == 0) {
-    return Invalid("max_outstanding_sends_per_session",
-                   "max_outstanding_sends_per_session must be at least 1");
-  }
-  const std::uint64_t required_send_bytes =
-      static_cast<std::uint64_t>(config.max_message_bytes) *
-      config.max_outstanding_sends_per_session;
-  if (required_send_bytes > config.send_buffer_bytes) {
-    return Invalid("send_buffer_bytes",
-                   "send_buffer_bytes must hold one maximum message for each "
-                   "outstanding send");
-  }
   if (config.completion_batch_size == 0 ||
       config.completion_batch_size > 4096) {
     return Invalid("completion_batch_size",
@@ -121,16 +109,34 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
                    "graceful_shutdown_timeout_ms must be in the range "
                    "1..300000");
   }
+  if (config.peer_close_drain_timeout_ms == 0 ||
+      config.peer_close_drain_timeout_ms > 60'000) {
+    return Invalid("peer_close_drain_timeout_ms",
+                   "peer_close_drain_timeout_ms must be in the range 1..60000");
+  }
+  if (config.idle_timeout_ms != 0 && config.idle_timeout_ms < 1'000) {
+    return Invalid("idle_timeout_ms",
+                   "idle_timeout_ms must be 0 or at least 1000");
+  }
+  if (config.keepalive_time_ms != 0 && config.keepalive_interval_ms == 0) {
+    return Invalid("keepalive_interval_ms",
+                   "keepalive_interval_ms must be non-zero when keepalive is "
+                   "enabled");
+  }
 
   const std::uint64_t sessions_per_worker =
       (static_cast<std::uint64_t>(config.max_sessions) +
        config.io_worker_count - 1) /
       config.io_worker_count;
-  const std::uint64_t completion_capacity =
-      sessions_per_worker * (1ULL + config.max_outstanding_sends_per_session);
-  if (completion_capacity > std::numeric_limits<ULONG>::max()) {
-    return Invalid("max_outstanding_sends_per_session",
-                   "calculated RIO completion queue capacity exceeds ULONG");
+  // 세션당 in-flight 요청은 수신 1개와 송신 1개다.
+  const std::uint64_t completion_capacity = sessions_per_worker * 2ULL;
+  // RIO_MAX_CQ_SIZE를 여기서 확인해야 Start의 불친절한 스레드 시작 실패 대신
+  // 설정 오류로 보고된다.
+  constexpr std::uint64_t kMaxRioCompletionQueueSize = 0x8000000ULL;
+  if (completion_capacity > kMaxRioCompletionQueueSize) {
+    return Invalid("max_sessions",
+                   "calculated RIO completion queue capacity exceeds "
+                   "RIO_MAX_CQ_SIZE");
   }
 
   const std::uint64_t registered_bytes_per_session =
@@ -139,10 +145,10 @@ std::expected<ValidatedServerConfig, Error> ValidateServerConfig(
   const std::uint64_t reserved_bytes_per_session =
       2ULL * registered_bytes_per_session;
   constexpr std::uint64_t kEstimatedSessionControlBytes = 512;
-  constexpr std::uint64_t kEstimatedSendContextBytes = 64;
+  // 수신·송신 컨텍스트가 세션당 하나씩이다.
+  constexpr std::uint64_t kEstimatedIoContextBytes = 128;
   const std::uint64_t control_bytes_per_session =
-      kEstimatedSessionControlBytes +
-      kEstimatedSendContextBytes * config.max_outstanding_sends_per_session;
+      kEstimatedSessionControlBytes + kEstimatedIoContextBytes;
   if (config.max_sessions >
       std::numeric_limits<std::uint64_t>::max() / reserved_bytes_per_session) {
     return Invalid("max_sessions",

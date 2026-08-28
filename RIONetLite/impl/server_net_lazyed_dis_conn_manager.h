@@ -16,7 +16,9 @@ class ServerNetLazyedDisConnManager {
   ServerNetLazyedDisConnManager() = default;
   ~ServerNetLazyedDisConnManager() = default;
 
-  void PrepareSessionQueues(const std::uint32_t thread_count) {
+  void PrepareSessionQueues(const std::uint32_t thread_count,
+                            const std::uint32_t drain_timeout_ms) {
+    drain_timeout_ms_ = drain_timeout_ms;
     lazyed_dis_connect_sessions_.clear();
     for (std::uint32_t i = 0; i < thread_count; ++i) {
       lazyed_dis_connect_sessions_.emplace_back();
@@ -26,12 +28,13 @@ class ServerNetLazyedDisConnManager {
   void AddSession(const int thread_index, const INT32 session_index,
                   const UINT64 session_uid, const DisconnectReason reason) {
     lazyed_dis_connect_sessions_[thread_index].push(
-        {session_index, session_uid, reason});
+        {session_index, session_uid, reason, 0});
   }
 
   void ProcessLazyedDisConnectSession(const int thread_index,
                                       SessionManager* p_session_mgr) {
     std::vector<LazyedDisConnectSession> deferred;
+    const std::uint64_t now = GetTickCount64();
     while (true) {
       if (auto disConnectInfo = FetchSession(thread_index);
           disConnectInfo.uid <= 0) {
@@ -42,7 +45,17 @@ class ServerNetLazyedDisConnManager {
 
         if (auto pSession = p_session_mgr->GetSessionObj(session_index, uid);
             pSession != nullptr) {
+          // peer가 FIN 직후 사라지면 미완료 송신이 TCP 재전송 타임아웃까지
+          // 완료되지 않는다. 마감을 넘기면 abortive로 강등해 슬롯을 회수한다.
+          if (disConnectInfo.drain_deadline_ms_ != 0 &&
+              now >= disConnectInfo.drain_deadline_ms_) {
+            disConnectInfo.reason_ = DisconnectReason::kSEND_ERROR;
+            disConnectInfo.drain_deadline_ms_ = 0;
+          }
           if (!DisConnectFunc(pSession, uid, disConnectInfo.reason_)) {
+            if (disConnectInfo.drain_deadline_ms_ == 0) {
+              disConnectInfo.drain_deadline_ms_ = now + drain_timeout_ms_;
+            }
             deferred.push_back(disConnectInfo);
           }
         } else {
@@ -65,6 +78,7 @@ class ServerNetLazyedDisConnManager {
     return disConnectInfo;
   }
 
+  std::uint32_t drain_timeout_ms_ = 5000;
   std::vector<concurrency::concurrent_queue<LazyedDisConnectSession>>
       lazyed_dis_connect_sessions_;
 };

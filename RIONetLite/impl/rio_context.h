@@ -76,6 +76,13 @@ struct alignas(64) RioIoContext : public RIO_BUF {
     Length = 0;
   }
 
+  // 링 버퍼가 송신 진행 상태의 원본이므로, 완료를 반영한 뒤 컨텍스트를 idle로
+  // 되돌려 남은 바이트와 새로 쌓인 바이트를 하나의 요청으로 다시 게시한다.
+  void Retire() noexcept {
+    Offset = 0;
+    Length = 0;
+  }
+
   [[nodiscard]] bool IsIdle() const noexcept { return Length == 0; }
 
   int session_index_ = -1;

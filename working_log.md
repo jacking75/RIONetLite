@@ -1,3 +1,16 @@
+## 2026-08-28 13:05 KST - 정밀 점검 항목 전체 구현과 0.3.0
+
+- 점검 문서의 안정성 10건, 성능 5건, 기능 2건을 모두 구현했다. SRWLOCK 교체, 세대 검증 강제 종료, close 이후 수신 콜백 차단, 종료 타임아웃 자원 회수 순서, close 이벤트 보장 전달, 콜백 예외 격리가 핵심이다.
+- 송신을 고정 슬롯에서 바이트 링 코얼레싱으로 전환하고 세션 free list를 worker 라운드로빈으로 바꿨다. keepalive/idle timeout과 scatter Send를 추가했다.
+- Debug/Release 경고 0, 단위 56개·통합 18개 통과, 실제 RIO 8개 시나리오 data error 0, `/analyze` 경고 0을 확인했다.
+- `36a03af` 대비 A/B 4개 조합에서 처리량 1.6~2.4배, P99 동등 이상이었다. 공개 API 변경으로 0.3.0으로 올렸다.
+
+## 2026-08-28 12:04 KST - 성능·안정성 정밀 점검 문서 작성
+
+- 0.2.0 전체 구현(`RIONetLite/impl/`, `src/`, 공개 헤더)을 정밀 리뷰해 안정성 10건, 성능 5건, 기능 추가 2건을 도출했다.
+- 항목별 근거 코드 위치, 정확한 구현 방법(코드 스케치), 검증 방법과 적용 순서를 `docs/perf-stability-audit-20260828.md`로 정리했다.
+- 주요 발견: FastSpinlock의 Sleep 기반 구현, index 단독 ForcedClose 세대 검증 위반, 종료 후 지연 OnData 전달, cold-start 워커 편중, 송신 슬롯 구조의 소형 패킷 비효율.
+
 ## 2026-08-27 18:10:40 KST - CI 제거 및 master 푸시 준비
 
 - 사용자 요청에 따라 GitHub Actions workflow를 릴리스 트리에서 제거했다.

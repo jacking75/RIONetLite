@@ -54,6 +54,11 @@ class Server final {
   // before returning.
   SendResult Send(SessionId session, std::span<const std::byte> data) noexcept;
 
+  // Sends header and payload as one message without an application-side
+  // temporary buffer. Both spans are copied before returning.
+  SendResult Send(SessionId session, std::span<const std::byte> header,
+                  std::span<const std::byte> payload) noexcept;
+
   // Thread-safe asynchronous request. False indicates a stale SessionId or a
   // server that is not running.
   bool RequestClose(

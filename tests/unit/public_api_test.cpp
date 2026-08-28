@@ -25,6 +25,7 @@ TEST(PublicApiTest, ServerIsMoveOnly) {
 TEST(PublicApiTest, EnumStringsAreStable) {
   EXPECT_EQ(ToString(SendResult::kWouldBlock), "would_block");
   EXPECT_EQ(ToString(CloseReason::kPeerClosed), "peer_closed");
+  EXPECT_EQ(ToString(CloseReason::kIdleTimeout), "idle_timeout");
 }
 
 TEST(PublicApiTest, LegacyDisconnectReasonStringsMatchEveryValue) {
@@ -48,10 +49,13 @@ TEST(PublicApiTest, LegacyDisconnectReasonStringsMatchEveryValue) {
   EXPECT_STREQ(
       DisconnectReasonStr[static_cast<int>(DisconnectReason::kOVERLOADED)],
       "overloaded");
+  EXPECT_STREQ(
+      DisconnectReasonStr[static_cast<int>(DisconnectReason::kIDLE_TIMEOUT)],
+      "idle_timeout");
 }
 
 TEST(PublicApiTest, PublicHeadersExposeThePackageVersion) {
-  EXPECT_STREQ(RIONETLITE_VERSION_STRING, "0.2.0");
+  EXPECT_STREQ(RIONETLITE_VERSION_STRING, "0.3.0");
 }
 
 }  // namespace

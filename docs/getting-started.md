@@ -13,4 +13,4 @@ LoadClient 정상 검증은 `bin\x64\Debug\LoadClient.exe --port 32452 --scenari
 
 ## 배포 형식 결정
 
-0.2.x는 Windows x64/MSVC v145 ABI에 고정된 versioned binary package를 기준으로 한다. vcpkg overlay port와 CMake package는 제공하지 않는다. `tools\package.ps1`이 공개 headers, Release `.lib`/PDB와 `samples/package_consumer`를 묶고, sample의 `RIONetLitePackageRoot` 기본값이 package 루트의 include/lib를 자동 참조한다. ABI가 안정되지 않은 0.x에서 소스 port를 배포해 toolchain 차이를 숨기는 것보다 지원 compiler와 binary를 명시하는 정책을 선택했다.
+0.x는 Windows x64/MSVC v145 ABI에 고정된 versioned binary package를 기준으로 한다. vcpkg overlay port와 CMake package는 제공하지 않는다. `tools\package.ps1`이 공개 headers, Release `.lib`/PDB와 `samples/package_consumer`를 묶고, sample의 `RIONetLitePackageRoot` 기본값이 package 루트의 include/lib를 자동 참조한다. ABI가 안정되지 않은 0.x에서 소스 port를 배포해 toolchain 차이를 숨기는 것보다 지원 compiler와 binary를 명시하는 정책을 선택했다.
