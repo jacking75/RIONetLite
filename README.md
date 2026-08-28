@@ -1,25 +1,27 @@
 # RIONetLite
 
-RIONetLite는 Windows Registered I/O(RIO)를 사용하는 x64 게임 서버용 C++ 정적 라이브러리다. 세션 generation 검증, 완료 전 버퍼 수명, 유계 백프레셔와 결정론적 종료를 기본 계약으로 삼는다.
+[한국어](README_kr.md)
 
-## 5분 시작
+RIONetLite is an x64 game-server C++ static library built on Windows Registered I/O (RIO). Its baseline contract is session-generation validation, buffer lifetime that lasts until completion, bounded backpressure, and deterministic shutdown.
 
-필요 환경은 Visual Studio 2026, MSVC `v145`, Windows SDK 10, manifest-mode vcpkg다. Developer PowerShell에서 실행한다.
+## 5-Minute Quick Start
+
+You need Visual Studio 2026, MSVC `v145`, Windows SDK 10, and manifest-mode vcpkg. Run the following from a Developer PowerShell prompt.
 
 ```powershell
 tools\build.ps1 -Configuration Debug -Rebuild
 bin\x64\Debug\EchoServer.exe --port 32452
 ```
 
-다른 터미널에서 실제 echo와 checksum을 검증한다.
+From another terminal, verify the real echo and checksum.
 
 ```powershell
 bin\x64\Debug\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenario echo --json result.json
 ```
 
-최소 서버는 [EchoServer](samples/echo_server/main.cpp)다. `tools\package.ps1`은 headers, Release library/PDB, 라이선스, changelog, version과 최소 consumer sample을 묶고, 생성 중인 패키지 내부 파일만으로 sample을 빌드해 검증한다.
+The minimal server is [EchoServer](samples/echo_server/main.cpp). `tools\package.ps1` bundles the headers, Release library/PDB, license, changelog, version, and a minimal consumer sample, then builds and verifies the sample using only the files inside the package it just produced.
 
-## 공개 API 흐름
+## Public API Flow
 
 ```cpp
 #include <rionetlite/server.h>
@@ -46,21 +48,21 @@ int main() {
 }
 ```
 
-`Server::Create` → `Start` → `Send`/`RequestClose` → `Stop` 순서로 사용한다. 콜백의 span은 콜백이 반환되면 무효이며, 오래 걸리는 게임 로직은 `QueuedEventAdapter`로 별도 워커에 전달해야 한다.
+Use the API in the order `Server::Create` → `Start` → `Send`/`RequestClose` → `Stop`. The span passed to a callback becomes invalid once the callback returns, so long-running game logic must be handed off to a separate worker through `QueuedEventAdapter`.
 
-죽은 연결을 자동으로 회수하려면 `ServerConfig::keepalive_time_ms`와 `idle_timeout_ms`를 설정한다. header와 payload를 한 메시지로 보낼 때는 임시 buffer 대신 `Server::Send(session, header, payload)`를 쓴다. 세부 동작은 [구성](docs/configuration.md)과 [패킷 프레이밍](docs/packet-framing.md)을 따른다.
+To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration](docs/configuration.md) and [Packet Framing](docs/packet-framing.md) for the details.
 
-## 문서
+## Documentation
 
-- [설치와 첫 서버](docs/getting-started.md), [구성](docs/configuration.md), [API 레퍼런스](docs/api/README.md)
-- [아키텍처](docs/architecture.md), [스레딩](docs/threading-model.md), [세션 수명](docs/session-lifecycle.md)
-- [패킷 프레이밍](docs/packet-framing.md), [백프레셔](docs/backpressure.md), [종료](docs/graceful-shutdown.md)
-- [성능 튜닝](docs/performance-tuning.md), [벤치마크](docs/benchmarking.md), [메모리 안전성](docs/memory-safety.md), [관측성](docs/observability.md)
-- [EchoServer](docs/samples/echo-server.md), [ChatServer](docs/samples/chat-server.md), [문제 해결](docs/troubleshooting.md)
+- [Getting Started](docs/getting-started.md), [Configuration](docs/configuration.md), [API Reference](docs/api/README.md)
+- [Architecture](docs/architecture.md), [Threading Model](docs/threading-model.md), [Session Lifecycle](docs/session-lifecycle.md)
+- [Packet Framing](docs/packet-framing.md), [Backpressure](docs/backpressure.md), [Graceful Shutdown](docs/graceful-shutdown.md)
+- [Performance Tuning](docs/performance-tuning.md), [Benchmarking](docs/benchmarking.md), [Memory Safety](docs/memory-safety.md), [Observability](docs/observability.md)
+- [EchoServer](docs/samples/echo-server.md), [ChatServer](docs/samples/chat-server.md), [Troubleshooting](docs/troubleshooting.md)
 
-지원 플랫폼과 설계 결정은 [ADR](docs/adr/0001-supported-platform.md)에서 확인한다. 릴리스 변경은 [CHANGELOG](CHANGELOG.md), 보안 보고는 [SECURITY](SECURITY.md)를 따른다.
+Supported platforms and design decisions are recorded in the [ADRs](docs/adr/0001-supported-platform.md). Follow [CHANGELOG](CHANGELOG.md) for release changes and [SECURITY](SECURITY.md) to report security issues.
 
-## 품질 명령
+## Quality Commands
 
 ```powershell
 tools\check-format.ps1
@@ -73,4 +75,4 @@ tools\run-design-benchmark.ps1
 tools\package.ps1
 ```
 
-장시간 soak가 필요하면 같은 stress 엔진의 `-DurationSeconds`를 늘려 수동 실행하고 결과를 외부 artifact 저장소에 보관한다. 큰 바이너리, PDB, dump, 빌드 출력과 벤치마크 결과는 Git에 커밋하지 않는다.
+For a longer soak, increase `-DurationSeconds` on the same stress engine, run it manually, and keep the results in an external artifact store. Do not commit large binaries, PDBs, dumps, build output, or benchmark results to Git.
