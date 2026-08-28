@@ -1,4 +1,4 @@
-param([switch]$Check)
+﻿param([switch]$Check)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot

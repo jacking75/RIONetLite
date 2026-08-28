@@ -1,8 +1,8 @@
-﻿# ?앹꽦??怨듦컻 API 紐⑸줉
+﻿# 생성된 공개 API 목록
 
-> `tools\generate-api-docs.ps1`??怨듦컻 ?ㅻ뜑??`@api` 二쇱꽍?먯꽌 ?앹꽦?쒕떎.
+> `tools\generate-api-docs.ps1`이 공개 헤더의 `@api` 주석에서 생성한다.
 
-| ?ㅻ뜑 | symbol | ?ㅻ챸 |
+| 헤더 | symbol | 설명 |
 |---|---|---|
 | `config.h` | `DefaultIoWorkerCount` | processor group을 반영한 기본 worker 수다. |
 | `config.h` | `ServerConfig` | 서버 생성 전 사용자가 지정하는 설정이다. |

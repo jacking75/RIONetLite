@@ -48,6 +48,8 @@ int main() {
 
 `Server::Create` → `Start` → `Send`/`RequestClose` → `Stop` 순서로 사용한다. 콜백의 span은 콜백이 반환되면 무효이며, 오래 걸리는 게임 로직은 `QueuedEventAdapter`로 별도 워커에 전달해야 한다.
 
+죽은 연결을 자동으로 회수하려면 `ServerConfig::keepalive_time_ms`와 `idle_timeout_ms`를 설정한다. header와 payload를 한 메시지로 보낼 때는 임시 buffer 대신 `Server::Send(session, header, payload)`를 쓴다. 세부 동작은 [구성](docs/configuration.md)과 [패킷 프레이밍](docs/packet-framing.md)을 따른다.
+
 ## 문서
 
 - [설치와 첫 서버](docs/getting-started.md), [구성](docs/configuration.md), [API 레퍼런스](docs/api/README.md)
