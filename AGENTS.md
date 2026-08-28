@@ -1,4 +1,4 @@
-# AGENTS.md
+# RIONetLite
 
 ## 프로젝트 목적
 
