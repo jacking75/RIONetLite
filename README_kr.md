@@ -28,3 +28,22 @@ callback span을 반환 뒤 저장하지 않는다. 게임·DB·파일 처리는
 tools/package.ps1은 현재 source version을 읽고 정확한 snapshot에서 Release lib/PDB를 새로 빌드한다. compiler/SDK/runtime/source SHA256과 파일 해시를 기록하고 최종 ZIP을 다시 풀어 vcpkg 비활성 consumer를 빌드·실행한다. [ZIP 소비](docs/package-consumption.md)를 따른다. 정식 릴리스는 깨끗한 version tag와 -RequireReleaseTag 검사가 필요하다.
 
 품질 검사는 [릴리스 체크리스트](docs/release-checklist.md)에서 확인한다. C# ChatClient는 .NET 10 WinForms와 version 1 공유 protocol을 사용한다. 현재 로컬 자동 검사와 실제 GUI·별도 PC·신입 독자 평가는 구별한다. [개발 참여](CONTRIBUTING.md), [보안 보고](SECURITY.md), [외부 코드 고지](THIRD_PARTY_NOTICES.md)를 참고한다.
+
+## 문서 안내
+
+docs의 한국어 문서 전체와 프로토콜 검증 자료를 다음 표에서 찾을 수 있다. 처음 사용하는 독자는 입문·실습 순서로 읽고, 함수 사용과 내부 구현은 API·구조 문서를 함께 확인한다.
+
+| 분류 | 문서 |
+|---|---|
+| 입문·실습 | [단일 HTML 기술서](docs/rionetlite_book.html) · [TCP와 RIO 입문](docs/networking-basics.md) · [설치와 첫 서버](docs/getting-started.md) · [첫 Echo 코드 읽기](docs/tutorial/first-echo-server.md) · [게임 워커로 넘기기](docs/tutorial/game-worker.md) |
+| 공개 API | [API 레퍼런스](docs/api/README.md) · [생성된 API 목록](docs/api/generated.md) · [함수별 계약](docs/api/contracts.md) |
+| 구조·수명 | [아키텍처](docs/architecture.md) · [스레딩 모델](docs/threading-model.md) · [세션 수명](docs/session-lifecycle.md) |
+| 패킷·프로토콜 | [패킷 프레이밍](docs/packet-framing.md) · [Chat wire protocol v1](docs/protocol/chat.md) · [공통 바이트 fixture](docs/protocol/chat-fixtures.tsv) |
+| 설정·종료 | [설정](docs/configuration.md) · [배압과 유계 저장소](docs/backpressure.md) · [종료 정책](docs/graceful-shutdown.md) |
+| 운영·안전성 | [관측성](docs/observability.md) · [문제 해결](docs/troubleshooting.md) · [메모리 안전성 검사](docs/memory-safety.md) |
+| 성능·측정 | [성능 튜닝](docs/performance-tuning.md) · [벤치마킹](docs/benchmarking.md) · [T00 기준선: 역사 자료](docs/baseline.md) |
+| 예제 | [EchoServer](docs/samples/echo-server.md) · [ChatServer와 C# 클라이언트](docs/samples/chat-server.md) |
+| 릴리스 | [릴리스 체크리스트](docs/release-checklist.md) |
+| 설계 결정 | [ADR 0001: 지원 플랫폼](docs/adr/0001-supported-platform.md) · [ADR 0002: 스레드와 콜백](docs/adr/0002-threading-and-callbacks.md) · [ADR 0003: 과부하 정책](docs/adr/0003-overload-policy.md) · [ADR 0004: 종료 정책](docs/adr/0004-shutdown.md) · [ADR 0005: 성능 측정](docs/adr/0005-performance-method.md) |
+
+영문 자료는 [Getting Started](docs/getting-started-en.md)와 [Binary Package Consumption](docs/package-consumption.md)이다. 릴리스 변경 이력은 [CHANGELOG](CHANGELOG.md)를 참고한다.

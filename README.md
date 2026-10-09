@@ -2,11 +2,9 @@
 
 [한국어](README_kr.md)
 
-[Read the single-file Korean HTML book](docs/rionetlite_book.html): 397 B5 print pages, 40 chapters, 101 diagrams, 40 animations and 8 interactive exercises. It explains architecture, public APIs and 49 source files. Download the HTML and open it in a browser; all assets are embedded.
-
 RIONetLite is an x64 game-server C++ static library built on Windows Registered I/O (RIO). Its baseline contract is session-generation validation, buffer lifetime that lasts until completion, bounded backpressure, and completion-aware shutdown.
 
-0.3.x is a **preview**: API and ABI may change during 0.x. The transport is TCP/IPv4 server-only on Windows x64, with VS2026/MSVC v145 and Windows SDK. Windows 10 1803+, Windows 11 and Server 2019+ are target systems, not a fully tested OS matrix. IPv6, TLS, UDP and client transport APIs are outside scope. See the [English core guide](docs/getting-started-en.md) or [Korean tutorial](docs/getting-started.md).
+0.3.x is a **preview**: API and ABI may change during 0.x. The transport is TCP/IPv4 server-only on Windows x64, with VS2026/MSVC v145 and Windows SDK. Windows 10 1803+, Windows 11 and Server 2019+ are target systems, not a fully tested OS matrix. IPv6, TLS, UDP and client transport APIs are outside scope. See the [English core guide](docs/getting-started-en.md) or the [Korean documentation index](README_kr.md#문서-안내).
 
 ## First Echo
 
@@ -56,23 +54,21 @@ int main() {
 }
 ```
 
-This example immediately stops and checks the lifecycle. For a continuously listening server, use EchoServer and the [code walkthrough](docs/tutorial/first-echo-server.md).
+This example immediately stops and checks the lifecycle. For a continuously listening server, use EchoServer and the [code walkthrough (Korean)](docs/tutorial/first-echo-server.md).
 
 Use the API in the order `Server::Create` → `Start` → `Send`/`RequestClose` → `Stop`. The span passed to a callback becomes invalid once the callback returns, so long-running game logic must be handed off to a separate worker through `QueuedEventAdapter`.
 
-Start/Stop from this server's event or logger callbacks is rejected; signal the control thread. Moving/destroying Server requires quiescent application callers. Send copies before return; kQueued does not acknowledge peer processing. See [Function contracts](docs/api/contracts.md).
+Start/Stop from this server's event or logger callbacks is rejected; signal the control thread. Moving/destroying Server requires quiescent application callers. Send copies before return; kQueued does not acknowledge peer processing. See [Function contracts (Korean)](docs/api/contracts.md).
 
-To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration](docs/configuration.md) and [Packet Framing](docs/packet-framing.md) for the details.
+To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration (Korean)](docs/configuration.md) and [Packet Framing (Korean)](docs/packet-framing.md) for the details.
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md), [Configuration](docs/configuration.md), [API Reference](docs/api/README.md)
-- [Architecture](docs/architecture.md), [Threading Model](docs/threading-model.md), [Session Lifecycle](docs/session-lifecycle.md)
-- [Packet Framing](docs/packet-framing.md), [Backpressure](docs/backpressure.md), [Graceful Shutdown](docs/graceful-shutdown.md)
-- [Performance Tuning](docs/performance-tuning.md), [Benchmarking](docs/benchmarking.md), [Memory Safety](docs/memory-safety.md), [Observability](docs/observability.md)
-- [EchoServer](docs/samples/echo-server.md), [ChatServer](docs/samples/chat-server.md), [Troubleshooting](docs/troubleshooting.md)
+- [Getting Started](docs/getting-started-en.md)
+- [Binary Package Consumption](docs/package-consumption.md)
+- [Korean documentation index](README_kr.md#문서-안내): the complete technical guides, API reference, samples, protocol, release checklist, five ADRs and the single-file HTML book.
 
-Supported platforms and design decisions are recorded in the [ADRs](docs/adr/0001-supported-platform.md). Follow [CHANGELOG](CHANGELOG.md) for release changes and [SECURITY](SECURITY.md) to report security issues.
+The detailed guides are currently written in Korean and indexed in README_kr.md. Follow [CHANGELOG](CHANGELOG.md) for release changes, [CONTRIBUTING](CONTRIBUTING.md) to contribute, [SECURITY](SECURITY.md) to report security issues and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) for dependency notices.
 
 ## Quality Commands
 
