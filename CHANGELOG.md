@@ -2,7 +2,21 @@
 
 ## 0.3.0 - 2026-08-28
 
-정밀 점검(`docs/perf-stability-audit-20260828.md`)에서 도출한 안정성·성능 항목을 모두 반영했다.
+과거 2026-08-28 변경 이력이다. 이후 공개 준비 수정은 아래와 같으며 version 0.3.0의 개발 후보에 반영했다. 새 release tag 생성·공개를 뜻하지 않는다.
+
+### 2026-10-09 공개 준비 수정
+
+- Logger.Log 예외 격리, event/logger callback의 Start/Stop 거절과 transport API 호출자 수명 보호를 추가했다.
+- generation 검사와 close 전이를 pool lock으로 보호하고 close mailbox·batch를 유계화했다. accept의 callback·첫 recv 게시 순서를 보호했다.
+- adapter raw split·손실 RejectNewest 계약·parked close depth·유효 생성 인자를 수정했다.
+- Chat의 다중 shard broadcast와 .NET 10 C# 클라이언트를 version 1 protocol과 공유 fixture로 맞췄다.
+- native bind 오류·idle close reason·성공 RIO 완료 sent_bytes를 수정했다. 수락 누적 바이트는 새 queued_send_bytes다.
+- worker startup/null completion 방어와 Stop 단일 deadline, CQ 종료 후 notification handle 해제를 추가했다. 강제 safety drain에서 heap allocation을 없앴다.
+- stress는 모든 경로 예열 후 quiescent 자원을 비교하며 불충분 표본·비정상 exit·강제 종료를 실패로 판정한다.
+- 패키지는 현재 source snapshot에서 fresh Release /MD non-/GL 빌드를 만들고 metadata/hash·source·최종 ZIP-only 소비 검사를 제공한다.
+- 설치·입문·API·Chat·운영·영문 핵심 안내와 보안 연락 경로를 확장했다.
+
+이 수정은 MetricsSnapshot 레이아웃과 sent_bytes 의미를 바꾸므로 0.x 바이너리를 함께 다시 빌드해야 한다. kRejectNewest는 소비·폐기하는 raw 손실 정책이며 framed TCP에는 kDisconnect를 사용한다. 문서의 함수 계약과 릴리스 체크리스트에서 검증 범위를 확인한다.
 
 ### 안정성
 

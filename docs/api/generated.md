@@ -24,7 +24,7 @@
 | `packet_decoder.h` | `DecodeError` | length-prefix decode 실패 원인이다. |
 | `packet_decoder.h` | `DecodeResult` | 소비 바이트와 decode 오류를 반환한다. |
 | `packet_decoder.h` | `LengthPrefixedDecoder` | big-endian length-prefix stream decoder다. |
-| `queued_event_adapter.h` | `EventQueueFullPolicy` | event queue 포화 시 비차단 정책이다. |
+| `queued_event_adapter.h` | `EventQueueFullPolicy` | event queue 포화 시 대기 없이 거절하는 정책이다. |
 | `queued_event_adapter.h` | `PollEventResult` | event dequeue 시도 결과다. |
 | `queued_event_adapter.h` | `QueuedEventAdapter` | callback을 shard별 유계 queue로 전달한다. |
 | `queued_event_adapter.h` | `QueuedEventHeader` | queue event의 세션·순서·payload 메타데이터다. |

@@ -1,381 +1,126 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+namespace csharp_test_client;
 
-namespace csharp_test_client
+public sealed class mainForm : Form
 {
-    public partial class mainForm : Form
+    private readonly TextBox host = new() { Text = "127.0.0.1", Width = 120 };
+    private readonly NumericUpDown port = new() { Minimum = 1, Maximum = 65535, Value = 32453, Width = 80 };
+    private readonly TextBox name = new() { Text = "Player", Width = 100 };
+    private readonly NumericUpDown room = new() { Minimum = 0, Maximum = uint.MaxValue, Value = 1, Width = 80 };
+    private readonly Button connect = new() { Text = "연결·입장", AutoSize = true };
+    private readonly Button disconnect = new() { Text = "연결 종료", AutoSize = true, Enabled = false };
+    private readonly TextBox message = new() { Width = 480 };
+    private readonly Button send = new() { Text = "채팅 전송", AutoSize = true, Enabled = false };
+    private readonly TextBox history = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill };
+    private readonly System.Windows.Forms.Timer heartbeat = new() { Interval = 5000 };
+    private CancellationTokenSource? lifetime;
+    private ChatConnection? connection;
+    private bool connecting;
+
+    public mainForm()
     {
-        ClientSimpleTcp Network = new ClientSimpleTcp();
-
-        bool IsNetworkThreadRunning = false;
-        bool IsBackGroundProcessRunning = false;
-
-        System.Threading.Thread NetworkReadThread = null;
-        System.Threading.Thread NetworkSendThread = null;
-
-        PacketBufferManager PacketBuffer = new PacketBufferManager();
-        Queue<PacketData> RecvPacketQueue = new Queue<PacketData>();
-        Queue<byte[]> SendPacketQueue = new Queue<byte[]>();
-
-        System.Windows.Forms.Timer dispatcherUITimer;
-
-        string RandomEchoData = "";
-
-
-        public mainForm()
+        Text = "RIONetLite ChatClient — protocol 1";
+        ClientSize = new Size(820, 460);
+        MinimumSize = new Size(840, 480);
+        var controls = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(8) };
+        controls.Controls.AddRange([new Label { Text = "주소", AutoSize = true }, host,
+            new Label { Text = "포트", AutoSize = true }, port, new Label { Text = "이름", AutoSize = true }, name,
+            new Label { Text = "방", AutoSize = true }, room, connect, disconnect]);
+        var compose = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(8) };
+        compose.Controls.AddRange([message, send]);
+        Controls.Add(history);
+        Controls.Add(compose);
+        Controls.Add(controls);
+        connect.Click += async (_, _) => await ConnectAsync();
+        disconnect.Click += (_, _) => Disconnect();
+        send.Click += async (_, _) => await SendChatAsync();
+        message.KeyDown += async (_, args) =>
         {
-            InitializeComponent();
+            if (args.KeyCode == Keys.Enter) { args.SuppressKeyPress = true; await SendChatAsync(); }
+        };
+        heartbeat.Tick += async (_, _) => await SendHeartbeatAsync();
+        FormClosed += (_, _) => { Disconnect(); heartbeat.Dispose(); };
+        Append("이름은 UTF-8 1~32바이트, 채팅은 0~256바이트다. 같은 방의 모든 사용자에게 전달된다.");
+    }
+
+    private async Task ConnectAsync()
+    {
+        if (connecting || connection != null) return;
+        connecting = true;
+        connect.Enabled = false;
+        var source = new CancellationTokenSource();
+        lifetime = source;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(source.Token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            var opened = await ChatConnection.OpenAsync(host.Text.Trim(), (int)port.Value, name.Text,
+                (uint)room.Value, timeout.Token);
+            if (source.IsCancellationRequested) { opened.Dispose(); return; }
+            connection = opened;
+            disconnect.Enabled = send.Enabled = true;
+            heartbeat.Start();
+            Append($"로그인·방 {(uint)room.Value} 입장 성공이다.");
+            _ = ReadLoopAsync(opened, source.Token);
         }
+        catch (Exception error) { Append($"연결 실패: {error.Message}"); if (!IsDisposed) Disconnect(); }
+        finally { connecting = false; if (!IsDisposed) connect.Enabled = connection == null; }
+    }
 
-        private void mainForm_Load(object sender, EventArgs e)
+    private async Task ReadLoopAsync(ChatConnection opened, CancellationToken cancellation)
+    {
+        try
         {
-            PacketBuffer.Init((8096 * 10), PacketDef.PACKET_HEADER_SIZE, 1024);
-
-            IsNetworkThreadRunning = true;
-            NetworkReadThread = new System.Threading.Thread(this.NetworkReadProcess);
-            NetworkReadThread.Start();
-            NetworkSendThread = new System.Threading.Thread(this.NetworkSendProcess);
-            NetworkSendThread.Start();
-
-            IsBackGroundProcessRunning = true;
-            dispatcherUITimer = new System.Windows.Forms.Timer();
-            dispatcherUITimer.Tick += new EventHandler(BackGroundProcess);
-            dispatcherUITimer.Interval = 100;
-            dispatcherUITimer.Start();
-
-            btnDisconnect.Enabled = false;
-
-            SetPacketHandler();
-            DevLog.Write("프로그램 시작 !!!", LOG_LEVEL.INFO);
-        }
-
-        private void mainForm_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            IsNetworkThreadRunning = false;
-            IsBackGroundProcessRunning = false;
-
-            Network.Close();
-        }
-
-        
-        void NetworkReadProcess()
-        {
-            const Int16 PacketHeaderSize = PacketDef.PACKET_HEADER_SIZE;
-
-            while (IsNetworkThreadRunning)
+            while (!cancellation.IsCancellationRequested)
             {
-                if (Network.IsConnected() == false)
-                {
-                    System.Threading.Thread.Sleep(1);
-                    continue;
-                }
-
-                var recvData = Network.Receive();
-
-                if (recvData != null)
-                {
-                    PacketBuffer.Write(recvData.Item2, 0, recvData.Item1);
-
-                    while (true)
-                    {
-                        var data = PacketBuffer.Read();
-                        if (data.Count < 1)
-                        {
-                            break;
-                        }
-
-                        var packet = new PacketData();
-                        packet.DataSize = (short)(data.Count - PacketHeaderSize);
-                        packet.PacketID = BitConverter.ToInt16(data.Array, data.Offset + 2);
-                        packet.Type = (SByte)data.Array[(data.Offset + 4)];
-                        packet.BodyData = new byte[packet.DataSize];
-                        Buffer.BlockCopy(data.Array, (data.Offset + PacketHeaderSize), packet.BodyData, 0, (data.Count - PacketHeaderSize));
-                        lock (((System.Collections.ICollection)RecvPacketQueue).SyncRoot)
-                        {
-                            RecvPacketQueue.Enqueue(packet);
-                        }
-                    }
-                    //DevLog.Write($"받은 데이터: {recvData.Item2}", LOG_LEVEL.INFO);
-                }
-                else
-                {
-                    Network.Close();
-                    SetDisconnectd();
-                    DevLog.Write("서버와 접속 종료 !!!", LOG_LEVEL.INFO);
-                }
+                ChatPacket packet = await opened.ReceiveAsync(cancellation);
+                if (packet.Type != ChatType.ChatMessage) throw new InvalidDataException("unexpected response type");
+                Append(ChatProtocol.DecodeChat(packet.Payload));
             }
         }
-
-        void NetworkSendProcess()
+        catch (Exception error)
         {
-            while (IsNetworkThreadRunning)
-            {
-                System.Threading.Thread.Sleep(1);
-
-                if (Network.IsConnected() == false)
-                {
-                    continue;
-                }
-
-                lock (((System.Collections.ICollection)SendPacketQueue).SyncRoot)
-                {
-                    if (SendPacketQueue.Count > 0)
-                    {
-                        var packet = SendPacketQueue.Dequeue();
-                        Network.Send(packet);
-                    }
-                }
-            }
+            if (!cancellation.IsCancellationRequested) Append($"수신 종료: {error.Message}");
         }
+        finally { if (ReferenceEquals(connection, opened)) Disconnect(); }
+    }
 
-
-        void BackGroundProcess(object sender, EventArgs e)
+    private async Task SendChatAsync()
+    {
+        var opened = connection;
+        if (opened == null || lifetime == null) return;
+        try
         {
-            ProcessLog();
-
-            try
-            {
-                var packet = new PacketData();
-
-                lock (((System.Collections.ICollection)RecvPacketQueue).SyncRoot)
-                {
-                    if (RecvPacketQueue.Count() > 0)
-                    {
-                        packet = RecvPacketQueue.Dequeue();
-                    }
-                }
-
-                if (packet.PacketID != 0)
-                {
-                    PacketProcess(packet);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(string.Format("ReadPacketQueueProcess. error:{0}", ex.Message));
-            }
+            await opened.SendAsync(ChatProtocol.Chat(message.Text), lifetime.Token);
+            if (!IsDisposed && ReferenceEquals(connection, opened)) message.Clear();
         }
+        catch (ArgumentException error) { Append(error.Message); }
+        catch (Exception error) { if (ReferenceEquals(connection, opened)) { Append($"송신 실패: {error.Message}"); Disconnect(); } }
+    }
 
-        private void ProcessLog()
-        {
-            // 너무 이 작업만 할 수 없으므로 일정 작업 이상을 하면 일단 패스한다.
-            int logWorkCount = 0;
+    private async Task SendHeartbeatAsync()
+    {
+        var opened = connection;
+        if (opened == null || lifetime == null) return;
+        try { await opened.SendAsync(ChatProtocol.Heartbeat(), lifetime.Token); }
+        catch (Exception error) { if (ReferenceEquals(connection, opened)) { Append($"heartbeat 실패: {error.Message}"); Disconnect(); } }
+    }
 
-            while (IsBackGroundProcessRunning)
-            {
-                System.Threading.Thread.Sleep(1);
+    private void Disconnect()
+    {
+        heartbeat.Stop();
+        lifetime?.Cancel();
+        lifetime?.Dispose();
+        lifetime = null;
+        connection?.Dispose();
+        connection = null;
+        disconnect.Enabled = send.Enabled = false;
+        connect.Enabled = !connecting;
+    }
 
-                string msg;
-
-                if (DevLog.GetLog(out msg))
-                {
-                    ++logWorkCount;
-
-                    if (listBoxLog.Items.Count > 512)
-                    {
-                        listBoxLog.Items.Clear();
-                    }
-
-                    listBoxLog.Items.Add(msg);
-                    listBoxLog.SelectedIndex = listBoxLog.Items.Count - 1;
-                }
-                else
-                {
-                    break;
-                }
-
-                if (logWorkCount > 8)
-                {
-                    break;
-                }
-            }
-        }
-
-
-        public void SetDisconnectd()
-        {
-            if (btnConnect.Enabled == false)
-            {
-                btnConnect.Enabled = true;
-                btnDisconnect.Enabled = false;
-            }
-
-            SendPacketQueue.Clear();
-
-            listBoxRoomChatMsg.Items.Clear();
-            listBoxRoomUserList.Items.Clear();
-
-            labelStatus.Text = "서버 접속이 끊어짐";
-        }
-
-        public void PostSendPacket(PACKET_ID packetID, byte[] bodyData)
-        {
-            if (Network.IsConnected() == false)
-            {
-                DevLog.Write("서버 연결이 되어 있지 않습니다", LOG_LEVEL.ERROR);
-                return;
-            }
-
-            Int16 bodyDataSize = 0;
-            if (bodyData != null)
-            {
-                bodyDataSize = (Int16)bodyData.Length;
-            }
-            var packetSize = bodyDataSize + PacketDef.PACKET_HEADER_SIZE;
-
-            List<byte> dataSource = new List<byte>();
-            dataSource.AddRange(BitConverter.GetBytes((UInt16)packetSize));
-            dataSource.AddRange(BitConverter.GetBytes((UInt16)packetID));
-            dataSource.AddRange(new byte[] { (byte)0 });
-            
-            if (bodyData != null)
-            {
-                dataSource.AddRange(bodyData);
-            }
-           
-            SendPacketQueue.Enqueue(dataSource.ToArray());
-        }
-
-        void AddRoomUserList(string userID)
-        {
-            listBoxRoomUserList.Items.Add(userID);
-        }
-
-        void RemoveRoomUserList(Int64 userUniqueId)
-        {
-            object removeItem = null;
-
-            foreach( var user in listBoxRoomUserList.Items)
-            {
-                var items = user.ToString().Split(":");
-                if( items[0].ToInt64() == userUniqueId)
-                {
-                    removeItem = user;
-                    return;
-                }
-            }
-
-            if (removeItem != null)
-            {
-                listBoxRoomUserList.Items.Remove(removeItem);
-            }
-        }
-                
-        public string RandomString(int length)
-        {
-            Random random = new Random();
-
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            return new string(Enumerable.Repeat(chars, length)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
-
-
-        private void btnConnect_Click(object sender, EventArgs e)
-        {
-            string address = textBoxIP.Text;
-
-            if (checkBoxLocalHostIP.Checked)
-            {
-                address = "127.0.0.1";
-            }
-
-            int port = Convert.ToInt32(textBoxPort.Text);
-
-            if (Network.Connect(address, port))
-            {
-                labelStatus.Text = string.Format("{0}. 서버에 접속 중", DateTime.Now);
-                btnConnect.Enabled = false;
-                btnDisconnect.Enabled = true;
-
-                DevLog.Write($"서버에 접속 중", LOG_LEVEL.INFO);
-            }
-            else
-            {
-                labelStatus.Text = string.Format("{0}. 서버에 접속 실패", DateTime.Now);
-            }
-        }
-
-        private void btnDisconnect_Click(object sender, EventArgs e)
-        {
-            SetDisconnectd();
-            Network.Close();
-        }
-
-        // 에코 보내기
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(textSendText.Text))
-            {
-                MessageBox.Show("보낼 텍스트를 입력하세요");
-                return;
-            }
-
-            var body = Encoding.UTF8.GetBytes(textSendText.Text);
-
-            PostSendPacket(PACKET_ID.PACKET_ID_ECHO, body);
-
-            DevLog.Write($"Echo 요청:  {textSendText.Text}, {body.Length}");
-        }
-
-        // 지정되 크기의 에코 보내기
-        private void button3_Click(object sender, EventArgs e)
-        {
-            RandomEchoData = RandomString(textBox1.Text.ToInt32());
-            var body = Encoding.UTF8.GetBytes(RandomEchoData);
-
-            PostSendPacket(PACKET_ID.PACKET_ID_ECHO, body);
-            DevLog.Write($"{body.Length} 크기의 Echo 요청");
-        }
-
-
-        // 로그인 요청
-        private void button2_Click(object sender, EventArgs e)
-        {
-            var loginReq = new LoginReqPacket();
-            loginReq.SetValue(textBoxUserID.Text, textBoxUserPW.Text);
-                    
-            PostSendPacket(PACKET_ID.PACKET_ID_LOGIN_REQ, loginReq.ToBytes());            
-            DevLog.Write($"로그인 요청:  {textBoxUserID.Text}, {textBoxUserPW.Text}");
-        }
-
-        private void btn_RoomEnter_Click(object sender, EventArgs e)
-        {
-            var requestPkt = new RoomEnterReqPacket();
-            requestPkt.SetValue(textBoxRoomNumber.Text.ToInt32());
-
-            PostSendPacket(PACKET_ID.PACKET_ID_ROOM_ENTER_REQ, requestPkt.ToBytes());
-            DevLog.Write($"방 입장 요청:  {textBoxRoomNumber.Text} 번");
-        }
-
-        private void btn_RoomLeave_Click(object sender, EventArgs e)
-        {
-            PostSendPacket(PACKET_ID.PACKET_ID_ROOM_LEAVE_REQ,  null);
-            DevLog.Write($"방 입장 요청:  {textBoxRoomNumber.Text} 번");
-        }
-
-        private void btnRoomChat_Click(object sender, EventArgs e)
-        {
-            if(textBoxRoomSendMsg.Text.IsEmpty())
-            {
-                MessageBox.Show("채팅 메시지를 입력하세요");
-                return;
-            }
-
-            var requestPkt = new RoomChatReqPacket();
-            requestPkt.SetValue(textBoxRoomSendMsg.Text);
-
-            PostSendPacket(PACKET_ID.PACKET_ID_ROOM_CHAT_REQ, requestPkt.ToBytes());
-            DevLog.Write($"방 채팅 요청");
-        }
-
-        
+    private void Append(string text)
+    {
+        if (IsDisposed) return;
+        if (history.TextLength > 64000) history.Clear();
+        history.AppendText($"{DateTime.Now:HH:mm:ss} {text}{Environment.NewLine}");
     }
 }

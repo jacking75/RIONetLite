@@ -11,6 +11,7 @@
 #include "session_manager.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -33,7 +34,8 @@ class ServerNetManagerImpl {
     }
 
     if (auto ret = ServerNetManagerInit::Initialize(
-            winsock_runtime_, listen_socket_, rio_api_, socket_api_, net_cfg);
+            winsock_runtime_, listen_socket_, rio_api_, socket_api_, net_cfg,
+            &initialization_native_error_);
         ret != NetErrorCode::kNONE) {
       return ret;
     }
@@ -78,14 +80,18 @@ class ServerNetManagerImpl {
   }
 
   bool End(const bool graceful = false, const std::uint32_t timeout_ms = 5000) {
+    return End(graceful, std::chrono::steady_clock::now() +
+                             std::chrono::milliseconds(timeout_ms));
+  }
+
+  bool End(const bool graceful,
+           const std::chrono::steady_clock::time_point deadline) {
     if (!initialized_) {
       return true;
     }
     if (started_) {
       accepter_.Stop();
       if (graceful) {
-        const auto deadline = std::chrono::steady_clock::now() +
-                              std::chrono::milliseconds(timeout_ms);
         while (session_mgr_.SendOutstanding() != 0 &&
                std::chrono::steady_clock::now() < deadline) {
           std::this_thread::yield();
@@ -101,7 +107,12 @@ class ServerNetManagerImpl {
                           DisconnectReason::kFORCES_CLOSE_SERVER));
         }
       }
-      drained_ = io_worker_.Stop(timeout_ms);
+      const auto remaining = std::max<std::int64_t>(
+          0, std::chrono::duration_cast<std::chrono::milliseconds>(
+                 deadline - std::chrono::steady_clock::now())
+                 .count());
+      drained_ = io_worker_.Stop(static_cast<std::uint32_t>(remaining));
+      drained_ = drained_ && std::chrono::steady_clock::now() <= deadline;
       corrupt_completion_queue_ = io_worker_.corrupt_completion_queue();
       if (!drained_ || corrupt_completion_queue_) {
         ForceDrainAfterTimeout();
@@ -115,6 +126,7 @@ class ServerNetManagerImpl {
 
     session_mgr_.Dispose();
     rio_completion_queues_.clear();
+    io_worker_.ReleaseNotificationEvents();
     winsock_runtime_.Reset();
     started_ = false;
     initialized_ = false;
@@ -124,6 +136,10 @@ class ServerNetManagerImpl {
 
   [[nodiscard]] bool corrupt_completion_queue() const noexcept {
     return corrupt_completion_queue_;
+  }
+
+  [[nodiscard]] std::uint32_t initialization_native_error() const noexcept {
+    return initialization_native_error_;
   }
 
   [[nodiscard]] std::uint64_t remaining_outstanding() const noexcept {
@@ -193,8 +209,11 @@ class ServerNetManagerImpl {
 
     const auto deadline = std::chrono::steady_clock::now() +
                           std::chrono::milliseconds(kForcedDrainTimeoutMs);
-    std::vector<RIORESULT> results(
-        std::max<std::size_t>(1, net_config_.completion_batch_size_));
+    // Shutdown recovery must not require another heap allocation.
+    std::array<RIORESULT, 4096> results{};
+    const auto batch_size =
+        std::clamp<std::uint32_t>(net_config_.completion_batch_size_, 1,
+                                  static_cast<std::uint32_t>(results.size()));
     bool corrupt = false;
     while (!corrupt && session_mgr_.AnyOutstanding() &&
            std::chrono::steady_clock::now() < deadline) {
@@ -203,8 +222,8 @@ class ServerNetManagerImpl {
         if (!queue) {
           continue;
         }
-        const ULONG count = rio_api_.DequeueCompletion(
-            queue.get(), results.data(), static_cast<ULONG>(results.size()));
+        const ULONG count =
+            rio_api_.DequeueCompletion(queue.get(), results.data(), batch_size);
         if (count == RIO_CORRUPT_CQ) {
           corrupt = true;
           corrupt_completion_queue_ = true;
@@ -225,6 +244,7 @@ class ServerNetManagerImpl {
 
     if (remaining_outstanding_ != 0) {
       session_mgr_.LeakRegisteredResources();
+      io_worker_.AbandonNotificationEvents();
       for (auto& queue : rio_completion_queues_) {
         queue.Release();
       }
@@ -262,6 +282,12 @@ class ServerNetManagerImpl {
     if (reason == DisconnectReason::kZERO_COMPLETION &&
         !p_session->ReadyForPeerClose()) {
       return false;
+    }
+
+    if (p_session->ConnectCallbackPending()) {
+      lazyed_dis_conn_mgr_.AddSession(p_session->GetRioThreadId(),
+                                      session_index, session_uid, reason);
+      return true;
     }
 
     const bool abortive = reason != DisconnectReason::kZERO_COMPLETION &&
@@ -307,6 +333,7 @@ class ServerNetManagerImpl {
   SessionManager session_mgr_;
 
   bool initialized_ = false;
+  std::uint32_t initialization_native_error_ = 0;
   bool started_ = false;
   bool drained_ = true;
   bool corrupt_completion_queue_ = false;

@@ -14,12 +14,34 @@
 #include <mutex>
 #include <new>
 #include <optional>
+#include <shared_mutex>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 namespace rionetlite {
 namespace {
+
+// A stack supports nested callbacks and independent servers on the same thread.
+class CallbackScope final {
+ public:
+  explicit CallbackScope(const void* owner) noexcept
+      : owner_(owner), previous_(current_) {
+    current_ = this;
+  }
+  ~CallbackScope() { current_ = previous_; }
+  static bool Contains(const void* owner) noexcept {
+    for (auto* scope = current_; scope != nullptr; scope = scope->previous_) {
+      if (scope->owner_ == owner) return true;
+    }
+    return false;
+  }
+
+ private:
+  const void* owner_;
+  CallbackScope* previous_;
+  static inline thread_local CallbackScope* current_ = nullptr;
+};
 
 Error LifecycleError(std::string message) {
   return Error{
@@ -31,8 +53,10 @@ Error LifecycleError(std::string message) {
   };
 }
 
-Error ConvertLegacyError(const NetErrorCode code) {
+Error ConvertLegacyError(const NetErrorCode code,
+                         const std::uint32_t native_code = 0) {
   Error error;
+  error.native_code = native_code;
   error.category = ErrorCategory::kInternal;
   error.code = ErrorCode::kInternalError;
   error.message = "legacy network initialization failed";
@@ -175,6 +199,7 @@ struct alignas(64) WorkerMetrics final {
   std::atomic<std::uint64_t> closed_connections{0};
   std::atomic<std::uint64_t> received_bytes{0};
   std::atomic<std::uint64_t> sent_bytes{0};
+  std::atomic<std::uint64_t> queued_send_bytes{0};
   std::atomic<std::uint64_t> send_would_block{0};
   std::atomic<std::uint64_t> stale_operations{0};
   std::atomic<std::uint64_t> protocol_errors{0};
@@ -220,23 +245,31 @@ class Server::Impl final : public INetEventManager {
             const SessionId session, const std::string_view operation,
             const ErrorCode error, const std::uint32_t native_error,
             const std::string_view message,
-            const std::int32_t worker = -1) const {
-    if (logger_ == nullptr || !logger_->IsEnabled(level)) {
+            const std::int32_t worker = -1) const noexcept {
+    if (logger_ == nullptr) {
       return;
     }
+    CallbackScope callback_scope(this);
+    if (!logger_->IsEnabled(level)) return;
     const auto now = std::chrono::system_clock::now().time_since_epoch();
-    logger_->Log(LogEvent{
-        .timestamp_unix_ns = static_cast<std::uint64_t>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(now).count()),
-        .level = level,
-        .component = component,
-        .worker = worker,
-        .session = session,
-        .operation = operation,
-        .error = error,
-        .native_error = native_error,
-        .message = message,
-    });
+    try {
+      logger_->Log(LogEvent{
+          .timestamp_unix_ns = static_cast<std::uint64_t>(
+              std::chrono::duration_cast<std::chrono::nanoseconds>(now)
+                  .count()),
+          .level = level,
+          .component = component,
+          .worker = worker,
+          .session = session,
+          .operation = operation,
+          .error = error,
+          .native_error = native_error,
+          .message = message,
+      });
+    } catch (...) {
+      // Logging must not turn a recoverable error or noexcept Stop into
+      // terminate.
+    }
   }
 
   WorkerMetrics& MetricsForWorker(const std::uint32_t worker) noexcept {
@@ -281,6 +314,7 @@ class Server::Impl final : public INetEventManager {
 
   void OnConnect(const std::int32_t index,
                  const std::uint64_t generation) override {
+    CallbackScope callback_scope(this);
     WorkerMetrics* metrics = nullptr;
     if (config_.value.enable_metrics) {
       metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
@@ -308,6 +342,7 @@ class Server::Impl final : public INetEventManager {
   std::uint32_t OnReceive(const std::int32_t index,
                           const std::uint64_t generation,
                           const std::uint32_t size, char* data) override {
+    CallbackScope callback_scope(this);
     const auto bytes = std::span<const std::byte>(
         reinterpret_cast<const std::byte*>(data), size);
     const SessionId session{.index = static_cast<std::uint32_t>(index),
@@ -357,6 +392,7 @@ class Server::Impl final : public INetEventManager {
 
   void OnClose(const std::int32_t index, const std::uint64_t generation,
                const DisconnectReason reason) override {
+    CallbackScope callback_scope(this);
     WorkerMetrics* metrics = nullptr;
     if (config_.value.enable_metrics) {
       metrics = &MetricsForSession(static_cast<std::uint32_t>(index));
@@ -430,6 +466,14 @@ class Server::Impl final : public INetEventManager {
          "connection was rejected");
   }
 
+  void OnSendCompleted(const std::int32_t index,
+                       const std::uint32_t bytes) override {
+    if (config_.value.enable_metrics) {
+      MetricsForSession(static_cast<std::uint32_t>(index))
+          .sent_bytes.fetch_add(bytes, std::memory_order_relaxed);
+    }
+  }
+
   ValidatedServerConfig config_;
   EventHandler& handler_;
   Logger* logger_ = nullptr;
@@ -442,6 +486,7 @@ class Server::Impl final : public INetEventManager {
   const bool callback_timing_enabled_ =
       config_.value.enable_metrics && config_.value.enable_callback_timing;
   std::mutex lifecycle_mutex_;
+  std::shared_mutex transport_api_mutex_;
   detail::ShutdownCoordinator shutdown_;
   std::optional<Error> stop_error_;
 };
@@ -464,7 +509,8 @@ std::expected<Server, Error> Server::Create(ServerConfig config,
     const NetErrorCode result = impl->legacy_server_.Initialize(
         ToLegacyConfig(impl->config_), impl.get());
     if (result != NetErrorCode::kNONE) {
-      return std::unexpected(ConvertLegacyError(result));
+      return std::unexpected(ConvertLegacyError(
+          result, impl->legacy_server_.initialization_native_error()));
     }
     impl->state_.store(ServerState::kInitialized, std::memory_order_release);
     impl->Emit(LogSeverity::kInfo, "server", {}, "create", ErrorCode::kNone, 0,
@@ -498,6 +544,9 @@ std::expected<void, Error> Server::Start() {
   if (!impl_) {
     return std::unexpected(LifecycleError("server was moved from"));
   }
+  if (CallbackScope::Contains(impl_.get())) {
+    return std::unexpected(LifecycleError("Start is forbidden in callbacks"));
+  }
   std::scoped_lock lifecycle_lock(impl_->lifecycle_mutex_);
   if (impl_->state_.load(std::memory_order_acquire) !=
       ServerState::kInitialized) {
@@ -508,6 +557,9 @@ std::expected<void, Error> Server::Start() {
   const NetErrorCode result = impl_->legacy_server_.Start();
   if (result != NetErrorCode::kNONE) {
     impl_->state_.store(ServerState::kStopping, std::memory_order_release);
+    {
+      std::unique_lock transport_lock(impl_->transport_api_mutex_);
+    }
     static_cast<void>(impl_->legacy_server_.End(
         false, impl_->config_.value.graceful_shutdown_timeout_ms));
     impl_->state_.store(ServerState::kStopped, std::memory_order_release);
@@ -521,6 +573,9 @@ std::expected<void, Error> Server::Start() {
 std::expected<void, Error> Server::Stop(const StopMode mode) noexcept {
   if (!impl_) {
     return std::unexpected(LifecycleError("server was moved from"));
+  }
+  if (CallbackScope::Contains(impl_.get())) {
+    return std::unexpected(LifecycleError("Stop is forbidden in callbacks"));
   }
 
   std::unique_lock lifecycle_lock(impl_->lifecycle_mutex_);
@@ -548,11 +603,17 @@ std::expected<void, Error> Server::Stop(const StopMode mode) noexcept {
   if (!impl_->shutdown_.Begin(mode)) {
     return std::unexpected(LifecycleError("shutdown ownership was lost"));
   }
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(
+                            impl_->config_.value.graceful_shutdown_timeout_ms);
   impl_->state_.store(ServerState::kStopping, std::memory_order_release);
   lifecycle_lock.unlock();
-  const bool stopped = impl_->legacy_server_.End(
-      mode == StopMode::kGraceful,
-      impl_->config_.value.graceful_shutdown_timeout_ms);
+  {
+    // Wait for callers that observed Running. Release before joining callbacks.
+    std::unique_lock transport_lock(impl_->transport_api_mutex_);
+  }
+  const bool stopped =
+      impl_->legacy_server_.End(mode == StopMode::kGraceful, deadline);
   lifecycle_lock.lock();
   if (!stopped) {
     impl_->stop_error_ = Error{
@@ -595,8 +656,9 @@ SendResult Server::Send(const SessionId session,
 SendResult Server::Send(const SessionId session,
                         const std::span<const std::byte> header,
                         const std::span<const std::byte> payload) noexcept {
-  if (!impl_ ||
-      impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
+  if (!impl_) return SendResult::kClosing;
+  std::shared_lock transport_lock(impl_->transport_api_mutex_);
+  if (impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
     return SendResult::kClosing;
   }
   const std::uint64_t total = static_cast<std::uint64_t>(header.size()) +
@@ -615,7 +677,7 @@ SendResult Server::Send(const SessionId session,
     case NetErrorCode::kNONE:
       if (impl_->config_.value.enable_metrics) {
         auto& metrics = impl_->MetricsForSession(session.index);
-        metrics.sent_bytes.fetch_add(total, std::memory_order_relaxed);
+        metrics.queued_send_bytes.fetch_add(total, std::memory_order_relaxed);
         metrics.send_operations.fetch_add(1, std::memory_order_relaxed);
       }
       return SendResult::kQueued;
@@ -642,8 +704,9 @@ SendResult Server::Send(const SessionId session,
 
 bool Server::RequestClose(const SessionId session,
                           const CloseReason reason) noexcept {
-  if (!impl_ ||
-      impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
+  if (!impl_) return false;
+  std::shared_lock transport_lock(impl_->transport_api_mutex_);
+  if (impl_->state_.load(std::memory_order_acquire) != ServerState::kRunning) {
     return false;
   }
   DisconnectReason legacy_reason = DisconnectReason::kACTIVE;
@@ -655,6 +718,8 @@ bool Server::RequestClose(const SessionId session,
     }
   } else if (reason == CloseReason::kOverloaded) {
     legacy_reason = DisconnectReason::kOVERLOADED;
+  } else if (reason == CloseReason::kIdleTimeout) {
+    legacy_reason = DisconnectReason::kIDLE_TIMEOUT;
   }
   return impl_->legacy_server_.ForcedClose(
       static_cast<std::int32_t>(session.index), session.generation,
@@ -683,6 +748,8 @@ MetricsSnapshot Server::Metrics() const noexcept {
     snapshot.received_bytes +=
         metrics->received_bytes.load(std::memory_order_relaxed);
     snapshot.sent_bytes += metrics->sent_bytes.load(std::memory_order_relaxed);
+    snapshot.queued_send_bytes +=
+        metrics->queued_send_bytes.load(std::memory_order_relaxed);
     snapshot.send_would_block +=
         metrics->send_would_block.load(std::memory_order_relaxed);
     snapshot.stale_operations +=

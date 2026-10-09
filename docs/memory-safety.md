@@ -11,7 +11,7 @@ tools\build.ps1 -Configuration Release -Rebuild
 tools\run-memory-safety.ps1
 ```
 
-스크립트는 `EnableASAN=true`를 사용해 일반 빌드와 분리된 `artifacts/memory-safety/` 경로에 빌드한다. echo, split, coalesce, half-close, slow-read, abrupt-close, invalid-length와 no-read가 모두 정합성 오류 없이 끝나고 서버 exit code와 sanitizer 보고가 0이어야 통과다. 비계측 GoogleTest 정적 라이브러리는 STL annotation ABI가 다르므로 ASan 실행 파일에 링크하지 않는다.
+스크립트는 **Debug 구성**의 `EnableASAN=true`를 사용해 일반 빌드와 분리된 `artifacts/memory-safety/` 경로에 빌드한다. echo, split, coalesce, half-close, slow-read, abrupt-close, invalid-length와 no-read가 모두 정합성 오류 없이 끝나고 서버 exit code와 sanitizer 보고가 0이어야 통과다. 비계측 GoogleTest 정적 라이브러리는 STL annotation ABI가 다르므로 ASan 실행 파일에 링크하지 않는다.
 
 ## Application Verifier와 PageHeap
 
@@ -45,7 +45,7 @@ gflags.exe /p /disable RIONetLite.UnitTests.exe
 gflags.exe /p /disable RIONetLite.IntegrationTests.exe
 ```
 
-현재 검증 머신에는 `appverif.exe`가 있지만 `gflags.exe`는 없다. 따라서 실제 릴리스 증거에는 실행한 도구 한 가지만 기록하고, 미설치 도구를 통과로 표시하지 않는다.
+Application Verifier와 gflags 설치 여부는 환경마다 다르다. 실제 증거에는 실행한 도구만 기록하고 미설치·미실행 도구는 통과로 표시하지 않는다.
 
 ## 통과 판정과 보존 자료
 

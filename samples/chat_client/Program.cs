@@ -1,22 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+namespace csharp_test_client;
 
-namespace csharp_test_client
+internal static class Program
 {
-    static class Program
+    [STAThread]
+    private static int Main(string[] args)
     {
-        /// <summary>
-        /// 해당 응용 프로그램의 주 진입점입니다.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        if (args.Length != 0)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new mainForm());
+            try { return ChatChecks.RunAsync(args).GetAwaiter().GetResult(); }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine(error);
+                return 1;
+            }
         }
+        ApplicationConfiguration.Initialize();
+        Application.Run(new mainForm());
+        return 0;
     }
 }

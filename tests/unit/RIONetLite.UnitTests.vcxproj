@@ -32,12 +32,14 @@
   <ItemGroup>
     <ClCompile Include="allocation_test.cpp" />
     <ClCompile Include="config_test.cpp" />
+    <ClCompile Include="chat_protocol_test.cpp"><AdditionalOptions>/FC %(AdditionalOptions)</AdditionalOptions></ClCompile>
     <ClCompile Include="correctness_primitives_test.cpp" />
     <ClCompile Include="public_api_test.cpp" />
     <ClCompile Include="public_helpers_test.cpp" />
     <ClCompile Include="rio_request_test.cpp" />
     <ClCompile Include="session_partition_test.cpp" />
     <ClCompile Include="win32_resources_test.cpp" />
+    <ClCompile Include="worker_control_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fake_rio_api.h" />

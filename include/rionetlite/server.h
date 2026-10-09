@@ -46,8 +46,10 @@ class Server final {
   // Starts accept and I/O workers. Valid only in kInitialized.
   std::expected<void, Error> Start();
 
-  // Repeated calls after the first successful Stop are safe. T08 extends
-  // kGraceful with complete outstanding-I/O draining.
+  // Concurrent/repeated Stop calls are safe. Calls from this server's event or
+  // logger callbacks return kInvalidState; request shutdown on an owner thread.
+  // Moving or destroying Server requires all application callers to have
+  // exited.
   std::expected<void, Error> Stop(StopMode mode = StopMode::kGraceful) noexcept;
 
   // Thread-safe application entry point. The current transport copies data

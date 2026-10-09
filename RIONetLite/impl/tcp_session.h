@@ -41,10 +41,11 @@ class alignas(64) TcpSession {
     return enable_network_.load(std::memory_order_acquire);
   }
 
-  void SetDisableNetwork() {
+  bool SetDisableNetwork() {
+    if (!lifecycle_.TryBeginClose()) return false;
     enable_network_.store(false, std::memory_order_release);
-    static_cast<void>(lifecycle_.TryBeginClose());
     io_sender_.BeginClose();
+    return true;
   }
 
   bool TryReserve() noexcept { return lifecycle_.TryReserve(); }
@@ -111,9 +112,11 @@ class alignas(64) TcpSession {
       keepalive.keepalivetime = keepalive_time_ms_;
       keepalive.keepaliveinterval = keepalive_interval_ms_;
       DWORD returned = 0;
-      static_cast<void>(WSAIoctl(socket.get(), SIO_KEEPALIVE_VALS, &keepalive,
-                                 sizeof(keepalive), nullptr, 0, &returned,
-                                 nullptr, nullptr));
+      if (WSAIoctl(socket.get(), SIO_KEEPALIVE_VALS, &keepalive,
+                   sizeof(keepalive), nullptr, 0, &returned, nullptr,
+                   nullptr) == SOCKET_ERROR) {
+        return false;
+      }
     }
 
     socket_ = std::move(socket);
@@ -124,6 +127,7 @@ class alignas(64) TcpSession {
     enable_network_.store(true, std::memory_order_release);
     accepting_application_sends_.store(true, std::memory_order_release);
     socket_closed_.store(false, std::memory_order_release);
+    connect_callback_pending_.store(true, std::memory_order_release);
     if (!Matches(uid) || !lifecycle_.TryActivate()) {
       return false;
     }
@@ -137,6 +141,13 @@ class alignas(64) TcpSession {
 
   bool HasOpenSocket() const noexcept {
     return !socket_closed_.load(std::memory_order_acquire);
+  }
+
+  void CompleteConnectCallback() noexcept {
+    connect_callback_pending_.store(false, std::memory_order_release);
+  }
+  bool ConnectCallbackPending() const noexcept {
+    return connect_callback_pending_.load(std::memory_order_acquire);
   }
 
   int GetRioThreadId() const { return rio_thread_id_; }
@@ -359,6 +370,7 @@ class alignas(64) TcpSession {
   std::atomic<bool> enable_network_{false};
   std::atomic<bool> accepting_application_sends_{false};
   std::atomic<bool> socket_closed_{true};
+  std::atomic<bool> connect_callback_pending_{false};
   std::atomic<std::uint64_t> last_activity_ms_{0};
 
   detail::UniqueSocket socket_;

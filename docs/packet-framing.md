@@ -1,7 +1,22 @@
 # 패킷 프레이밍
 
-TCP는 메시지 경계를 보존하지 않는다. `LengthPrefixedDecoder`는 big-endian 32비트 전체 길이를 읽고 header 미만이면 기다리며, 최소 길이 미만 또는 설정 최대값 초과를 protocol error로 반환한다. raw pointer를 정수로 cast하거나 한 recv가 한 packet이라고 가정하는 코드는 잘못이다.
+Echo의 LengthPrefixedDecoder는 big-endian u32 **header를 포함한 전체 길이**를 읽는다. ping 4바이트의 전체 길이는 8이다.
 
-콜백은 완성된 모든 packet을 처리한 뒤 실제 소비 바이트 수를 반환한다. 반환값이 readable보다 크거나 0을 반복해 버퍼를 채우면 서버가 계약 위반 또는 과부하로 연결을 닫는다.
+```text
+00 00 00 08 | 70 69 6E 67
+전체 길이 8 | p  i  n  g
+```
 
-응답을 만들 때 header와 payload를 이어붙인 임시 buffer를 할당하는 것은 잘못이다. `Server::Send(session, header, payload)`는 두 span을 그대로 세션 송신 링에 이어 쓰므로, header는 스택 배열로 만들고 payload는 수신한 span을 그대로 넘기는 것이 올바르다. ChatServer의 `EncodeHeader`가 이 패턴이다.
+| callback span | 소비량 | 결과 |
+|---|---:|---|
+| `00 00` | 0 | header 미완성이다. |
+| `00 00 00 08 70` | 0 | 이전 미소비 바이트도 포함하며 body 미완성이다. |
+| `00 00 00 08 70 69 6E 67` | 8 | 메시지 하나다. |
+| 위 8바이트 두 개 | 16 | 메시지 두 개다. |
+| 위 8바이트 뒤 다음 header 2바이트 | 8 | 미완성 header는 남긴다. |
+
+decoder는 자체 누적 버퍼가 없다. OnData의 미소비 바이트는 transport가 다음 callback에 다시 포함한다. 애플리케이션이 또 누적하면 중복 처리된다. adapter는 raw 바이트를 모두 복사·소비하므로 게임 워커가 자기 누적 버퍼에서 framing한다. 두 누적 위치를 혼동하지 않는다.
+
+길이 0~3은 kInvalidLength, maximum 초과는 kMessageTooLarge, 범위 안의 미완성은 정상 대기다. 오류 시 RequestClose(session, kProtocolError)를 요청한다. span보다 많은 소비량을 반환하면 연결이 닫힌다. decoder handler 예외는 전파되므로 네트워크 callback 경계에서 해당 세션을 닫는다.
+
+Send(session, header, payload)는 두 span을 하나로 수락하고 복사한다. 전체 크기는 max_message_bytes 이하이어야 한다. header·byte order·version은 애플리케이션이 만든다. C#은 BinaryPrimitives의 BigEndian 함수를 사용한다. [Chat 명세](protocol/chat.md)의 fixture로 양쪽을 확인한다. LoadClient의 split/coalesce 시나리오로 실제 TCP를 검사한다.

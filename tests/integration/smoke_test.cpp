@@ -451,6 +451,8 @@ TEST(IntegrationSmokeTest, BindFailureRollsBackAndAllowsRetry) {
   auto failed = Server::Create(SmallConfig(port), handler);
   ASSERT_FALSE(failed.has_value());
   EXPECT_EQ(failed.error().code, ErrorCode::kBindFailed);
+  EXPECT_EQ(failed.error().native_code,
+            static_cast<std::uint32_t>(WSAEADDRINUSE));
 
   closesocket(occupied_socket);
   auto server = Server::Create(SmallConfig(port), handler);
@@ -586,6 +588,102 @@ TEST(IntegrationSmokeTest, ConcurrentStopCallsWaitForTheSameShutdown) {
   EXPECT_EQ(server->state(), ServerState::kStopped);
 }
 
+class ThrowingLogger final : public Logger {
+ public:
+  void Log(LogSeverity, std::string_view) override {
+    throw std::runtime_error("logger failure");
+  }
+};
+
+TEST(IntegrationSmokeTest, IsolatesLoggerExceptionsThroughStop) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  NullHandler handler;
+  ThrowingLogger logger;
+  auto server = Server::Create(SmallConfig(port), handler, &logger);
+  ASSERT_TRUE(server.has_value());
+  ASSERT_TRUE(server->Start().has_value());
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
+class StopFromCallbackHandler final : public EventHandler {
+ public:
+  Server* server = nullptr;
+  std::atomic<std::uint32_t> rejections{0};
+  void TryStop() {
+    const auto stopped = server->Stop();
+    if (!stopped && stopped.error().code == ErrorCode::kInvalidState) {
+      rejections.fetch_add(1, std::memory_order_release);
+    }
+  }
+  void OnConnected(SessionId) override { TryStop(); }
+  std::size_t OnData(SessionId, std::span<const std::byte> bytes) override {
+    TryStop();
+    return bytes.size();
+  }
+  void OnClosed(SessionId, CloseReason) override { TryStop(); }
+};
+
+class StopFromLogger final : public Logger {
+ public:
+  Server* server = nullptr;
+  mutable std::atomic<std::uint32_t> rejections{0};
+  bool IsEnabled(LogSeverity) const noexcept override {
+    if (server != nullptr) {
+      const auto result = server->Stop();
+      if (!result && result.error().code == ErrorCode::kInvalidState)
+        ++rejections;
+    }
+    return true;
+  }
+  void Log(LogSeverity, std::string_view) override {
+    if (server != nullptr) {
+      const auto result = server->Stop();
+      if (!result && result.error().code == ErrorCode::kInvalidState)
+        ++rejections;
+    }
+  }
+};
+
+TEST(IntegrationSmokeTest, RejectsLifecycleReentryFromLoggerIncludingFilter) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  NullHandler handler;
+  StopFromLogger logger;
+  auto server = Server::Create(SmallConfig(port), handler, &logger);
+  ASSERT_TRUE(server.has_value());
+  logger.server = &*server;
+  ASSERT_TRUE(server->Start().has_value());
+  ASSERT_TRUE(server->Stop().has_value());
+  EXPECT_EQ(logger.rejections.load(), 4U);
+  logger.server = nullptr;
+}
+
+TEST(IntegrationSmokeTest, RejectsStopFromEveryEventCallback) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  StopFromCallbackHandler handler;
+  auto server = Server::Create(SmallConfig(port), handler);
+  ASSERT_TRUE(server.has_value());
+  handler.server = &*server;
+  ASSERT_TRUE(server->Start().has_value());
+  const auto client = ConnectLoopback(port);
+  ASSERT_NE(client, INVALID_SOCKET);
+  ASSERT_TRUE(WaitUntil([&] { return handler.rejections.load() == 1; }));
+  const std::array payload{std::byte{1}};
+  ASSERT_TRUE(SendAll(client, payload));
+  ASSERT_TRUE(WaitUntil([&] { return handler.rejections.load() == 2; }));
+  closesocket(client);
+  ASSERT_TRUE(WaitUntil([&] { return handler.rejections.load() == 3; }));
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
 TEST(IntegrationSmokeTest, ReusesSlotWithNewGenerationAndRejectsStaleId) {
   WinsockScope winsock;
   auto [probe, port] = BindEphemeralSocket();
@@ -685,6 +783,9 @@ TEST(IntegrationSmokeTest, EchoesFragmentedAndCoalescedFrames) {
   EXPECT_EQ(handler.received_bytes(), expected.size() + 2);
   EXPECT_EQ(handler.decoded_packets(), 2);
   EXPECT_EQ(handler.last_send_result(), SendResult::kQueued);
+  EXPECT_EQ(server->Metrics().queued_send_bytes, expected.size());
+  ASSERT_TRUE(WaitUntil(
+      [&] { return server->Metrics().sent_bytes == expected.size(); }));
   closesocket(client);
   EXPECT_TRUE(server->Stop(StopMode::kGraceful).has_value());
 }
@@ -881,7 +982,8 @@ TEST(IntegrationSmokeTest, IsolatesHandlerExceptionsAndKeepsServing) {
   ASSERT_NE(probe, INVALID_SOCKET);
   closesocket(probe);
   ThrowingHandler handler;
-  auto server = Server::Create(SmallConfig(port), handler);
+  ThrowingLogger logger;
+  auto server = Server::Create(SmallConfig(port), handler, &logger);
   ASSERT_TRUE(server.has_value()) << server.error().message;
   ASSERT_TRUE(server->Start().has_value());
 
@@ -956,11 +1058,184 @@ TEST(IntegrationSmokeTest, ImmediateStopRacesWithConcurrentSendsWithoutHang) {
       }
     }
   });
+  std::thread closer([&]() {
+    while (run.load(std::memory_order_acquire)) {
+      static_cast<void>(server->RequestClose(session));
+    }
+  });
   EXPECT_TRUE(server->Stop(StopMode::kImmediate).has_value());
   run.store(false, std::memory_order_release);
   sender.join();
+  closer.join();
   closesocket(client);
   EXPECT_EQ(server->state(), ServerState::kStopped);
+}
+
+TEST(IntegrationSmokeTest,
+     PreservesRequestedIdleReasonAndClosesIdleConnections) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  RecordingHandler handler;
+  auto config = SmallConfig(port);
+  config.idle_timeout_ms = 1000;
+  auto server = Server::Create(config, handler);
+  ASSERT_TRUE(server.has_value());
+  ASSERT_TRUE(server->Start().has_value());
+  const auto idle = ConnectLoopback(port);
+  ASSERT_NE(idle, INVALID_SOCKET);
+  ASSERT_TRUE(handler.WaitForConnected(1));
+  ASSERT_TRUE(handler.WaitForClosed(1));
+  EXPECT_EQ(handler.close_reason(0), CloseReason::kIdleTimeout);
+  closesocket(idle);
+  const auto requested = ConnectLoopback(port);
+  ASSERT_NE(requested, INVALID_SOCKET);
+  ASSERT_TRUE(handler.WaitForConnected(2));
+  ASSERT_TRUE(
+      server->RequestClose(handler.connected(1), CloseReason::kIdleTimeout));
+  ASSERT_TRUE(handler.WaitForClosed(2));
+  EXPECT_EQ(handler.close_reason(1), CloseReason::kIdleTimeout);
+  closesocket(requested);
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
+TEST(IntegrationSmokeTest, AcceptsKeepaliveAndDrainsInEveryWaitMode) {
+  WinsockScope winsock;
+  for (auto mode : {WorkerWaitMode::kPolling, WorkerWaitMode::kAdaptive,
+                    WorkerWaitMode::kNotification}) {
+    SCOPED_TRACE(static_cast<int>(mode));
+    auto [probe, port] = BindEphemeralSocket();
+    ASSERT_NE(probe, INVALID_SOCKET);
+    closesocket(probe);
+    auto config = SmallConfig(port);
+    config.keepalive_time_ms = 1000;
+    config.keepalive_interval_ms = 1000;
+    config.worker_wait_mode = mode;
+    FramedEchoHandler handler;
+    auto server = Server::Create(config, handler);
+    ASSERT_TRUE(server.has_value());
+    handler.Attach(*server);
+    ASSERT_TRUE(server->Start().has_value());
+    const auto client = ConnectLoopback(port);
+    ASSERT_NE(client, INVALID_SOCKET);
+    SetReceiveTimeout(client);
+    const auto packet = MakePacket({std::byte{1}});
+    ASSERT_TRUE(SendAll(client, packet));
+    std::vector<std::byte> actual(packet.size());
+    EXPECT_TRUE(ReceiveAll(client, actual));
+    EXPECT_EQ(actual, packet);
+    closesocket(client);
+    EXPECT_TRUE(server->Stop().has_value());
+  }
+}
+
+class BlockingConnectHandler final : public EventHandler {
+ public:
+  Server* server = nullptr;
+  void OnConnected(SessionId session) override {
+    static_cast<void>(server->RequestClose(session));
+    std::unique_lock lock(mutex_);
+    entered_ = true;
+    condition_.notify_all();
+    condition_.wait(lock, [&] { return released_; });
+  }
+  std::size_t OnData(SessionId, std::span<const std::byte> bytes) override {
+    return bytes.size();
+  }
+  void OnClosed(SessionId, CloseReason) override {
+    std::scoped_lock lock(mutex_);
+    closed_ = true;
+    condition_.notify_all();
+  }
+  bool WaitForEntry() {
+    std::unique_lock lock(mutex_);
+    return condition_.wait_for(lock, std::chrono::seconds(3),
+                               [&] { return entered_; });
+  }
+  bool WaitForClose(std::chrono::milliseconds timeout) {
+    std::unique_lock lock(mutex_);
+    return condition_.wait_for(lock, timeout, [&] { return closed_; });
+  }
+  void Release() {
+    std::scoped_lock lock(mutex_);
+    released_ = true;
+    condition_.notify_all();
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable condition_;
+  bool entered_ = false, released_ = false, closed_ = false;
+};
+
+TEST(IntegrationSmokeTest, CloseCannotOvertakeAnUnfinishedConnectCallback) {
+  WinsockScope winsock;
+  auto [probe, port] = BindEphemeralSocket();
+  ASSERT_NE(probe, INVALID_SOCKET);
+  closesocket(probe);
+  BlockingConnectHandler handler;
+  auto server = Server::Create(SmallConfig(port), handler);
+  ASSERT_TRUE(server.has_value());
+  handler.server = &*server;
+  ASSERT_TRUE(server->Start().has_value());
+  const auto client = ConnectLoopback(port);
+  EXPECT_NE(client, INVALID_SOCKET);
+  EXPECT_TRUE(handler.WaitForEntry());
+  EXPECT_FALSE(handler.WaitForClose(std::chrono::milliseconds(100)));
+  handler.Release();
+  EXPECT_TRUE(handler.WaitForClose(std::chrono::seconds(3)));
+  closesocket(client);
+  EXPECT_TRUE(server->Stop().has_value());
+}
+
+TEST(IntegrationSmokeTest, RepeatedRioWorkloadReleasesWorkerHandlesAtStop) {
+  WinsockScope winsock;
+  DWORD warmed_handles = 0;
+  for (std::size_t round = 0; round < 5; ++round) {
+    SCOPED_TRACE(round);
+    auto [probe, port] = BindEphemeralSocket();
+    ASSERT_NE(probe, INVALID_SOCKET);
+    closesocket(probe);
+    auto config = SmallConfig(port);
+    config.io_worker_count = 4;
+    config.max_sessions = 8;
+    FramedEchoHandler handler;
+    auto server = Server::Create(config, handler);
+    ASSERT_TRUE(server.has_value());
+    handler.Attach(*server);
+    ASSERT_TRUE(server->Start().has_value());
+    const auto packet = MakePacket({std::byte{1}});
+    for (bool abortive : {false, true}) {
+      std::array<SOCKET, 4> clients{};
+      for (auto& client : clients) {
+        client = ConnectLoopback(port);
+        ASSERT_NE(client, INVALID_SOCKET);
+        SetReceiveTimeout(client);
+        ASSERT_TRUE(SendAll(client, packet));
+      }
+      for (const auto client : clients) {
+        if (abortive) {
+          const LINGER option{1, 0};
+          ASSERT_EQ(setsockopt(client, SOL_SOCKET, SO_LINGER,
+                               reinterpret_cast<const char*>(&option),
+                               sizeof(option)),
+                    0);
+        } else {
+          std::vector<std::byte> actual(packet.size());
+          ASSERT_TRUE(ReceiveAll(client, actual));
+        }
+        closesocket(client);
+      }
+      ASSERT_TRUE(
+          WaitUntil([&] { return server->Metrics().active_connections == 0; }));
+    }
+    ASSERT_TRUE(server->Stop().has_value());
+    DWORD current = 0;
+    ASSERT_TRUE(GetProcessHandleCount(GetCurrentProcess(), &current));
+    if (round == 0) warmed_handles = current;
+    EXPECT_LE(current, warmed_handles + 1);
+  }
 }
 
 }  // namespace

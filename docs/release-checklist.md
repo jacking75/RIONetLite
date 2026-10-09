@@ -1,6 +1,23 @@
 # 릴리스 체크리스트
 
-## 0.3.0
+## 2026-10-09 수정 개발 후보
+
+- [x] VS2026/v145 x64 Debug/Release Rebuild 경고 0·오류 0이다.
+- [x] Debug unit 63 pass·RIO integration 25 pass다.
+- [x] Release unit 62 pass/Debug allocation hook 1 skip·RIO integration 25 pass다.
+- [x] ASan Debug x64의 실제 RIO 8개 시나리오·sanitizer 오류 0·서버 exit 0이다.
+- [x] .NET 10 C# 공유 fixture와 1/2/4 logic shard Chat E2E가 room 격리·21 broadcast·malformed 5개·full drain을 통과했다.
+- [x] 예열·quiescent 비교의 90초 stress에서 handle growth 0·정합성 오류 0·exit 0이다.
+- [x] 최종 600초 stress: 표본 77·quiescent 20·handle/thread/private bytes 증가 0·정합성 오류 0·서버 exit 0이다.
+- [x] SDK 10.0.26100.0·compiler 19.51.36256.0 기록, fresh Release /MD non-/GL snapshot와 최종 ZIP-only consumer build/실행 exit 0이다.
+- [ ] 실제 WinForms 화면·별도 깨끗한 PC·대상 OS 조합 검사다.
+- [ ] 실제 신입 독자의 문서만 이용한 실습이다.
+- [ ] 고정 장비의 현행 source 성능 기준선 승인이다.
+- [ ] 깨끗한 release commit/tag와 RequireReleaseTag 검사 및 공개 승인이다.
+
+결과는 해당 artifacts와 docs_working/05-verification에 기록한다. dirty source snapshot은 개발 후보다. 위 로컬 검사를 운영 승인이나 모든 OS 인증으로 소개하지 않는다. 최종 package에는 source tree/file/ZIP SHA256을 기록한다.
+
+## 0.3.0의 2026-08-28 이력
 
 - [x] VS2026/v145 x64 Debug와 Release 빌드, 경고 0, 단위 56개와 통합 18개 통과
 - [x] clang-format, `git diff --check`, 문서·API 링크 검사 통과
@@ -11,7 +28,7 @@
 - [ ] 고정 장비 benchmark 기준선 재승인 (송신 경로 변경으로 0.2.x 기준선과 직접 비교 불가)
 - [ ] 10분 이상 stress soak와 ASan RIO 재실행
 
-`docs/perf-stability-audit-20260828.md`의 안정성 10건, 성능 5건, 기능 2건을 모두 반영했다. 남은 항목은 고정 장비 기준선 재승인과 장시간 soak다.
+위 목록은 2026-08-28 시점의 검증 이력이다. 2026-10-09 공개 준비 수정의 현행 근거와 미검증 범위는 아래 개발 후보 표로 구분한다. 고정 장비 성능 기준선은 별도 승인이 필요하다.
 
 ## 0.2.0
 

@@ -13,8 +13,9 @@ namespace rionetlite {
 
 /// @api QueuedEventType - 유계 queue에 저장되는 이벤트 종류다.
 enum class QueuedEventType : std::uint8_t { kConnected, kData, kClosed };
-/// @api EventQueueFullPolicy - event queue 포화 시 비차단 정책이다.
+/// @api EventQueueFullPolicy - event queue 포화 시 대기 없이 거절하는 정책이다.
 enum class EventQueueFullPolicy : std::uint8_t {
+  // Lossy raw chunks; unsuitable for framed TCP streams. Use kDisconnect there.
   kRejectNewest,
   kDisconnect,
 };
@@ -39,6 +40,10 @@ enum class PollEventResult : std::uint8_t {
 class QueuedEventAdapter final : public EventHandler {
  public:
   using CloseRequest = std::function<void(SessionId)>;
+
+  // Dimensions must be positive; kDisconnect requires close_request. Invalid
+  // arguments throw std::invalid_argument. Shard access uses a short mutex.
+  // OnData splits raw streams into max_payload_bytes chunks and consumes them.
 
   QueuedEventAdapter(std::uint32_t shard_count, std::uint32_t events_per_shard,
                      std::uint32_t max_payload_bytes,

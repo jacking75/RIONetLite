@@ -48,5 +48,8 @@ class INetEventManager {
 
   virtual void OnRejectedConnection(
       [[maybe_unused]] const std::uint32_t native_error) {}
+
+  virtual void OnSendCompleted([[maybe_unused]] std::int32_t index,
+                               [[maybe_unused]] std::uint32_t bytes) {}
 };
 }  // namespace rionetlite

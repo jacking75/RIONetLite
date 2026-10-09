@@ -20,4 +20,4 @@ flowchart LR
 
 `RioApi`와 `SocketApi`를 주입해 N번째 초기화 호출 실패와 롤백을 소켓 없이 재현한다. logger는 Server 인스턴스마다 주입하며 서로 다른 두 logger의 격리를 통합 테스트로 검증한다.
 
-세션 재사용은 시간 경과가 아니라 generation과 outstanding 요청 수로 결정하므로 production clock 의존성이 없다. application event adapter 역시 내부 작업자나 예약 실행기를 만들지 않고 `TryPop`으로 소비자가 직접 구동한다. 따라서 fake clock과 deterministic executor가 필요했던 비결정적 경계를 설계에서 제거했으며, 상태 전이와 큐 순서는 호출 순서만으로 단위 테스트한다.
+세션 재사용은 generation과 outstanding 요청 수로 결정한다. idle 검사와 peer-close drain은 production deadline을 사용하므로 transport 전체가 clock 독립적인 것은 아니다. application event adapter 역시 내부 작업자나 예약 실행기를 만들지 않고 `TryPop`으로 소비자가 직접 구동한다. 핵심 상태 전이와 큐 순서는 결정적 단위 검사로, 실제 deadline·RIO 완료·종료 경합은 OS 통합 검사로 확인한다.

@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include "chat_protocol.h"
 #include "rionetlite/queued_event_adapter.h"
 #include "rionetlite/server.h"
 
@@ -12,7 +13,9 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -22,9 +25,7 @@
 
 namespace {
 
-constexpr std::uint16_t kProtocolVersion = 1;
-constexpr std::uint32_t kMaxPacketBytes = 1024;
-constexpr std::uint32_t kHeaderBytes = 8;
+using namespace rionetlite::chat;
 std::atomic<bool> g_stop_requested{false};
 
 BOOL WINAPI HandleConsoleSignal(const DWORD signal) {
@@ -36,35 +37,11 @@ BOOL WINAPI HandleConsoleSignal(const DWORD signal) {
   return FALSE;
 }
 
-std::uint16_t ReadU16(const std::byte* data) {
-  return (static_cast<std::uint16_t>(data[0]) << 8U) |
-         static_cast<std::uint16_t>(data[1]);
-}
-
-std::uint32_t ReadU32(const std::byte* data) {
-  return (static_cast<std::uint32_t>(data[0]) << 24U) |
-         (static_cast<std::uint32_t>(data[1]) << 16U) |
-         (static_cast<std::uint32_t>(data[2]) << 8U) |
-         static_cast<std::uint32_t>(data[3]);
-}
-
-// 헤더는 고정 크기이므로 스택에 만들고 payload는 그대로 넘긴다. scatter Send가
-// 두 span을 한 메시지로 보내므로 송신마다 임시 버퍼를 할당하지 않는다.
-using PacketHeader = std::array<std::byte, kHeaderBytes>;
-
-PacketHeader EncodeHeader(const std::uint16_t type,
-                          const std::size_t payload_bytes) {
-  const auto length = static_cast<std::uint32_t>(kHeaderBytes + payload_bytes);
-  return PacketHeader{
-      static_cast<std::byte>((length >> 24U) & 0xffU),
-      static_cast<std::byte>((length >> 16U) & 0xffU),
-      static_cast<std::byte>((length >> 8U) & 0xffU),
-      static_cast<std::byte>(length & 0xffU),
-      static_cast<std::byte>((kProtocolVersion >> 8U) & 0xffU),
-      static_cast<std::byte>(kProtocolVersion & 0xffU),
-      static_cast<std::byte>((type >> 8U) & 0xffU),
-      static_cast<std::byte>(type & 0xffU),
-  };
+bool ValidUtf8(const std::span<const std::byte> bytes) {
+  return bytes.empty() ||
+         MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                             reinterpret_cast<const char*>(bytes.data()),
+                             static_cast<int>(bytes.size()), nullptr, 0) != 0;
 }
 
 class ConsoleLogger final : public rionetlite::Logger {
@@ -93,7 +70,10 @@ class ChatApplication final {
                  [this](const rionetlite::SessionId session) {
                    RequestClose(session, rionetlite::CloseReason::kOverloaded);
                  }),
-        idle_timeout_(idle_timeout) {}
+        idle_timeout_(idle_timeout),
+        broadcasts_(logic_workers) {
+    for (auto& inbox : broadcasts_) inbox.slots.resize(events_per_worker);
+  }
 
   rionetlite::EventHandler& handler() noexcept { return adapter_; }
   void Attach(rionetlite::Server& server) noexcept { server_ = &server; }
@@ -105,8 +85,12 @@ class ChatApplication final {
     }
   }
 
-  void StopAfterDrain() {
-    while (adapter_.metrics().event_queue_depth != 0) {
+  bool StopAfterDrain() {
+    // Transport has stopped producing events before this is called. Count a
+    // worker before TryPop decrements depth, including any resulting fanout.
+    while (adapter_.metrics().event_queue_depth != 0 ||
+           active_workers_.load(std::memory_order_seq_cst) != 0 ||
+           pending_broadcasts_.load(std::memory_order_seq_cst) != 0) {
       std::this_thread::yield();
     }
     running_.store(false, std::memory_order_release);
@@ -114,6 +98,11 @@ class ChatApplication final {
       worker.join();
     }
     workers_.clear();
+    const auto players = active_players_.load(std::memory_order_relaxed);
+    std::cout << "Logic drain: active_players=" << players
+              << " queued_events=" << adapter_.metrics().event_queue_depth
+              << " pending_broadcasts=" << pending_broadcasts_.load() << '\n';
+    return players == 0;
   }
 
  private:
@@ -129,6 +118,49 @@ class ChatApplication final {
   };
 
   using PlayerMap = std::unordered_map<std::uint32_t, Player>;
+
+  struct Broadcast final {
+    std::uint32_t room = 0;
+    std::size_t payload_bytes = 0;
+    std::array<std::byte, 258> payload{};
+  };
+  struct BroadcastInbox final {
+    std::vector<Broadcast> slots;
+    std::size_t head = 0;
+    std::size_t count = 0;
+  };
+
+  bool QueueBroadcast(const std::uint32_t room,
+                      const std::span<const std::byte> payload) {
+    std::scoped_lock lock(broadcast_mutex_);
+    for (const auto& inbox : broadcasts_) {
+      if (inbox.count == inbox.slots.size()) return false;
+    }
+    // Reserve all destinations together. Concurrent senders have the same
+    // broadcast order on every shard; saturation cannot cause partial fanout.
+    for (auto& inbox : broadcasts_) {
+      auto& message =
+          inbox.slots[(inbox.head + inbox.count) % inbox.slots.size()];
+      message.room = room;
+      message.payload_bytes = payload.size();
+      std::copy(payload.begin(), payload.end(), message.payload.begin());
+      ++inbox.count;
+    }
+    pending_broadcasts_.fetch_add(broadcasts_.size(),
+                                  std::memory_order_seq_cst);
+    return true;
+  }
+
+  bool PopBroadcast(const std::uint32_t shard, Broadcast& message) {
+    std::scoped_lock lock(broadcast_mutex_);
+    auto& inbox = broadcasts_[shard];
+    if (inbox.count == 0) return false;
+    message = inbox.slots[inbox.head];
+    inbox.head = (inbox.head + 1) % inbox.slots.size();
+    --inbox.count;
+    pending_broadcasts_.fetch_sub(1, std::memory_order_seq_cst);
+    return true;
+  }
 
   void RequestClose(const rionetlite::SessionId session,
                     const rionetlite::CloseReason reason) {
@@ -151,8 +183,7 @@ class ChatApplication final {
   }
 
   bool ProcessPacket(Player& player, const std::uint16_t type,
-                     const std::span<const std::byte> payload,
-                     PlayerMap& players) {
+                     const std::span<const std::byte> payload) {
     player.last_activity = std::chrono::steady_clock::now();
     if (type == 1 && player.phase == Phase::kLogin) {
       if (payload.size() < 2) return false;
@@ -160,6 +191,7 @@ class ChatApplication final {
       if (length == 0 || length > 32 || payload.size() != 2U + length) {
         return false;
       }
+      if (!ValidUtf8(payload.subspan(2))) return false;
       player.name.assign(reinterpret_cast<const char*>(payload.data() + 2),
                          length);
       player.phase = Phase::kLobby;
@@ -173,18 +205,16 @@ class ChatApplication final {
     if (type == 3 && player.phase == Phase::kRoom && payload.size() >= 2) {
       const auto length = ReadU16(payload.data());
       if (length > 256 || payload.size() != 2U + length) return false;
-      for (auto& [index, peer] : players) {
-        static_cast<void>(index);
-        if (peer.phase == Phase::kRoom && peer.room == player.room) {
-          static_cast<void>(Send(peer.id, 103, payload));
-        }
+      if (!ValidUtf8(payload.subspan(2))) return false;
+      if (!QueueBroadcast(player.room, payload)) {
+        RequestClose(player.id, rionetlite::CloseReason::kOverloaded);
       }
       return true;
     }
     return type == 4 && payload.empty();
   }
 
-  bool ConsumeInput(Player& player, PlayerMap& players) {
+  bool ConsumeInput(Player& player) {
     std::size_t consumed = 0;
     while (player.input.size() - consumed >= kHeaderBytes) {
       const std::byte* header = player.input.data() + consumed;
@@ -199,8 +229,7 @@ class ChatApplication final {
       if (!ProcessPacket(
               player, type,
               std::span(player.input)
-                  .subspan(consumed + kHeaderBytes, length - kHeaderBytes),
-              players)) {
+                  .subspan(consumed + kHeaderBytes, length - kHeaderBytes))) {
         return false;
       }
       consumed += length;
@@ -217,26 +246,46 @@ class ChatApplication final {
     auto last_idle_scan = std::chrono::steady_clock::now();
     while (running_.load(std::memory_order_acquire) ||
            adapter_.metrics().event_queue_depth != 0) {
+      active_workers_.fetch_add(1, std::memory_order_seq_cst);
+      bool progressed = false;
       rionetlite::QueuedEventHeader event;
       if (adapter_.TryPop(shard, payload, event) ==
           rionetlite::PollEventResult::kEvent) {
+        progressed = true;
         if (event.type == rionetlite::QueuedEventType::kConnected) {
+          if (!players.contains(event.session.index))
+            active_players_.fetch_add(1);
           players[event.session.index] = Player{.id = event.session};
         } else if (event.type == rionetlite::QueuedEventType::kClosed) {
-          players.erase(event.session.index);
+          if (auto found = players.find(event.session.index);
+              found != players.end() && found->second.id == event.session) {
+            players.erase(found);
+            active_players_.fetch_sub(1);
+          }
         } else if (auto found = players.find(event.session.index);
                    found != players.end() &&
                    found->second.id == event.session) {
           auto& input = found->second.input;
           input.insert(input.end(), payload.begin(),
                        payload.begin() + event.payload_bytes);
-          if (!ConsumeInput(found->second, players)) {
+          if (!ConsumeInput(found->second)) {
             RequestClose(event.session,
                          rionetlite::CloseReason::kProtocolError);
           }
         }
-      } else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+
+      Broadcast message;
+      if (PopBroadcast(shard, message)) {
+        progressed = true;
+        for (const auto& [index, peer] : players) {
+          static_cast<void>(index);
+          if (peer.phase == Phase::kRoom && peer.room == message.room) {
+            static_cast<void>(
+                Send(peer.id, 103,
+                     std::span(message.payload).first(message.payload_bytes)));
+          }
+        }
       }
 
       const auto now = std::chrono::steady_clock::now();
@@ -244,12 +293,14 @@ class ChatApplication final {
         for (const auto& [index, player] : players) {
           static_cast<void>(index);
           if (now - player.last_activity > idle_timeout_) {
-            RequestClose(player.id,
-                         rionetlite::CloseReason::kApplicationRequest);
+            RequestClose(player.id, rionetlite::CloseReason::kIdleTimeout);
           }
         }
         last_idle_scan = now;
       }
+      active_workers_.fetch_sub(1, std::memory_order_seq_cst);
+      if (!progressed)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 
@@ -258,6 +309,11 @@ class ChatApplication final {
   std::chrono::seconds idle_timeout_;
   std::atomic<bool> running_{false};
   std::vector<std::thread> workers_;
+  std::atomic<std::uint32_t> active_workers_{0};
+  std::atomic<std::uint32_t> active_players_{0};
+  std::atomic<std::uint64_t> pending_broadcasts_{0};
+  std::mutex broadcast_mutex_;
+  std::vector<BroadcastInbox> broadcasts_;
 };
 
 bool ParseUnsigned(const int argc, char* argv[], const std::string_view name,
@@ -279,21 +335,31 @@ int main(int argc, char* argv[]) {
   std::uint32_t port = 32453;
   std::uint32_t logic_workers = 2;
   std::uint32_t max_sessions = 1024;
+  std::uint32_t io_workers = rionetlite::ServerConfig{}.io_worker_count;
   std::uint32_t idle_seconds = 30;
   std::uint32_t duration_seconds = 0;
+  std::filesystem::path stop_file;
+  for (int index = 1; index + 1 < argc; ++index) {
+    if (std::string_view(argv[index]) == "--stop-file")
+      stop_file = argv[index + 1];
+  }
   if (!ParseUnsigned(argc, argv, "--port", port) || port > 65535 ||
       !ParseUnsigned(argc, argv, "--logic-workers", logic_workers) ||
       !ParseUnsigned(argc, argv, "--max-sessions", max_sessions) ||
+      !ParseUnsigned(argc, argv, "--io-workers", io_workers) ||
+      logic_workers > max_sessions ||
       !ParseUnsigned(argc, argv, "--idle-seconds", idle_seconds) ||
       !ParseUnsigned(argc, argv, "--duration", duration_seconds)) {
     std::cerr << "usage: ChatServer [--port N] [--logic-workers N] "
-                 "[--max-sessions N] [--idle-seconds N] [--duration N]\n";
+                 "[--max-sessions N] [--io-workers N] [--idle-seconds N] "
+                 "[--duration N] [--stop-file PATH]\n";
     return 2;
   }
 
   rionetlite::ServerConfig config;
   config.port = static_cast<std::uint16_t>(port);
   config.max_sessions = max_sessions;
+  config.io_worker_count = io_workers;
   config.max_message_bytes = kMaxPacketBytes;
   config.max_receive_chunk_bytes = 4096;
   ConsoleLogger logger;
@@ -322,6 +388,7 @@ int main(int argc, char* argv[]) {
                                   std::chrono::seconds(duration_seconds);
   while (!g_stop_requested.load(std::memory_order_acquire)) {
     if (std::chrono::steady_clock::now() >= deadline) break;
+    if (!stop_file.empty() && std::filesystem::exists(stop_file)) break;
     if (_kbhit() != 0) {
       std::string command;
       std::getline(std::cin, command);
@@ -331,6 +398,6 @@ int main(int argc, char* argv[]) {
   }
   SetConsoleCtrlHandler(&HandleConsoleSignal, FALSE);
   const auto stopped = server->Stop(rionetlite::StopMode::kGraceful);
-  application.StopAfterDrain();
-  return stopped ? 0 : 5;
+  const bool logic_drained = application.StopAfterDrain();
+  return stopped && logic_drained ? 0 : 5;
 }

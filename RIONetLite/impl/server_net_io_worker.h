@@ -37,51 +37,57 @@ class ServerNetIOWorker {
   bool StartIoThreads(
       const NetConfig& config,
       std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues) {
-    is_run_.store(true, std::memory_order_release);
-    timed_out_.store(false, std::memory_order_release);
-    corrupt_completion_queue_.store(false, std::memory_order_release);
-    completion_batch_size_ = config.completion_batch_size_;
-    adaptive_spin_count_ = config.adaptive_spin_count_;
-    worker_wait_mode_ = config.worker_wait_mode_;
-    enable_thread_affinity_ = config.enable_thread_affinity_;
-    idle_timeout_ms_ = config.idle_timeout_ms_;
-    PrepareAffinityTargets();
-    pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(
-        config.io_work_thread_count_, config.peer_close_drain_timeout_ms_);
+    try {
+      is_run_.store(true, std::memory_order_release);
+      timed_out_.store(false, std::memory_order_release);
+      corrupt_completion_queue_.store(false, std::memory_order_release);
+      completion_batch_size_ = config.completion_batch_size_;
+      adaptive_spin_count_ = config.adaptive_spin_count_;
+      worker_wait_mode_ = config.worker_wait_mode_;
+      enable_thread_affinity_ = config.enable_thread_affinity_;
+      idle_timeout_ms_ = config.idle_timeout_ms_;
+      PrepareAffinityTargets();
+      pref_lazyed_dis_conn_mgr_->PrepareSessionQueues(
+          config.io_work_thread_count_, config.peer_close_drain_timeout_ms_,
+          *pref_session_mgr_);
 
-    rio_completion_queues.reserve(config.io_work_thread_count_);
-    notification_events_.reserve(config.io_work_thread_count_);
-    for (std::int32_t i = 0; i < config.io_work_thread_count_; ++i) {
-      RIO_NOTIFICATION_COMPLETION notification{};
-      PRIO_NOTIFICATION_COMPLETION notification_pointer = nullptr;
-      if (worker_wait_mode_ != 0) {
-        detail::UniqueHandle event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
-        if (!event) {
+      worker_results_.assign(config.io_work_thread_count_,
+                             std::vector<RIORESULT>(completion_batch_size_));
+      io_work_threads_.reserve(config.io_work_thread_count_);
+
+      rio_completion_queues.reserve(config.io_work_thread_count_);
+      notification_events_.reserve(config.io_work_thread_count_);
+      for (std::int32_t i = 0; i < config.io_work_thread_count_; ++i) {
+        RIO_NOTIFICATION_COMPLETION notification{};
+        PRIO_NOTIFICATION_COMPLETION notification_pointer = nullptr;
+        if (worker_wait_mode_ != 0) {
+          detail::UniqueHandle event(
+              CreateEvent(nullptr, TRUE, FALSE, nullptr));
+          if (!event) {
+            is_run_.store(false, std::memory_order_release);
+            rio_completion_queues.clear();
+            notification_events_.clear();
+            return false;
+          }
+          notification.Type = RIO_EVENT_COMPLETION;
+          notification.Event.EventHandle = event.get();
+          notification.Event.NotifyReset = TRUE;
+          notification_pointer = &notification;
+          notification_events_.push_back(std::move(event));
+        } else {
+          notification_events_.emplace_back();
+        }
+        auto rio_queue = rio_api_->CreateCompletionQueue(
+            config.completion_queue_capacity_, notification_pointer);
+        if (rio_queue == RIO_INVALID_CQ) {
           is_run_.store(false, std::memory_order_release);
           rio_completion_queues.clear();
           notification_events_.clear();
           return false;
         }
-        notification.Type = RIO_EVENT_COMPLETION;
-        notification.Event.EventHandle = event.get();
-        notification.Event.NotifyReset = TRUE;
-        notification_pointer = &notification;
-        notification_events_.push_back(std::move(event));
-      } else {
-        notification_events_.emplace_back();
+        rio_completion_queues.emplace_back(*rio_api_, rio_queue);
       }
-      auto rio_queue = rio_api_->CreateCompletionQueue(
-          config.completion_queue_capacity_, notification_pointer);
-      if (rio_queue == RIO_INVALID_CQ) {
-        is_run_.store(false, std::memory_order_release);
-        rio_completion_queues.clear();
-        notification_events_.clear();
-        return false;
-      }
-      rio_completion_queues.emplace_back(*rio_api_, rio_queue);
-    }
 
-    try {
       for (std::int32_t i = 0; i < config.io_work_thread_count_; ++i) {
         const auto rio_queue = rio_completion_queues[i].get();
         const auto notification_event = notification_events_[i].get();
@@ -132,11 +138,24 @@ class ServerNetIOWorker {
     return corrupt_completion_queue_.load(std::memory_order_acquire);
   }
 
+  // CQ must be closed before its notification handle is released.
+  void ReleaseNotificationEvents() noexcept {
+    notification_events_.clear();
+    worker_results_.clear();
+  }
+
+  // A deliberately retained CQ can still refer to its notification handle.
+  void AbandonNotificationEvents() noexcept {
+    for (auto& event : notification_events_) {
+      static_cast<void>(event.Release());
+    }
+  }
+
  private:
   void IoWorkerThread(const int thread_index, RIO_CQ rio_completion_queues,
                       HANDLE notification_event) {
     ApplyThreadAffinity(static_cast<std::uint32_t>(thread_index));
-    std::vector<RIORESULT> results(completion_batch_size_);
+    auto& results = worker_results_[thread_index];
     std::uint32_t empty_polls = 0;
     bool notification_armed = false;
     std::uint64_t next_idle_sweep_ms = GetTickCount64() + kIdleSweepIntervalMs;
@@ -161,7 +180,9 @@ class ServerNetIOWorker {
         auto context =
             reinterpret_cast<RioIoContext*>(results[i].RequestContext);
         auto pSession =
-            pref_session_mgr_->GetSessionObj(context->session_index_);
+            context == nullptr
+                ? nullptr
+                : pref_session_mgr_->GetSessionObj(context->session_index_);
         auto transferred = results[i].BytesTransferred;
 
         ProcessRIOCQ(thread_index, results[i].Status, transferred, context,
@@ -292,6 +313,10 @@ class ServerNetIOWorker {
       }
 
     } else if (IOType::kSEND == p_context->io_type_) {
+      if (transferred <= p_context->Length) {
+        pref_net_event_mgr_->OnSendCompleted(p_session->GetIndex(),
+                                             transferred);
+      }
       if (!p_session->SendCompletion(p_context, transferred)) {
         DisConnectFunc(p_session, cq_session_uid,
                        DisconnectReason::kPARITAL_SEND_COMPLETION);
@@ -346,10 +371,12 @@ class ServerNetIOWorker {
         continue;
       }
       const auto uid = session->GetUID();
-      session->SetDisableNetwork();
-      pref_lazyed_dis_conn_mgr_->AddSession(
-          thread_index, static_cast<std::int32_t>(index), uid,
-          DisconnectReason::kIDLE_TIMEOUT);
+      if (pref_session_mgr_->ForcedClose(static_cast<std::int32_t>(index),
+                                         uid) >= 0) {
+        pref_lazyed_dis_conn_mgr_->AddSession(
+            thread_index, static_cast<std::int32_t>(index), uid,
+            DisconnectReason::kIDLE_TIMEOUT);
+      }
     }
   }
 
@@ -470,6 +497,7 @@ class ServerNetIOWorker {
   detail::RioApi* rio_api_ = nullptr;
 
   std::vector<std::thread> io_work_threads_;
+  std::vector<std::vector<RIORESULT>> worker_results_;
   std::vector<detail::UniqueHandle> notification_events_;
   std::vector<PROCESSOR_NUMBER> affinity_targets_;
 };

@@ -3,16 +3,16 @@
 ```mermaid
 stateDiagram-v2
   [*] --> Free
-  Free --> Allocated: generation++ (zero 제외)
-  Allocated --> Active: accept/RQ ready
+  Free --> Allocated: generation 증가, 0 제외
+  Allocated --> Active: accept/RQ 준비
   Active --> Closing: close 승자
-  Closing --> Draining: socket close, CQ drain
-  Draining --> Closed: outstanding=0, close notified
-  Closed --> Free: pending app event=0
+  Closing --> Draining: outstanding 정리
+  Draining --> Closed: close 통지
+  Closed --> Free: transport recycle
 ```
 
-인덱스만 보관해 다음 연결에 송신하는 것은 잘못이다. 모든 send, close, I/O context와 app event에 전체 `SessionId`를 저장하고 현재 generation과 다르면 접근 없이 폐기해야 한다. 동일 수명에서 close 전이와 `OnClosed` 통지는 각각 한 번뿐이다.
+index 7/generation 41이 닫힌 뒤 슬롯이 7/42로 재사용될 수 있다. 옛 게임 task에 index만 저장하면 새 사용자에게 송신·종료하게 된다. Send·RequestClose·I/O context·게임 이벤트에 전체 SessionId를 저장한다. uid 검사와 close 전이는 pool reserve/recycle과 같은 lock에서 보호한다.
 
-`OnClosed` 이후에는 같은 세션의 `OnData`가 오지 않는다. 종료를 관찰한 뒤 커널이 이미 완료시킨 수신이 남아 있어도 콜백 없이 요청만 정리한다. 세션 슬롯은 worker 파티션에 걸쳐 라운드로빈으로 대여되므로, 기동 직후 첫 접속들도 특정 worker에 몰리지 않는다.
+transport 슬롯의 recycle은 outstanding와 close 통지를 기준으로 하며 게임 이벤트 소비까지 기다리지 않는다. adapter는 별도 gate에서 이전 generation의 parked close가 전달되기 전 새 connected를 거절한다. 이것은 transport와 application event의 서로 다른 수명이다. 게임 워커도 Player.id 전체를 확인해야 한다.
 
-`idle_timeout_ms`를 설정하면 마지막 수신 이후 무통신 상태가 상한을 넘은 세션이 `kIdleTimeout`으로 닫힌다. 이는 정상 종료 경로와 동일하게 `OnClosed`를 한 번 통지한다.
+같은 세션의 OnConnected/OnClosed 순서를 보존하고 OnClosed 이후 OnData는 없다. accept는 첫 recv 게시까지 슬롯 보호를 유지한다. close 요청은 한 승자만 전이하며 제어 mailbox의 중복은 합친다. idle_timeout_ms는 마지막 수신 기준 약 1초마다 검사하므로 정확한 밀리초 타이머가 아니다. peer FIN drain도 deadline을 사용한다.

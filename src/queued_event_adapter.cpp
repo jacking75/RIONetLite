@@ -4,9 +4,9 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
-#include <deque>
 #include <limits>
 #include <mutex>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -39,8 +39,10 @@ class QueuedEventAdapter::Impl final {
   };
 
   struct Shard final {
-    Shard(std::uint32_t capacity, std::uint32_t payload_bytes)
+    Shard(std::uint32_t capacity, std::uint32_t payload_bytes,
+          std::uint32_t session_capacity)
         : slots(capacity) {
+      parked_sessions.reserve(session_capacity);
       for (auto& slot : slots) {
         slot.payload.resize(payload_bytes);
       }
@@ -52,7 +54,7 @@ class QueuedEventAdapter::Impl final {
     std::size_t count = 0;
     // 링이 가득 차 보류된 close 이벤트의 세션 index다. 종료 이벤트를 버리면
     // 게임 로직의 플레이어 객체가 영구히 누수되므로 드롭 대상이 아니다.
-    std::deque<std::uint32_t> parked_sessions;
+    std::vector<std::uint32_t> parked_sessions;
   };
 
   struct SessionGate final {
@@ -63,6 +65,7 @@ class QueuedEventAdapter::Impl final {
     bool closed = false;
     bool close_parked = false;
     CloseReason parked_reason = CloseReason::kNone;
+    std::chrono::steady_clock::time_point parked_at;
   };
 
   Impl(std::uint32_t shard_count, std::uint32_t events_per_shard,
@@ -72,21 +75,31 @@ class QueuedEventAdapter::Impl final {
         close_request(std::move(close_request)),
         max_payload_bytes(max_payload_bytes),
         session_gates(max_session_count) {
+    if (shard_count == 0 || events_per_shard == 0 || max_payload_bytes == 0 ||
+        max_session_count == 0 ||
+        (full_policy == EventQueueFullPolicy::kDisconnect &&
+         !this->close_request)) {
+      throw std::invalid_argument(
+          "queue dimensions must be positive and disconnect requires a close "
+          "request");
+    }
     const std::uint64_t slot_count =
         SaturatingMultiply(shard_count, events_per_shard);
     const std::uint64_t slot_bytes = SaturatingMultiply(
         slot_count,
         sizeof(Slot) + static_cast<std::uint64_t>(max_payload_bytes));
-    const std::uint64_t gate_bytes =
-        SaturatingMultiply(max_session_count, sizeof(SessionGate));
+    const std::uint64_t gate_bytes = SaturatingMultiply(
+        max_session_count, sizeof(SessionGate) + sizeof(std::uint32_t));
     const std::uint64_t fixed_bytes = SaturatingAdd(
         sizeof(Impl), SaturatingMultiply(shard_count, sizeof(Shard)));
     estimated_memory_bytes =
         SaturatingAdd(SaturatingAdd(slot_bytes, gate_bytes), fixed_bytes);
     shards.reserve(shard_count);
     for (std::uint32_t index = 0; index < shard_count; ++index) {
-      shards.push_back(
-          std::make_unique<Shard>(events_per_shard, max_payload_bytes));
+      shards.push_back(std::make_unique<Shard>(
+          events_per_shard, max_payload_bytes,
+          max_session_count / shard_count +
+              (index < max_session_count % shard_count ? 1U : 0U)));
     }
   }
 
@@ -138,8 +151,10 @@ class QueuedEventAdapter::Impl final {
         // TryPop이 close를 합성해 전달한다.
         next_gate.close_parked = true;
         next_gate.parked_reason = header.close_reason;
+        next_gate.parked_at = std::chrono::steady_clock::now();
         gate = next_gate;
         shard.parked_sessions.push_back(header.session.index);
+        AddDepth();
         return true;
       }
       rejected.fetch_add(1, std::memory_order_relaxed);
@@ -157,6 +172,11 @@ class QueuedEventAdapter::Impl final {
     ++shard.count;
     ++next_gate.in_ring;
     gate = next_gate;
+    AddDepth();
+    return true;
+  }
+
+  void AddDepth() noexcept {
     const std::uint64_t current_depth =
         depth.fetch_add(1, std::memory_order_relaxed) + 1;
     std::uint64_t current = high_watermark.load(std::memory_order_relaxed);
@@ -164,7 +184,6 @@ class QueuedEventAdapter::Impl final {
            !high_watermark.compare_exchange_weak(current, current_depth,
                                                  std::memory_order_relaxed)) {
     }
-    return true;
   }
 
   EventQueueFullPolicy full_policy;
@@ -234,16 +253,24 @@ void QueuedEventAdapter::OnConnected(const SessionId session) {
 
 std::size_t QueuedEventAdapter::OnData(const SessionId session,
                                        const std::span<const std::byte> data) {
-  if (impl_->Push(
-          QueuedEventHeader{.type = QueuedEventType::kData, .session = session},
-          data)) {
-    return data.size();
+  std::size_t offset = 0;
+  while (offset < data.size()) {
+    const auto chunk = data.subspan(
+        offset,
+        std::min<std::size_t>(impl_->max_payload_bytes, data.size() - offset));
+    if (!impl_->Push(QueuedEventHeader{.type = QueuedEventType::kData,
+                                       .session = session},
+                     chunk)) {
+      if (impl_->full_policy == EventQueueFullPolicy::kDisconnect) {
+        impl_->close_request(session);
+        return data.size();
+      }
+      // RejectNewest is deliberately lossy: consume the rejected chunk instead
+      // of retaining TCP bytes with no wakeup when the queue becomes available.
+    }
+    offset += chunk.size();
   }
-  if (impl_->full_policy == EventQueueFullPolicy::kDisconnect &&
-      impl_->close_request) {
-    impl_->close_request(session);
-  }
-  return 0;
+  return data.size();
 }
 
 void QueuedEventAdapter::OnClosed(const SessionId session,
@@ -280,8 +307,16 @@ PollEventResult QueuedEventAdapter::TryPop(
         .payload_bytes = 0,
     };
     gate.close_parked = false;
+    const auto wait_nanoseconds = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - gate.parked_at)
+            .count());
     shard.parked_sessions.erase(iterator);
+    impl_->depth.fetch_sub(1, std::memory_order_relaxed);
     impl_->dequeued.fetch_add(1, std::memory_order_relaxed);
+    impl_->wait_total_nanoseconds.fetch_add(wait_nanoseconds,
+                                            std::memory_order_relaxed);
+    UpdateMaximum(impl_->wait_max_nanoseconds, wait_nanoseconds);
     return PollEventResult::kEvent;
   }
 

@@ -10,7 +10,11 @@ struct MetricsSnapshot final {
   std::uint64_t active_connections = 0;
   std::uint64_t closed_connections = 0;
   std::uint64_t received_bytes = 0;
+  // Successful RIO completion bytes; does not imply application
+  // acknowledgement.
   std::uint64_t sent_bytes = 0;
+  // Bytes accepted by Send; may exceed sent_bytes when shutdown cancels output.
+  std::uint64_t queued_send_bytes = 0;
   std::uint64_t send_would_block = 0;
   std::uint64_t stale_operations = 0;
   std::uint64_t protocol_errors = 0;

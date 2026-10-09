@@ -2,77 +2,29 @@
 
 [English](README.md)
 
-RIONetLite는 Windows Registered I/O(RIO)를 사용하는 x64 게임 서버용 C++ 정적 라이브러리다. 세션 generation 검증, 완료 전 버퍼 수명, 유계 백프레셔와 결정론적 종료를 기본 계약으로 삼는다.
+[단일 HTML 기술서](docs/rionetlite_book.html)는 B5 인쇄 기준 397쪽, 40개 장으로 구성했다. 그림 101개·애니메이션 40개·인터랙티브 실습 8개와 실제 소스 49개 파일의 해설을 담았다. HTML 파일 하나를 내려받아 브라우저로 열면 된다. 모든 그림과 스크립트가 파일 안에 들어 있다.
 
-## 5분 시작
+Windows Registered I/O(RIO)를 이용한 x64 C++ 게임 서버용 정적 라이브러리다. 현재 0.3.x는 preview이며 0.x API/ABI 호환은 보장하지 않는다. TCP/IPv4 서버만 제공하며 IPv6·TLS·UDP·클라이언트 transport API는 범위 밖이다. VS2026/v145·Windows SDK가 기준이다. Windows 10 1803+·11·Server 2019+는 대상 OS이며 전체 조합 검증 완료를 뜻하지 않는다.
 
-필요 환경은 Visual Studio 2026, MSVC `v145`, Windows SDK 10, manifest-mode vcpkg다. Developer PowerShell에서 실행한다.
+[설치와 첫 Echo](docs/getting-started.md)의 터미널 두 개 실습부터 시작한다. 도구 설치·최초 의존성 복원은 별도 시간이 필요하다.
 
 ```powershell
 tools\build.ps1 -Configuration Debug -Rebuild
 bin\x64\Debug\EchoServer.exe --port 32452
 ```
 
-다른 터미널에서 실제 echo와 checksum을 검증한다.
+다른 터미널에서 다음을 실행한다.
 
 ```powershell
 bin\x64\Debug\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenario echo --json result.json
 ```
 
-최소 서버는 [EchoServer](samples/echo_server/main.cpp)다. `tools\package.ps1`은 headers, Release library/PDB, 라이선스, changelog, version과 최소 consumer sample을 묶고, 생성 중인 패키지 내부 파일만으로 sample을 빌드해 검증한다.
+exit 0·received_packets>0·연결 실패/data error/dropped packet/timeout 0을 확인한다. 서버에서 quit+Enter 또는 Ctrl+C로 종료하고 exit 0을 확인한다.
 
-## 공개 API 흐름
+[네트워크 입문](docs/networking-basics.md) → [Echo 코드](docs/tutorial/first-echo-server.md) → [프레이밍](docs/packet-framing.md) → [게임 워커](docs/tutorial/game-worker.md) → [Chat 실습](docs/samples/chat-server.md) 순서로 읽는다. 함수 사용은 [API 계약](docs/api/contracts.md), 운영은 [설정](docs/configuration.md)·[배압](docs/backpressure.md)·[종료](docs/graceful-shutdown.md)·[관측성](docs/observability.md)·[문제 해결](docs/troubleshooting.md)을 따른다.
 
-```cpp
-#include <rionetlite/server.h>
+callback span을 반환 뒤 저장하지 않는다. 게임·DB·파일 처리는 owned 유계 queue로 넘긴다. SessionId의 index와 generation을 함께 보관한다. Send(kQueued)는 복사·수락이며 상대 처리를 보장하지 않는다. callback 안의 같은 서버 Start/Stop은 거절하며 control thread에 종료를 요청한다. 객체 이동·파괴는 모든 application 호출자가 종료된 뒤 수행한다.
 
-class Handler final : public rionetlite::EventHandler {
- public:
-  void OnConnected(rionetlite::SessionId) override {}
-  std::size_t OnData(rionetlite::SessionId,
-                     std::span<const std::byte> data) override {
-    return data.size();
-  }
-  void OnClosed(rionetlite::SessionId, rionetlite::CloseReason) override {}
-};
+tools/package.ps1은 현재 source version을 읽고 정확한 snapshot에서 Release lib/PDB를 새로 빌드한다. compiler/SDK/runtime/source SHA256과 파일 해시를 기록하고 최종 ZIP을 다시 풀어 vcpkg 비활성 consumer를 빌드·실행한다. [ZIP 소비](docs/package-consumption.md)를 따른다. 정식 릴리스는 깨끗한 version tag와 -RequireReleaseTag 검사가 필요하다.
 
-int main() {
-  Handler handler;
-  rionetlite::ServerConfig config;
-  config.port = 32452;
-  auto server = rionetlite::Server::Create(config, handler);
-  if (!server || !server->Start()) {
-    return 1;
-  }
-  return server->Stop() ? 0 : 1;
-}
-```
-
-`Server::Create` → `Start` → `Send`/`RequestClose` → `Stop` 순서로 사용한다. 콜백의 span은 콜백이 반환되면 무효이며, 오래 걸리는 게임 로직은 `QueuedEventAdapter`로 별도 워커에 전달해야 한다.
-
-죽은 연결을 자동으로 회수하려면 `ServerConfig::keepalive_time_ms`와 `idle_timeout_ms`를 설정한다. header와 payload를 한 메시지로 보낼 때는 임시 buffer 대신 `Server::Send(session, header, payload)`를 쓴다. 세부 동작은 [구성](docs/configuration.md)과 [패킷 프레이밍](docs/packet-framing.md)을 따른다.
-
-## 문서
-
-- [설치와 첫 서버](docs/getting-started.md), [구성](docs/configuration.md), [API 레퍼런스](docs/api/README.md)
-- [아키텍처](docs/architecture.md), [스레딩](docs/threading-model.md), [세션 수명](docs/session-lifecycle.md)
-- [패킷 프레이밍](docs/packet-framing.md), [백프레셔](docs/backpressure.md), [종료](docs/graceful-shutdown.md)
-- [성능 튜닝](docs/performance-tuning.md), [벤치마크](docs/benchmarking.md), [메모리 안전성](docs/memory-safety.md), [관측성](docs/observability.md)
-- [EchoServer](docs/samples/echo-server.md), [ChatServer](docs/samples/chat-server.md), [문제 해결](docs/troubleshooting.md)
-
-지원 플랫폼과 설계 결정은 [ADR](docs/adr/0001-supported-platform.md)에서 확인한다. 릴리스 변경은 [CHANGELOG](CHANGELOG.md), 보안 보고는 [SECURITY](SECURITY.md)를 따른다.
-
-## 품질 명령
-
-```powershell
-tools\check-format.ps1
-tools\build.ps1 -Configuration Debug -Rebuild
-tools\build.ps1 -Configuration Release -Rebuild
-tools\run-memory-safety.ps1
-tools\run-stress.ps1 -Configuration Release -DurationSeconds 600
-tools\run-benchmark.ps1
-tools\run-design-benchmark.ps1
-tools\package.ps1
-```
-
-장시간 soak가 필요하면 같은 stress 엔진의 `-DurationSeconds`를 늘려 수동 실행하고 결과를 외부 artifact 저장소에 보관한다. 큰 바이너리, PDB, dump, 빌드 출력과 벤치마크 결과는 Git에 커밋하지 않는다.
+품질 검사는 [릴리스 체크리스트](docs/release-checklist.md)에서 확인한다. C# ChatClient는 .NET 10 WinForms와 version 1 공유 protocol을 사용한다. 현재 로컬 자동 검사와 실제 GUI·별도 PC·신입 독자 평가는 구별한다. [개발 참여](CONTRIBUTING.md), [보안 보고](SECURITY.md), [외부 코드 고지](THIRD_PARTY_NOTICES.md)를 참고한다.

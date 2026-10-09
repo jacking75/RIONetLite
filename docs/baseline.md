@@ -1,3 +1,5 @@
+이 문서는 T00 시점의 역사 자료다. 현재 설치·옵션·API 안내는 getting-started와 함수별 계약을 따른다.
+
 # RIONetLite 기준선
 
 ## 기준 정보

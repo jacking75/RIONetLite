@@ -263,12 +263,13 @@ class SessionManager {
 
   int ForcedClose(const std::int32_t session_index,
                   const std::uint64_t session_uid) {
+    // Allocation/recycling uses this same lock, so validation and the close
+    // transition cannot disable a newly reserved generation.
+    FastSpinlockGuard guard(lock_);
     auto session = GetSessionObj(session_index, session_uid);
-    if (session == nullptr) {
+    if (session == nullptr || !session->SetDisableNetwork()) {
       return -1;
     }
-
-    session->SetDisableNetwork();
 
     auto threadIndex = session->GetRioThreadId();
     return threadIndex;

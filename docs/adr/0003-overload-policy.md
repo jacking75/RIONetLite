@@ -24,3 +24,7 @@
 - 각 포화 결과는 오류 코드, 로그와 메트릭으로 구분한다.
 - 기본 용량은 시작 시 예상 메모리에 포함한다.
 - T10과 T11이 실제 유계 큐를 구현하기 전까지 신규 API는 legacy 송신 실패를 `kUnavailable`로 보수적으로 매핑한다.
+
+## 2026-10-09 현행 구현 보충
+
+본문의 T 단계는 당시 계획의 이력이다. 현재 계약은 [함수별 API](../api/contracts.md), [배압](../backpressure.md), [종료](../graceful-shutdown.md)를 따른다. callback Start/Stop은 거절한다. adapter는 짧은 mutex와 유계 raw chunk 저장소이며 RejectNewest는 소비·폐기 정책이다. close는 session mailbox로 합치고 parked close도 depth에 포함한다. Stop은 단일 deadline을 사용하되 사용자 callback 중단과 추가 safety drain의 wall-clock 상한을 보장하지 않는다.

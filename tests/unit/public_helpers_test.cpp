@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 namespace rionetlite {
@@ -84,7 +85,7 @@ TEST(QueuedEventAdapterTest, RejectsWithoutBlockingWhenQueueIsFull) {
   const std::array payload = {std::byte{1}};
   adapter.OnConnected(session);
   EXPECT_EQ(adapter.OnData(session, payload), 1U);
-  EXPECT_EQ(adapter.OnData(session, payload), 0U);
+  EXPECT_EQ(adapter.OnData(session, payload), payload.size());
   EXPECT_TRUE(close_requested);
   EXPECT_EQ(adapter.metrics().event_queue_rejections, 1U);
   EXPECT_EQ(adapter.metrics().event_queue_high_watermark, 2U);
@@ -97,9 +98,9 @@ TEST(QueuedEventAdapterTest, RejectsDataAfterCloseAndOldGeneration) {
   const std::array payload{std::byte{7}};
   adapter.OnConnected(first);
   adapter.OnClosed(first, CloseReason::kPeerClosed);
-  EXPECT_EQ(adapter.OnData(first, payload), 0U);
+  EXPECT_EQ(adapter.OnData(first, payload), payload.size());
   adapter.OnConnected(second);
-  EXPECT_EQ(adapter.OnData(first, payload), 0U);
+  EXPECT_EQ(adapter.OnData(first, payload), payload.size());
   EXPECT_EQ(adapter.OnData(second, payload), 1U);
   EXPECT_EQ(adapter.metrics().event_queue_depth, 4U);
   EXPECT_EQ(adapter.metrics().event_queue_rejections, 2U);
@@ -111,7 +112,7 @@ TEST(QueuedEventAdapterTest, RejectsDataAfterCloseEvenWhenCloseQueueIsFull) {
   const std::array payload{std::byte{7}};
   adapter.OnConnected(session);
   adapter.OnClosed(session, CloseReason::kPeerClosed);
-  EXPECT_EQ(adapter.OnData(session, payload), 0U);
+  EXPECT_EQ(adapter.OnData(session, payload), payload.size());
   // 종료 이벤트는 큐가 가득 차도 버리지 않으므로 rejection은 data 1건뿐이다.
   EXPECT_EQ(adapter.metrics().event_queue_rejections, 1U);
 }
@@ -122,11 +123,15 @@ TEST(QueuedEventAdapterTest, DeliversCloseAfterTheRingDrainsWhenQueueWasFull) {
   adapter.OnConnected(session);
   adapter.OnClosed(session, CloseReason::kPeerClosed);
 
+  EXPECT_EQ(adapter.metrics().event_queue_depth, 2U);
+
   std::array<std::byte, 4> output{};
   QueuedEventHeader event;
   ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
   EXPECT_EQ(event.type, QueuedEventType::kConnected);
   const std::uint64_t connect_sequence = event.sequence;
+
+  EXPECT_EQ(adapter.metrics().event_queue_depth, 1U);
 
   // 보류된 close는 해당 세션의 이벤트를 모두 소비한 다음 순서를 지켜 나온다.
   ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
@@ -135,6 +140,42 @@ TEST(QueuedEventAdapterTest, DeliversCloseAfterTheRingDrainsWhenQueueWasFull) {
   EXPECT_EQ(event.session, session);
   EXPECT_GT(event.sequence, connect_sequence);
   EXPECT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEmpty);
+  EXPECT_EQ(adapter.metrics().event_queue_depth, 0U);
+}
+
+TEST(QueuedEventAdapterTest, SplitsCoalescedStreamAndPreservesEveryByte) {
+  QueuedEventAdapter adapter(1, 8, 4, 1, EventQueueFullPolicy::kRejectNewest);
+  const SessionId session{0, 1};
+  adapter.OnConnected(session);
+  const std::array payload{std::byte{1}, std::byte{2}, std::byte{3},
+                           std::byte{4}, std::byte{5}, std::byte{6},
+                           std::byte{7}, std::byte{8}, std::byte{9}};
+  EXPECT_EQ(adapter.OnData(session, payload), payload.size());
+  std::array<std::byte, 4> output{};
+  QueuedEventHeader event;
+  ASSERT_EQ(adapter.TryPop(0, output, event), PollEventResult::kEvent);
+  std::vector<std::byte> actual;
+  while (adapter.TryPop(0, output, event) == PollEventResult::kEvent) {
+    EXPECT_EQ(event.type, QueuedEventType::kData);
+    actual.insert(actual.end(), output.begin(),
+                  output.begin() + event.payload_bytes);
+  }
+  EXPECT_EQ(actual, std::vector<std::byte>(payload.begin(), payload.end()));
+  EXPECT_EQ(adapter.metrics().event_queue_rejections, 0U);
+}
+
+TEST(QueuedEventAdapterTest, RejectsInvalidConstruction) {
+  EXPECT_THROW(QueuedEventAdapter(0, 1, 1, EventQueueFullPolicy::kRejectNewest),
+               std::invalid_argument);
+  EXPECT_THROW(QueuedEventAdapter(1, 0, 1, EventQueueFullPolicy::kRejectNewest),
+               std::invalid_argument);
+  EXPECT_THROW(QueuedEventAdapter(1, 1, 0, EventQueueFullPolicy::kRejectNewest),
+               std::invalid_argument);
+  EXPECT_THROW(
+      QueuedEventAdapter(1, 1, 1, 0, EventQueueFullPolicy::kRejectNewest),
+      std::invalid_argument);
+  EXPECT_THROW(QueuedEventAdapter(1, 1, 1, EventQueueFullPolicy::kDisconnect),
+               std::invalid_argument);
 }
 
 TEST(QueuedEventAdapterTest, HoldsBackANewGenerationUntilTheParkedCloseIsSeen) {

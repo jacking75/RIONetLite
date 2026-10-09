@@ -9,17 +9,22 @@ $required = @(
     'docs/troubleshooting.md', 'docs/memory-safety.md',
     'docs/samples/echo-server.md',
     'docs/samples/chat-server.md', 'docs/benchmarking.md',
-    'docs/api/README.md', 'docs/api/generated.md'
+    'docs/api/README.md', 'docs/api/generated.md', 'docs/api/contracts.md',
+    'docs/networking-basics.md', 'docs/tutorial/first-echo-server.md',
+    'docs/tutorial/game-worker.md', 'docs/protocol/chat.md',
+    'docs/package-consumption.md', 'docs/getting-started-en.md',
+    'CONTRIBUTING.md', 'THIRD_PARTY_NOTICES.md'
 )
 foreach ($relative in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $relative))) {
         throw "Missing documentation: $relative"
     }
 }
-$markdown = Get-ChildItem -Path $root, (Join-Path $root 'docs') -File -Filter *.md -Recurse
+$markdown = @(Get-ChildItem -LiteralPath $root -File -Filter *.md) +
+    @(Get-ChildItem -LiteralPath (Join-Path $root 'docs') -File -Filter *.md -Recurse)
 foreach ($file in $markdown) {
     $content = Get-Content -Raw -Encoding UTF8 $file.FullName
-    foreach ($match in [regex]::Matches($content, '\[[^\]]+\]\((?!https?://|#)([^)#]+)')) {
+    foreach ($match in [regex]::Matches($content, '\[[^\]]+\]\((?!https?://|mailto:|#)([^)#]+)')) {
         $target = [Uri]::UnescapeDataString($match.Groups[1].Value)
         if (-not (Test-Path -LiteralPath (Join-Path $file.DirectoryName $target))) {
             throw "Broken link in $($file.FullName): $target"

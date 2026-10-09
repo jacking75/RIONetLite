@@ -1,23 +1,27 @@
 # 정상 종료
 
+주 스레드에서 Stop(kGraceful)을 호출한다. 같은 서버의 event/logger callback에서 호출하면 kInvalidState다. callback은 종료 요청 flag만 전달하고 주 스레드가 Stop한다. 객체 이동·파괴는 모든 application 호출자가 종료된 뒤 수행한다.
+
 ```mermaid
 sequenceDiagram
   participant App
   participant Server
   participant Accept
   participant Worker
-  participant CQ
-  App->>Server: Stop(kGraceful)
-  Server->>Accept: 새 accept 차단 및 join
-  Server->>Worker: 새 send/recv 차단, close 명령
-  Worker->>CQ: 수락된 send와 취소 완료 drain
-  CQ-->>Worker: outstanding = 0
-  Worker-->>Server: join
-  Server-->>App: CQ/buffer/Winsock 해제 완료
+  App->>Server: Stop
+  Server->>Server: Stopping, 진입 Send/Close 배출
+  Server->>Accept: listen close, join
+  Server->>Worker: 수락 send drain 후 close
+  Worker-->>Server: 완료 정리, join
+  Server->>Server: buffer/CQ/notification/Winsock 정리
+  Server-->>App: 결과
+  App->>App: game queue와 Player drain, logic join
 ```
 
-graceful은 timeout까지 수락된 send를 drain하고 immediate는 새 게시를 막고 취소 완료만 drain한다. `Stop`은 동시 호출해도 같은 종료를 기다린다. callback이나 등록 버퍼보다 CQ를 먼저 없애는 순서는 잘못이다.
+graceful_shutdown_timeout_ms는 Stop 진입 이후 API 배출·accept join·송신 drain·I/O 종료가 공유하는 예산이다. immediate는 수락 송신 대기를 생략하지만 취소 완료는 정리한다. 동시·반복 Stop은 같은 결과를 받는다. 늦게 시작한 호출이 예산을 새로 늘리지 않는다.
 
-worker가 timeout 안에 drain하지 못하면 소켓을 먼저 모두 닫아 커널이 미완료 요청을 취소하게 하고, 취소 완료를 종료 스레드에서 짧게 다시 drain한다. 그래도 outstanding이 남으면 등록 버퍼, 이중 매핑과 CQ를 해제하지 않고 소유권만 포기해 의도적으로 누수시킨다. 커널이 참조할 수 있는 메모리를 회수하는 것보다 누수가 안전하기 때문이다. 이 경우 `Stop`은 `kShutdownTimedOut`과 함께 `remaining_outstanding`을 보고하므로, 이 값이 0이 아닌 종료는 정상으로 취급하면 안 된다.
+이 값은 사용자 callback을 강제 중단하는 wall-clock 보장이 아니다. C++ join은 실행 중 callback을 중단할 수 없으므로 callback이 영구 대기하면 Stop도 기다린다. 시간 초과 뒤 안전 회수를 위한 최대 500ms 추가 drain이 있다. timeout을 정상 종료로 취급하지 않는다.
 
-peer가 FIN 직후 사라져 미완료 송신이 완료되지 않으면 세션이 drain 상태로 남는다. `peer_close_drain_timeout_ms`를 넘기면 abortive close로 강등해 슬롯을 회수한다.
+timeout에는 socket을 abort하고 취소 완료를 다시 꺼낸다. 여전히 outstanding이면 커널이 쓸 수 있는 buffer·mapping·CQ 소유권을 의도적으로 포기해 조기 해제를 막는다. 이 실패 상태에서는 프로세스를 정상 서비스로 재사용하지 않는다. Error.message의 remaining_outstanding/remaining_active_sessions와 로그를 보존한다. CQ corrupt도 실패다.
+
+Stop은 transport만 끝낸다. adapter의 parked close를 포함한 depth, broadcast inbox, 실행 중 game task와 Player를 별도로 배출해야 한다. Chat은 마지막 `Logic drain: active_players=0 queued_events=0 pending_broadcasts=0`과 exit 0을 확인한다. peer_close_drain_timeout_ms는 FIN 뒤 수락 송신을 기다리는 별도 연결 예산이다.

@@ -1,4 +1,4 @@
-param([string]$ExpectedVersion = '')
+param([string]$ExpectedVersion = '', [switch]$RequireReleaseTag)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -15,5 +15,9 @@ if (-not (Select-String -Quiet -Path (Join-Path $root 'CHANGELOG.md') -SimpleMat
 $versionTags = @(& git -C $root tag --points-at HEAD) | Where-Object { $_ -like 'v*' }
 if ($versionTags.Count -gt 0 -and $versionTags -notcontains "v$version") {
     throw 'Git tag and source version differ.'
+}
+if ($RequireReleaseTag) {
+    if ($versionTags -notcontains "v$version") { throw "HEAD has no release tag v$version." }
+    if (@(& git -C $root status --porcelain).Count -ne 0) { throw 'A release requires a clean tracked source tree.' }
 }
 Write-Host "Version verified: $version"

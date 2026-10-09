@@ -34,9 +34,10 @@ class Accepter {
     listen_socket_ = &listen_socket;
     is_run_.store(true, std::memory_order_release);
     try {
-      work_thread_ = std::thread([&listen_socket, &rio_completion_queues,
+      const SOCKET listen_handle = listen_socket.get();
+      work_thread_ = std::thread([listen_handle, &rio_completion_queues,
                                   &session_mgr, p_net_event_mgr, this]() {
-        Run(listen_socket, rio_completion_queues, session_mgr, p_net_event_mgr);
+        Run(listen_handle, rio_completion_queues, session_mgr, p_net_event_mgr);
       });
     } catch (...) {
       is_run_.store(false, std::memory_order_release);
@@ -46,12 +47,11 @@ class Accepter {
     return true;
   }
 
-  void Run(detail::UniqueSocket& listen_socket,
+  void Run(const SOCKET listen_handle,
            std::vector<detail::UniqueRioCompletionQueue>& rio_completion_queues,
            SessionManager& session_mgr, INetEventManager* net_event_mgr) {
     // Stop이 다른 스레드에서 소켓을 닫아 blocked accept를 깨우므로 핸들 값은
     // 루프 진입 시 한 번만 읽는다. 소켓 생성은 이 스레드만 수행한다.
-    const SOCKET listen_handle = listen_socket.get();
     std::uint32_t consecutive_failures = 0;
 
     while (is_run_.load(std::memory_order_acquire)) {
@@ -84,7 +84,11 @@ class Accepter {
       }
 
       net_event_mgr->OnConnect(p_session->GetIndex(), p_session->GetUID());
-      if (p_session->PostRecv() != NetErrorCode::kNONE) {
+      // Keep the slot protected until accept has finished its last access.
+      // Publishing the callback flag earlier lets a close worker recycle the
+      // slot while this thread is about to post the first receive.
+      if (p_session->IsConnected() &&
+          p_session->PostRecv() != NetErrorCode::kNONE) {
         net_event_mgr->OnTransportError(
             p_session->GetRioThreadId(), p_session->GetIndex(),
             p_session->GetUID(), "initial_receive",
@@ -93,6 +97,7 @@ class Accepter {
             DisConnectFunc(p_session, p_session->GetUID(),
                            DisconnectReason::kIO_REQUEST_RECV_ERROR));
       }
+      p_session->CompleteConnectCallback();
     }
   }
 
@@ -126,6 +131,10 @@ class Accepter {
         rio_rq != RIO_INVALID_RQ) {
       if (p_session->OnConnect(p_session->GetUID(), std::move(accepted_socket),
                                rio_rq) == false) {
+        net_event_mgr_->OnTransportError(
+            p_session->GetRioThreadId(), p_session->GetIndex(),
+            p_session->GetUID(), "configure_session",
+            static_cast<std::uint32_t>(WSAGetLastError()));
         DisConnectFunc(p_session, 0,
                        DisconnectReason::kACCEPT_LOOP_FAIL_ON_CONNECT);
         return false;

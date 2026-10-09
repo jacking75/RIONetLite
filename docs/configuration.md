@@ -30,3 +30,11 @@
 ## 죽은 연결 회수
 
 `keepalive_time_ms`를 지정하면 세션 소켓에 `SIO_KEEPALIVE_VALS`를 설정한다. 사라진 피어의 미완료 수신이 오류로 완료되어 기존 오류 경로가 슬롯을 회수한다. `idle_timeout_ms`를 지정하면 각 I/O worker가 약 1초 주기로 자기 파티션의 세션만 훑어 마지막 수신 이후 경과 시간이 상한을 넘은 세션을 `kIdleTimeout`으로 닫는다. 두 설정은 독립이며 함께 사용할 수 있다.
+
+## 구체적인 예산 예시
+
+기본 1024세션에서 recv 64KiB + send 256KiB backing commit 추정은 320MiB다. double mapping의 virtual reserve와 등록 범위 추정은 640MiB다. 두 view가 같은 backing을 가리키므로 등록 범위 640MiB를 물리 메모리 640MiB로 해석하지 않는다. control·close mailbox·CQ·thread stack·adapter/broadcast·allocator/kernel 추가 비용은 별도다. estimated_control_bytes는 근사치이며 실제 sizeof 또는 process 총량 보장이 아니다.
+
+max_receive_chunk_bytes는 요청당 raw 수신 크기이고 max_message_bytes는 메시지/Send 제한이다. 여러 메시지의 합계 raw span이 message 제한보다 클 수 있다. adapter는 raw span을 조각으로 복사하고 게임 워커가 framing한다. 2 shard×1024 slot×1024 byte의 payload만 2MiB이며 gate와 parked index가 추가된다.
+
+처음에는 기본 adaptive 정책을 사용하고 실제 workload의 P99·CPU·배압을 측정한 뒤 한 항목씩 바꾼다. keepalive 설정 실패는 접속 setup 실패 로그로 남기며 조용히 무시하지 않는다. shutdown timeout은 [종료 계약](graceful-shutdown.md)의 사용자 callback·추가 drain 한계를 따른다.
