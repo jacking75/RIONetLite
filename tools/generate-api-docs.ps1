@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $include = Join-Path $root 'include\rionetlite'
-$output = Join-Path $root 'docs\api\generated.md'
+$output = Join-Path $root 'docs\api\README.md'
 $rows = @()
 
 foreach ($file in (Get-ChildItem -LiteralPath $include -File -Filter *.h |
@@ -37,7 +37,8 @@ foreach ($file in (Get-ChildItem -LiteralPath $include -File -Filter *.h |
 }
 
 $lines = @(
-    '# 생성된 공개 API 목록',
+    '<!-- BEGIN GENERATED API -->',
+    '## 공개 symbol 목록',
     '',
     '> `tools\generate-api-docs.ps1`이 공개 헤더의 `@api` 주석에서 생성한다.',
     '',
@@ -47,16 +48,25 @@ $lines = @(
 $lines += $rows | ForEach-Object {
     '| `{0}` | `{1}` | {2} |' -f $_.Header, $_.Symbol, $_.Description
 }
-$expected = ($lines -join "`r`n") + "`r`n"
+$lines += '<!-- END GENERATED API -->'
+$expected = $lines -join "`n"
+if (-not (Test-Path -LiteralPath $output)) {
+    throw 'Public API reference is missing.'
+}
+$actual = (Get-Content -Raw -Encoding UTF8 -LiteralPath $output).Replace("`r`n", "`n")
+$regions = [regex]::Matches($actual,
+    '(?s)<!-- BEGIN GENERATED API -->.*?<!-- END GENERATED API -->')
+if ($regions.Count -ne 1) {
+    throw 'Public API reference must contain exactly one generated region.'
+}
+$region = $regions[0]
 if ($Check) {
-    if (-not (Test-Path -LiteralPath $output)) {
-        throw 'Generated API reference is missing.'
-    }
-    $actual = Get-Content -Raw -Encoding UTF8 -LiteralPath $output
-    if ($actual -ne $expected) {
+    if ($region.Value -ne $expected) {
         throw 'Generated API reference is stale. Run tools\generate-api-docs.ps1.'
     }
 } else {
-    Set-Content -Encoding UTF8 -LiteralPath $output -Value $expected -NoNewline
+    $updated = $actual.Substring(0, $region.Index) + $expected +
+        $actual.Substring($region.Index + $region.Length)
+    [IO.File]::WriteAllText($output, $updated, [Text.UTF8Encoding]::new($false))
 }
 Write-Host "Public API documented: $($rows.Count) symbols"

@@ -18,4 +18,4 @@ For an existing project, select x64 Release, `/std:c++latest`, `/utf-8`, `/MD`, 
 
 The packaging script builds from the captured snapshot, extracts the final ZIP, and builds/runs the consumer with global vcpkg integration disabled. `artifacts/package-verification/<version>/verification.json` is the local verification sidecar. A different clean PC and the full target OS matrix require separate acceptance.
 
-If startup fails, record `Error.code`, `native_code`, `field` and `message`. Port 32452 must be free. See `source/docs/troubleshooting.md` and `source/SECURITY.md` for diagnosis and private vulnerability reporting. The source includes the Korean tutorial and `source/docs/getting-started-en.md`.
+If startup fails, record `Error.code`, `native_code`, `field` and `message`. Port 32452 must be free. See `source/docs/operations.md` and `source/SECURITY.md` for diagnosis and private vulnerability reporting. The source includes the Korean tutorial and `source/docs/getting-started-en.md`.

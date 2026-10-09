@@ -65,7 +65,7 @@ if ($BaselineCsv) {
 }
 if (-not $OutputDirectory) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputDirectory = Join-Path $root "benchmarks\results\$stamp-$commit"
+    $OutputDirectory = Join-Path $root "artifacts\benchmarks\$stamp-$commit"
 }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 

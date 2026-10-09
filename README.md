@@ -54,19 +54,19 @@ int main() {
 }
 ```
 
-This example immediately stops and checks the lifecycle. For a continuously listening server, use EchoServer and the [code walkthrough (Korean)](docs/tutorial/first-echo-server.md).
+This example immediately stops and checks the lifecycle. For a continuously listening server, use EchoServer and the [code walkthrough (Korean)](docs/getting-started.md#echo-코드-읽기).
 
 Use the API in the order `Server::Create` → `Start` → `Send`/`RequestClose` → `Stop`. The span passed to a callback becomes invalid once the callback returns, so long-running game logic must be handed off to a separate worker through `QueuedEventAdapter`.
 
-Start/Stop from this server's event or logger callbacks is rejected; signal the control thread. Moving/destroying Server requires quiescent application callers. Send copies before return; kQueued does not acknowledge peer processing. See [Function contracts (Korean)](docs/api/contracts.md).
+Start/Stop from this server's event or logger callbacks is rejected; signal the control thread. Moving/destroying Server requires quiescent application callers. Send copies before return; kQueued does not acknowledge peer processing. See [Function contracts (Korean)](docs/api/README.md#함수별-계약).
 
-To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration (Korean)](docs/configuration.md) and [Packet Framing (Korean)](docs/packet-framing.md) for the details.
+To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration (Korean)](docs/operations.md#설정) and [Packet Framing (Korean)](docs/getting-started.md#패킷-프레이밍) for the details.
 
 ## Documentation
 
 - [Getting Started](docs/getting-started-en.md)
 - [Binary Package Consumption](docs/package-consumption.md)
-- [Korean documentation index](README_kr.md#문서-안내): the complete technical guides, API reference, samples, protocol, release checklist, five ADRs and the single-file HTML book.
+- [Korean documentation index](README_kr.md#문서-안내): six task-oriented guides covering setup, API contracts, architecture, operations, Chat and verification, plus the single-file HTML book.
 
 The detailed guides are currently written in Korean and indexed in README_kr.md. Follow [CHANGELOG](CHANGELOG.md) for release changes, [CONTRIBUTING](CONTRIBUTING.md) to contribute, [SECURITY](SECURITY.md) to report security issues and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) for dependency notices.
 

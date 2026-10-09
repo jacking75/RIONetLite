@@ -16,7 +16,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $commit = (& git -C $root rev-parse --short HEAD).Trim()
 if (-not $OutputDirectory) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputDirectory = Join-Path $root "benchmarks\results\$stamp-$commit-design"
+    $OutputDirectory = Join-Path $root "artifacts\benchmarks\$stamp-$commit-design"
 }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $vswhere = Join-Path ${env:ProgramFiles(x86)} `

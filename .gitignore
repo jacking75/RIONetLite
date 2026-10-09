@@ -48,7 +48,8 @@ dlldata.c
 
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
-/benchmarks/results/
+# Legacy local output is not part of the source tree.
+/benchmarks/
 
 # .NET Core
 project.lock.json
@@ -347,8 +348,3 @@ ASALocalRun/
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# Keep the checked-in launcher while ignoring other sample build outputs.
-!/samples/bin/
-/samples/bin/*
-!/samples/bin/run_EchoServer.bat

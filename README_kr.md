@@ -21,29 +21,26 @@ bin\x64\Debug\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenar
 
 exit 0·received_packets>0·연결 실패/data error/dropped packet/timeout 0을 확인한다. 서버에서 quit+Enter 또는 Ctrl+C로 종료하고 exit 0을 확인한다.
 
-[네트워크 입문](docs/networking-basics.md) → [Echo 코드](docs/tutorial/first-echo-server.md) → [프레이밍](docs/packet-framing.md) → [게임 워커](docs/tutorial/game-worker.md) → [Chat 실습](docs/samples/chat-server.md) 순서로 읽는다. 함수 사용은 [API 계약](docs/api/contracts.md), 운영은 [설정](docs/configuration.md)·[배압](docs/backpressure.md)·[종료](docs/graceful-shutdown.md)·[관측성](docs/observability.md)·[문제 해결](docs/troubleshooting.md)을 따른다.
+[설치·Echo 실습](docs/getting-started.md) → [API 레퍼런스](docs/api/README.md) → [Chat 실습](docs/samples/chat-server.md) 순서로 읽는다. 내부 동작은 [구조와 설계](docs/architecture.md), 설정·배압·종료·문제 해결은 [운영 안내](docs/operations.md)를 따른다.
 
 callback span을 반환 뒤 저장하지 않는다. 게임·DB·파일 처리는 owned 유계 queue로 넘긴다. SessionId의 index와 generation을 함께 보관한다. Send(kQueued)는 복사·수락이며 상대 처리를 보장하지 않는다. callback 안의 같은 서버 Start/Stop은 거절하며 control thread에 종료를 요청한다. 객체 이동·파괴는 모든 application 호출자가 종료된 뒤 수행한다.
 
 tools/package.ps1은 현재 source version을 읽고 정확한 snapshot에서 Release lib/PDB를 새로 빌드한다. compiler/SDK/runtime/source SHA256과 파일 해시를 기록하고 최종 ZIP을 다시 풀어 vcpkg 비활성 consumer를 빌드·실행한다. [ZIP 소비](docs/package-consumption.md)를 따른다. 정식 릴리스는 깨끗한 version tag와 -RequireReleaseTag 검사가 필요하다.
 
-품질 검사는 [릴리스 체크리스트](docs/release-checklist.md)에서 확인한다. C# ChatClient는 .NET 10 WinForms와 version 1 공유 protocol을 사용한다. 현재 로컬 자동 검사와 실제 GUI·별도 PC·신입 독자 평가는 구별한다. [개발 참여](CONTRIBUTING.md), [보안 보고](SECURITY.md), [외부 코드 고지](THIRD_PARTY_NOTICES.md)를 참고한다.
+품질 검사는 [릴리스 체크리스트](docs/verification.md#릴리스-판정)에서 확인한다. C# ChatClient는 .NET 10 WinForms와 version 1 공유 protocol을 사용한다. 현재 로컬 자동 검사와 실제 GUI·별도 PC·신입 독자 평가는 구별한다. [개발 참여](CONTRIBUTING.md), [보안 보고](SECURITY.md), [외부 코드 고지](THIRD_PARTY_NOTICES.md)를 참고한다.
 
 ## 문서 안내
 
-docs의 한국어 문서 전체와 프로토콜 검증 자료를 다음 표에서 찾을 수 있다. 처음 사용하는 독자는 입문·실습 순서로 읽고, 함수 사용과 내부 구현은 API·구조 문서를 함께 확인한다.
+목적별 안내 여섯 개와 단일 HTML 기술서로 읽기 경로를 정리했다. 한국어 문서는 모두 아래에서 찾을 수 있다.
 
-| 분류 | 문서 |
+| 목적 | 문서 |
 |---|---|
-| 입문·실습 | [단일 HTML 기술서](docs/rionetlite_book.html) · [TCP와 RIO 입문](docs/networking-basics.md) · [설치와 첫 서버](docs/getting-started.md) · [첫 Echo 코드 읽기](docs/tutorial/first-echo-server.md) · [게임 워커로 넘기기](docs/tutorial/game-worker.md) |
-| 공개 API | [API 레퍼런스](docs/api/README.md) · [생성된 API 목록](docs/api/generated.md) · [함수별 계약](docs/api/contracts.md) |
-| 구조·수명 | [아키텍처](docs/architecture.md) · [스레딩 모델](docs/threading-model.md) · [세션 수명](docs/session-lifecycle.md) |
-| 패킷·프로토콜 | [패킷 프레이밍](docs/packet-framing.md) · [Chat wire protocol v1](docs/protocol/chat.md) · [공통 바이트 fixture](docs/protocol/chat-fixtures.tsv) |
-| 설정·종료 | [설정](docs/configuration.md) · [배압과 유계 저장소](docs/backpressure.md) · [종료 정책](docs/graceful-shutdown.md) |
-| 운영·안전성 | [관측성](docs/observability.md) · [문제 해결](docs/troubleshooting.md) · [메모리 안전성 검사](docs/memory-safety.md) |
-| 성능·측정 | [성능 튜닝](docs/performance-tuning.md) · [벤치마킹](docs/benchmarking.md) · [T00 기준선: 역사 자료](docs/baseline.md) |
-| 예제 | [EchoServer](docs/samples/echo-server.md) · [ChatServer와 C# 클라이언트](docs/samples/chat-server.md) |
-| 릴리스 | [릴리스 체크리스트](docs/release-checklist.md) |
-| 설계 결정 | [ADR 0001: 지원 플랫폼](docs/adr/0001-supported-platform.md) · [ADR 0002: 스레드와 콜백](docs/adr/0002-threading-and-callbacks.md) · [ADR 0003: 과부하 정책](docs/adr/0003-overload-policy.md) · [ADR 0004: 종료 정책](docs/adr/0004-shutdown.md) · [ADR 0005: 성능 측정](docs/adr/0005-performance-method.md) |
+| 처음 실행하고 Echo를 이해한다 | [설치와 Echo 실습](docs/getting-started.md): 준비·TCP/RIO 입문·프레이밍·코드·CLI다. |
+| 함수를 정확히 사용한다 | [공개 API 레퍼런스](docs/api/README.md): 헤더·호출 계약·결과·callback·자동 생성 symbol 목록이다. |
+| 내부 구조를 이해한다 | [구조와 설계](docs/architecture.md): 스레드·세션 수명·플랫폼과 설계 결정이다. |
+| 서버를 설정하고 운영한다 | [설정과 운영](docs/operations.md): 메모리 예산·배압·종료·로그·지표·문제 해결이다. |
+| 게임 로직과 채팅을 구현한다 | [ChatServer와 C# 클라이언트](docs/samples/chat-server.md): UI 사용·게임 워커·다중 shard·wire protocol과 [공통 fixture](docs/protocol/chat-fixtures.tsv)다. |
+| 변경과 배포를 검증한다 | [검증과 릴리스](docs/verification.md): 빌드·기능·stress·메모리 안전성·성능 측정·릴리스 판정이다. |
+| 긴 설명과 실험으로 학습한다 | [단일 HTML 기술서](docs/rionetlite_book.html): 397쪽·그림·애니메이션·인터랙티브 실습·소스 해설이다. |
 
-영문 자료는 [Getting Started](docs/getting-started-en.md)와 [Binary Package Consumption](docs/package-consumption.md)이다. 릴리스 변경 이력은 [CHANGELOG](CHANGELOG.md)를 참고한다.
+영문 자료는 [Getting Started](docs/getting-started-en.md)와 [Binary Package Consumption](docs/package-consumption.md)이다. 변경 이력은 [CHANGELOG](CHANGELOG.md)를 참고한다.

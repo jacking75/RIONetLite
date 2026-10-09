@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $OutputDirectory) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputDirectory = Join-Path $root "benchmarks\results\$stamp-mimalloc"
+    $OutputDirectory = Join-Path $root "artifacts\benchmarks\$stamp-mimalloc"
 }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $rows = @()
