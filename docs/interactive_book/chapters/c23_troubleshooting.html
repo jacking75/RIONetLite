@@ -1,0 +1,35 @@
+<article class="chapter" id="troubleshooting" data-title="문제 해결"><div class="eyebrow">5부 · C23</div><h1>증상에서 근거를 모아 다음 검사를 고른다</h1><p class="lead">처음 보인 오류를 보존하고, 어느 계층의 실패인지 좁히며, 조치 뒤 같은 조건으로 회귀를 확인한다.</p>
+<section id="trouble-evidence"><h2>바꾸기 전에 실패 조건을 남긴다</h2>
+<p>실행 명령, source commit·해시, Debug/Release, 도구 체인·OS, 설정, seed와 시작·종료 결과를 기록한다. expected의 category·code·native_code·field·message와 LogEvent.operation·worker·SessionId를 함께 보존한다. 마지막 “스레드 시작 실패” 한 줄만 남기면 앞선 CQ·메모리·소켓 오류를 놓칠 수 있다.</p>
+<p>native 0은 운영체제 오류가 없다는 뜻만으로 해석하지 않는다. 해당 경로에서 플랫폼 원인을 제공하지 않았을 수도 있다. 바이너리와 PDB·dump·입력 자료는 같은 실행의 것을 보존한다. 민감한 payload와 dump를 공개 이슈에 그대로 붙이지 않고 저장소 루트 SECURITY의 전달 경로를 따른다.</p><button class="source" data-evidence="diagnostics.errors">실제 코드 · 공개 오류 분류와 문자열</button>
+</section>
+<section id="trouble-table"><h2>증상·추가 확인·재검증을 연결한다</h2>
+<div class="table-wrap"><table><thead><tr><th>증상</th><th>확인과 조치</th><th>회귀 확인</th></tr></thead><tbody><tr><td>MSBuild/v145 없음</td><td>VS2026 C++ 구성 요소·SDK와 도구 탐색 경로를 확인한다.</td><td>두 구성의 build.ps1</td></tr><tr><td>vcpkg 복원 실패</td><td>manifest·baseline·MSBuild integration과 최초 오류를 본다.</td><td>같은 복원·빌드</td></tr><tr><td>bind_failed/native 10048</td><td>해당 포트의 LISTEN PID를 확인하고 필요하면 양쪽 포트를 맞춘다.</td><td>실제 Echo 왕복</td></tr><tr><td>rio_unavailable</td><td>x64·대상 OS·Winsock provider와 native 오류를 본다. fallback은 없다.</td><td>실제 RIO 통합 검사</td></tr><tr><td>kWouldBlock 증가</td><td>상대 소비 속도, 송신 링, callback·큐 시간과 유계 retry를 확인한다.</td><td>같은 입력·같은 정책</td></tr><tr><td>정상처럼 보인 Chat 입력이 닫힘</td><td>8바이트 헤더·version·타입·UTF-8 바이트 길이·현재 상태·큐 포화를 본다.</td><td>golden fixture와 Chat E2E</td></tr><tr><td>다른 shard에 같은 룸 메시지가 안 옴</td><td>모든 inbox fanout, room 번호·phase와 방송 포화를 본다.</td><td>1/2/4 shard, 세 명 이상</td></tr><tr><td>stale session</td><td>작업에 index와 generation을 모두 저장했는지 확인한다.</td><td>슬롯 재사용·옛 close 검사</td></tr><tr><td>Stop kInvalidState</td><td>콜백 안의 Stop을 제어 스레드 요청으로 바꾼다.</td><td>콜백 재진입 검사</td></tr><tr><td>Stop timeout</td><td>미완료 참조·열린 세션·막힌 callback·게임 큐를 본다.</td><td>같은 모드와 bounded callback</td></tr><tr><td>최초 workload 뒤 handle 증가</td><td>provider의 첫 자원과 반복 추세를 나눈다. 같은 quiescent 상태끼리 비교한다.</td><td>예열 뒤 반복 Stop·자원 추적</td></tr><tr><td>패키지 link 실패</td><td>compiler·SDK·x64·/MD·/MDd와 include/lib·Ws2_32·OneCore를 맞춘다.</td><td>ZIP-only 소비자 재빌드</td></tr></tbody></table></div>
+<p>표는 원인을 확정하는 사전이 아니다. 예를 들어 배압은 느린 peer, 느린 callback, 불충분한 예산이나 지속 과부하에서 모두 생길 수 있다. 가장 구별력이 큰 다음 증거를 고르고 한 번에 한 조건을 바꾼다.</p>
+</section>
+<section id="trouble-lab"><h2>위험한 추측 대신 추가 조사를 선택한다</h2><div data-lab="L18"></div>
+<div class="table-wrap"><table><thead><tr><th>사례</th><th>조사 선택 ID</th><th>피해야 할 선택 ID</th></tr></thead><tbody><tr><td>bind</td><td>inspect-port</td><td>kill-process</td></tr><tr><td>배압</td><td>inspect-consumer</td><td>infinite-retry</td></tr><tr><td>세대</td><td>inspect-generation</td><td>index-only</td></tr><tr><td>종료</td><td>inspect-outstanding</td><td>force-free</td></tr></tbody></table></div>
+<p>이 ID를 조치 입력에 넣고 판단을 본다. 실험은 실제 PID를 종료하거나 설정·메모리를 바꾸지 않는다. 포트 소유자를 조사하는 것과 소유자를 모른 채 프로세스를 죽이는 선택, timeout을 조사하는 것과 커널 참조 중 메모리를 강제 해제하는 선택의 차이를 설명한다.</p>
+</section>
+<section id="trouble-reproduce"><h2>실패를 짧고 같은 조건으로 재현한다</h2>
+<p>동시성 오류는 정상 부하를 오래 돌리는 것만으로 위치를 찾기 어렵다. stale UID, null 컨텍스트, N번째 게시 실패와 full queue를 fake로 결정적으로 재현한 뒤 실제 RIO 시나리오로 확인한다. 실패 seed를 출력하는 랜덤 검사에서는 그 seed와 명령을 보존한다.</p><pre><code>Get-NetTCPConnection -LocalPort 32452 -State Listen
+bin\tests\x64\Debug\RIONetLite.UnitTests.exe --gtest_filter=WorkerControlTest.*:SendQueueTest.RandomizedOperationsPreserveCapacityWithPrintedSeed
+tools\test-chat.ps1 -Configuration Release -OutputDirectory logs/chat-reproduction</code></pre>
+<p>개발 PC의 짧은 재현 성공을 장기 안정성 승인으로 바꾸지 않는다. 고부하 승인은 별도로 지정한 환경에서 수행한다. 실패한 설정을 바꾸어 통과시켰다면 입력과 제한도 함께 기록해 원래 조건이 해결된 것으로 숨기지 않는다.</p><label class="check"><input type="checkbox" data-check="C23-understood"><span>실패 문맥을 보존하고 증상마다 안전한 추가 확인과 회귀 검사를 선택할 수 있다.</span></label></section><section id="troubleshooting-prior-notes"><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d28-i8"><summary>통합한 기존 안내 · docs/operations.md · 문제 해결</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-114-133</p><div class="archive-body"><h3>문제 해결</h3>
+<p>실패한 expected의 code/native_code/field/message와 실행 command·OS·compiler·source hash를 먼저 보존한다.</p>
+<div class="table-scroll"><table>
+<tr><th>증상</th><th>확인·조치</th><th>재검증</th></tr>
+<tr><td>MSBuild/v145 없음</td><td>VS2026 C++ workload와 v145 설치, Developer PowerShell을 확인한다.</td><td>tools/build.ps1 Debug와 Release다.</td></tr>
+<tr><td>vcpkg 복원 실패</td><td>root manifest와 MSBuild integration·네트워크·복원 오류를 확인한다.</td><td>첫 실패 원인을 수정한 뒤 같은 빌드다.</td></tr>
+<tr><td>bind_failed/native 10048</td><td>Get-NetTCPConnection -LocalPort 32452 -State Listen으로 PID를 확인한다. 다른 프로세스를 무작정 종료하지 않고 다른 포트를 두 프로그램에 지정한다.</td><td>LoadClient echo다.</td></tr>
+<tr><td>rio_unavailable</td><td>x64·대상 OS·Winsock provider와 native code를 확인한다. fallback transport는 없다.</td><td>실제 integration 실행이다.</td></tr>
+<tr><td>kWouldBlock 증가</td><td>소비 속도·send_buffer_bytes·queued_send_bytes와 sent_bytes를 확인한다. 무한 callback retry를 제거한다.</td><td>같은 입력과 유계 retry/close 정책이다.</td></tr>
+<tr><td>정상 Chat 입력이 닫힘</td><td>version/length/type/UTF-8 byte 수·close reason·event rejections를 확인한다. 기존 5바이트 클라이언트는 호환되지 않는다.</td><td>tools/test-chat.ps1의 split/coalesce·동일 room 검사다.</td></tr>
+<tr><td>다른 shard에 채팅 없음</td><td>모든 shard의 broadcast inbox 전달과 같은 room 설정을 확인한다.</td><td>1/2/4 shard의 3명 이상 검사다.</td></tr>
+<tr><td>stale session</td><td>index/generation 전체를 task에 저장한다. 이전 generation은 폐기한다.</td><td>slot 재사용 integration이다.</td></tr>
+<tr><td>Stop 거절</td><td>callback 안의 Stop을 제거하고 control thread에 flag를 보낸다.</td><td>callback reentry 검사다.</td></tr>
+<tr><td>Stop timeout</td><td>outstanding·active·막힌 callback·game queue를 확인한다. 실패를 성공으로 감추지 않는다.</td><td>bounded callback과 같은 stop 모드에서 재실행한다.</td></tr>
+<tr><td>최초 workload 후 handle 증가</td><td>RIO provider의 최초 worker 자원과 반복 추세를 구분한다. 같은 quiescent 상태를 비교한다.</td><td>예열 포함 run-stress와 반복 Stop handle 회수다.</td></tr>
+<tr><td>package link 실패</td><td>manifest compiler/SDK/x64/MD, include/lib와 Ws2_32/OneCore를 확인한다. Release lib와 MDd를 섞지 않는다.</td><td>ZIP-only consumer rebuild다.</td></tr>
+</table></div>
+<p>public EventHandler에는 OnRejectedConnection callback이 없다. 거절 수는 rejected_connections 지표와 Logger로 확인한다. 기록 없는 오류를 임의 원인으로 단정하지 않는다. dump·payload 민감 정보는 <a href="#chapter=historical-records&amp;section=history-reading">보안 경로</a>로 전달한다.</p></div></details></section></article>

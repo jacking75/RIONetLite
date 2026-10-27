@@ -1,33 +1,39 @@
 # RIONetLite
 
-[한국어](README_kr.md)
+RIONetLite is a C++ game-server networking library using Windows Registered I/O.
+It prioritizes session identity, asynchronous buffer lifetime and safe shutdown.
 
-RIONetLite is an x64 game-server C++ static library built on Windows Registered I/O (RIO). Its baseline contract is session-generation validation, buffer lifetime that lasts until completion, bounded backpressure, and completion-aware shutdown.
+0.3.x is a preview: API and ABI may change during 0.x. The transport is TCP/IPv4
+server-only on Windows x64, using Visual Studio 2026, MSVC v145, C++ latest and
+UTF-8. Windows 10 1803+, Windows 11 and Server 2019+ are target systems; the whole
+OS/provider matrix has not been certified. IPv6, TLS, UDP and client transport
+APIs are outside scope.
 
-0.3.x is a **preview**: API and ABI may change during 0.x. The transport is TCP/IPv4 server-only on Windows x64, with VS2026/MSVC v145 and Windows SDK. Windows 10 1803+, Windows 11 and Server 2019+ are target systems, not a fully tested OS matrix. IPv6, TLS, UDP and client transport APIs are outside scope. See the [English core guide](docs/getting-started-en.md) or the [Korean documentation index](README_kr.md#문서-안내).
+## Start
 
-## First Echo
-
-You need Visual Studio 2026, MSVC `v145`, Windows SDK 10, and manifest-mode vcpkg. Run the following from a Developer PowerShell prompt.
+Install Visual Studio's Desktop development with C++, Windows SDK and vcpkg
+components. GoogleTest and optional mimalloc use the root vcpkg manifest.
 
 ```powershell
 tools\build.ps1 -Configuration Debug -Rebuild
-bin\x64\Debug\EchoServer.exe --port 32452
+tools\build.ps1 -Configuration Release -Rebuild
+bin\x64\Debug\EchoServer.exe --port 32452 --duration 30
 ```
 
-From another terminal, verify the real echo and checksum.
+Open [the offline book (Korean)](docs/interactive_book/index.html) in a browser.
+Download the HTML to read and run the interactive models; it needs no server or
+internet access. The book has 28 chapters, five appendices and 20 educational
+experiments, plus embedded source snapshots. See [first Echo](docs/interactive_book/index.html#chapter=echo-walkthrough),
+[API contracts](docs/interactive_book/index.html#chapter=api-reference),
+[Chat](docs/interactive_book/index.html#chapter=chat-server) and
+[build requirements](docs/interactive_book/index.html#chapter=build-and-run).
 
-```powershell
-bin\x64\Debug\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenario echo --json result.json
-```
+## Minimal public API
 
-Require client exit 0, nonzero received packets and zero connection failures/data errors/dropped packets/timeouts in result.json. Stop the server with quit and Enter, or Ctrl+C; require exit 0. Initial tool installation and dependency restoration take additional time.
-
-The minimal server is [EchoServer](samples/echo_server/main.cpp). `tools\package.ps1` builds a fresh captured source snapshot and bundles the headers, Release library/PDB, license, changelog, version, and a minimal consumer sample, then builds and verifies the sample using only the files inside the package it just produced.
-
-The package includes source/compiler/SDK/runtime metadata, SHA256 inventories and a ZIP-only consumer check. See [Binary package consumption](docs/package-consumption.md). Development snapshots can be dirty; formal release packaging uses `tools\package.ps1 -RequireReleaseTag` and requires a clean tree tagged with the source version.
-
-## Lifecycle Smoke Example
+This lifecycle check matches samples/package_consumer/main.cpp. Use EchoServer
+for a continuously listening example. The handler and optional logger must
+outlive Server. Signal an owner thread to stop from a callback. Send copies
+before returning; kQueued acknowledges admission, not peer processing.
 
 ```cpp
 #include <rionetlite/server.h>
@@ -54,33 +60,23 @@ int main() {
 }
 ```
 
-This example immediately stops and checks the lifecycle. For a continuously listening server, use EchoServer and the [code walkthrough (Korean)](docs/getting-started.md#echo-코드-읽기).
-
-Use the API in the order `Server::Create` → `Start` → `Send`/`RequestClose` → `Stop`. The span passed to a callback becomes invalid once the callback returns, so long-running game logic must be handed off to a separate worker through `QueuedEventAdapter`.
-
-Start/Stop from this server's event or logger callbacks is rejected; signal the control thread. Moving/destroying Server requires quiescent application callers. Send copies before return; kQueued does not acknowledge peer processing. See [Function contracts (Korean)](docs/api/README.md#함수별-계약).
-
-To reclaim dead connections automatically, set `ServerConfig::keepalive_time_ms` and `idle_timeout_ms`. To send a header and payload as a single message, use `Server::Send(session, header, payload)` instead of an application-side temporary buffer. See [Configuration (Korean)](docs/operations.md#설정) and [Packet Framing (Korean)](docs/getting-started.md#패킷-프레이밍) for the details.
-
-## Documentation
-
-- [Getting Started](docs/getting-started-en.md)
-- [Binary Package Consumption](docs/package-consumption.md)
-- [Korean documentation index](README_kr.md#문서-안내): six task-oriented guides covering setup, API contracts, architecture, operations, Chat and verification, plus the single-file HTML book.
-
-The detailed guides are currently written in Korean and indexed in README_kr.md. Follow [CHANGELOG](CHANGELOG.md) for release changes, [CONTRIBUTING](CONTRIBUTING.md) to contribute, [SECURITY](SECURITY.md) to report security issues and [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) for dependency notices.
-
-## Quality Commands
+## Package and maintenance
 
 ```powershell
-tools\check-format.ps1
-tools\build.ps1 -Configuration Debug -Rebuild
-tools\build.ps1 -Configuration Release -Rebuild
-tools\run-memory-safety.ps1
-tools\run-stress.ps1 -Configuration Release -DurationSeconds 600
-tools\run-benchmark.ps1
-tools\run-design-benchmark.ps1
 tools\package.ps1
+tools\check-docs.ps1
 ```
 
-For a longer soak, increase `-DurationSeconds` on the same stress engine, run it manually, and keep the results in an external artifact store. Do not commit large binaries, PDBs, dumps, build output, or benchmark results to Git.
+Packaging builds a fresh x64 Release /MD library from the exact source snapshot
+and checks a consumer extracted from the final ZIP. Read [ABI and packaging](docs/interactive_book/index.html#chapter=packaging-and-release)
+before consuming a binary. A local candidate is distinct from a tagged release;
+formal packaging uses a clean version tag and -RequireReleaseTag.
+
+See [validation scope](docs/interactive_book/index.html#chapter=book-maintenance&section=maintenance-acceptance)
+and [book generation](docs/interactive_book/index.html#chapter=book-maintenance&section=maintenance-build).
+Reading the HTML needs no Node or Python; authoring checks use Python 3.10+,
+Node.js 20+, npm and installed Edge. Start with npm.cmd --prefix tools/book ci.
+
+[??? ??](README_kr.md) ? [Contributing](CONTRIBUTING.md) ?
+[Security](SECURITY.md) ? [Changelog](CHANGELOG.md) ?
+[Third-party notices](THIRD_PARTY_NOTICES.md) ? [License](LICENSE)

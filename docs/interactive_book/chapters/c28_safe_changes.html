@@ -1,0 +1,50 @@
+<article class="chapter" id="safe-changes" data-title="안전하게 변경한다"><div class="eyebrow">6부 · C28</div><h1>변경의 영향과 증거를 함께 갱신한다</h1><p class="lead">처리량만 보지 않고 연결 식별·버퍼 수명·순서·오류·종료와 문서의 사용 계약까지 추적한다.</p>
+<section id="change-before"><h2>수정 전에 네 가지 질문에 답한다</h2>
+<p>누가 데이터를 소유하는가, 어느 스레드가 상태를 바꾸는가, 어떤 연결의 작업인가, 무엇을 완료라고 부르는가를 확인한다. span을 소유 payload로 착각하거나 index만 저장한 지연 작업, 게시 성공을 상대 처리 완료로 취급하는 변경은 정상 한 번의 Echo만으로 찾기 어렵다.</p>
+<p>기존 작업 트리와 사용자 변경을 먼저 확인한다. 관련 없는 변경을 포맷하거나 커밋하지 않는다. 라이브러리 공개 API가 바뀌면 예제·README·C# wire·패키지 소비자와 이 책을 함께 확인한다. 외부 코드는 명시적인 필요가 없으면 수정하지 않는다. 빌드 결과와 IDE 설정은 커밋하지 않는다.</p>
+</section>
+<section id="change-map"><h2>바꾼 경계에 맞춰 회귀를 고른다</h2>
+<div class="table-wrap"><table><thead><tr><th>변경</th><th>깨뜨릴 수 있는 조건</th><th>대표 회귀</th></tr></thead><tbody><tr><td>세션 배정·워커 수</td><td>나머지 슬롯 누락·cold-start 편중</td><td>AssignsEverySessionExactlyOnce, LeasesSessionsRoundRobinAcrossWorkersFromColdStart</td></tr><tr><td>식별·close</td><td>옛 세대가 새 연결을 닫음</td><td>ForcedCloseIgnoresAStaleGeneration, ReusesSlotWithNewGenerationAndRejectsStaleId</td></tr><tr><td>송신 링·병합</td><td>미완료 범위 overwrite·중복 게시·부분 완료</td><td>SendQueueTest 전체와 RioRequestTest</td></tr><tr><td>수신·프레이밍</td><td>소비량 초과·꼬리 손실·닫힘 뒤 데이터</td><td>RecvBufferTest, PacketDecoderTest와 관련 통합 검사</td></tr><tr><td>등록·초기화</td><td>N번째 실패 누수·주소 조기 해제</td><td>DoesNotDeregisterOutstandingMemory, SessionPoolRollsBackSuccessfulBuffersOnNthRegisterFailure</td></tr><tr><td>종료·callback</td><td>교착·기한 재시작·CQ 손상·통지 유실</td><td>ConcurrentStopCallsWaitForTheSameShutdown, WorkerControlTest, RejectsStopFromEveryEventCallback</td></tr><tr><td>게임 큐</td><td>payload 수명·raw 손실·parked close 유실</td><td>QueuedEventAdapterTest 전체</td></tr><tr><td>Chat wire·fanout</td><td>UTF-8 길이·상태·일부 shard 누락</td><td>공통 fixture, 실제 C# 1/2/4 shard E2E</td></tr><tr><td>패키지·헤더</td><td>ABI·CRT·버전·누락 파일</td><td>두 구성 및 ZIP-only 소비자</td></tr></tbody></table></div>
+<p>표는 테스트 선택의 출발점이다. 하나의 테스트가 관련된 모든 안전 조건을 완전하게 증명한다고 주장하지 않는다. 가짜 CQ와 실제 kernel, GUI와 headless, 짧은 실행과 장기 안정성의 경계를 유지한다. 현재 코드의 위험과 과거 해결 이력은 A04의 원문 기록도 함께 본다.</p>
+</section>
+<section id="change-failure"><h2>정상 입력 밖의 경로를 같은 비중으로 본다</h2>
+<p>부분 송신, 원격 종료, 큐 포화, 게시 실패와 강제 종료를 포함한다. 최적화로 lock을 줄이면 validation과 쓰기·close 전이 사이에 세션이 재사용될 수 있는지 확인한다. 완료 컨텍스트를 재활용하면 이전 요청이 끝나기 전에 덮어쓰지 않는지 확인한다. memory 등록 전략을 바꾸면 실제 view·ID·offset 범위와 해제 순서를 다시 검증한다.</p>
+<p>운영 조건의 경계도 기록한다. ValidateServerConfig의 enum cast 검사 누락과 adapter의 세대 정렬 비교처럼 현재 발견한 한계는 본문과 출처에 남긴다. 책을 쓰기 위해 제품 알고리즘을 몰래 바꾸거나 검사를 통과시키려고 주석·공개 심볼을 삭제하지 않는다. 별도 코드 수정은 영향과 회귀를 명시한 작업으로 분리한다.</p>
+</section>
+<section id="change-book"><h2>책의 원고·출처·모델을 같은 변경으로 갱신한다</h2>
+<p>함수·테스트·설정이 바뀌면 evidence의 선택자와 검토 해시가 stale로 실패한다. 생성기가 새 코드를 포함하는 것과 설명을 다시 검토한 것은 다르다. 실제 소스와 본문·실험을 대조한 뒤 검토 기록을 명시적으로 갱신한다. 줄 번호만 고정하지 않으며 시작·끝 선택자가 0개 또는 여러 개면 먼저 범위를 고친다.</p>
+<p>API 추가는 공개 헤더의 @api와 선언 대조, generated/api.json 갱신, A01의 주요 멤버 계약과 관련 장을 포함한다. 모델의 정상·경계·실패 테스트와 브라우저의 URL·저장·키보드·오프라인·인쇄 검사를 실행한다. 기존 이관 목록의 원문 변경이 있으면 새 내용을 먼저 대조하고 삭제 여부를 결정한다.</p><pre><code>tools\generate-api-docs.ps1
+python docs/interactive_book/build_book.py
+python docs/interactive_book/build_book.py --check --require-complete
+tools\check-docs.ps1
+npm.cmd --prefix tools/book run test:content
+npm.cmd --prefix tools/book run test:models
+npm.cmd --prefix tools/book run test:browser
+git diff --check</code></pre>
+</section>
+<section id="change-review"><h2>리뷰에서 변경 결과와 남은 위험을 설명한다</h2>
+<p>어떤 입력에서 무엇이 달라졌는지 먼저 적고, 소유권·순서·범위·종료에 대한 근거를 붙인다. 검증 명령, 실제 결과와 미실행 항목을 구체적으로 남긴다. C++ 변경은 저장소 스타일의 clang-format과 두 구성 빌드 기준을 따른다. 전체 테스트를 실행하지 않았다면 관련 필터만 통과한 사실을 구분한다.</p>
+<p>최종 push 뒤에는 로컬 HEAD와 원격 main SHA, 작업 트리 상태를 확인한다. 원격 화면이 다르다는 이유만으로 force-push하거나 이력을 다시 쓰지 않는다. 같은 SHA라면 정확한 경로·branch와 표시 문제를 확인한다. main 반영과 새 바이너리 release·운영 채택도 다른 단계다.</p><label class="check"><input type="checkbox" data-check="C28-understood"><span>변경 경계마다 회귀와 문서·모델·출처·미실행 증거를 함께 갱신할 수 있다.</span></label></section><section id="safe-changes-prior-notes"><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d33-i8"><summary>통합한 기존 안내 · docs/verification.md · 회귀 근거</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-113-136</p><div class="archive-body"><h3>회귀 근거</h3>
+<div class="table-scroll"><table>
+<tr><th>위험</th><th>해결 코드</th><th>회귀 근거</th></tr>
+<tr><td>세션 과다 생성·잘못된 worker 배정</td><td><code>src/detail/session_partition.h</code>, <code>RIONetLite/impl/session_manager.h</code></td><td><code>SessionPartitionTest.AssignsEverySessionExactlyOnce</code></td></tr>
+<tr><td>실행 플래그와 close 경쟁</td><td><code>RIONetLite/impl/server_net*.h</code>, <code>src/detail/shutdown_coordinator.h</code></td><td><code>ConcurrentStopCallsWaitForTheSameShutdown</code>, <code>ImmediateStopRacesWithConcurrentSendsWithoutHang</code></td></tr>
+<tr><td>CQ 참조 수명·완료 배열 해제</td><td><code>RIONetLite/impl/server_net_io_worker.h</code></td><td>Debug/Release 통합 suite</td></tr>
+<tr><td>close 제어의 동시성·중복</td><td><code>RIONetLite/impl/server_net_lazyed_dis_conn_manager.h</code></td><td>worker_control 단위 검사, <code>StartsAndStopsWithoutConnections</code>, stress의 abrupt-close</td></tr>
+<tr><td>outstanding 송신 버퍼 덮어쓰기</td><td><code>RIONetLite/impl/send_immediately.h</code>, <code>RIONetLite/impl/rio_context.h</code></td><td><code>SendQueueTest.*</code></td></tr>
+<tr><td>CQ·등록 버퍼 조기 해제</td><td><code>RIONetLite/impl/server_net.h</code>, <code>src/detail/shutdown_coordinator.h</code>, <code>src/detail/win32_resources.h</code></td><td><code>DoesNotDeregisterOutstandingMemory</code>, graceful/immediate stop 통합 테스트</td></tr>
+<tr><td>오류 완료·stale generation 처리</td><td><code>RIONetLite/impl/rio_context.h</code>, <code>RIONetLite/impl/server_net_io_worker.h</code></td><td><code>ProducesDeterministicErrorAndCorruptCompletions</code>, <code>ReusesSlotWithNewGenerationAndRejectsStaleId</code></td></tr>
+<tr><td>수신 소비량·경계 위반</td><td><code>RIONetLite/impl/ring_buffer.h</code>, <code>include/rionetlite/packet_decoder.h</code></td><td><code>RecvBufferTest.*</code>, <code>ClosesWhenCallbackConsumesBeyondReadableBytes</code>, fragmentation/coalescing·최대 프레임 통합 테스트</td></tr>
+<tr><td>accept/RQ 실패 소켓 누수</td><td><code>RIONetLite/impl/server_net_accepter.h</code></td><td><code>UniqueSocket</code> RAII와 N번째 RIO 실패 fake</td></tr>
+<tr><td>TCP_NODELAY 적용 대상 오류</td><td><code>RIONetLite/impl/tcp_session.h</code></td><td>실제 RIO connect/echo 통합 suite</td></tr>
+<tr><td>초기화·시작 중간 실패 롤백</td><td><code>RIONetLite/impl/server_net_init.h</code>, <code>src/server.cpp</code></td><td><code>BindFailureRollsBackAndAllowsRetry</code>, <code>FailsConfiguredNthCallForEveryFallibleRioOperation</code></td></tr>
+<tr><td>전역 logger와 null 호출</td><td><code>include/rionetlite/event_handler.h</code>, <code>src/server.cpp</code></td><td><code>TwoServersUseIndependentResourcesAndLoggers</code></td></tr>
+<tr><td>링 버퍼 full/empty·해제 오류</td><td><code>RIONetLite/impl/ring_buffer.h</code>, <code>RIONetLite/impl/send_immediately.h</code></td><td><code>RecvBufferTest.*</code>, <code>SendQueueTest.*</code></td></tr>
+<tr><td>예제 packet 검증·무제한 큐</td><td><code>packet_decoder.h</code>, <code>queued_event_adapter.h</code>, ChatServer</td><td>decoder/queue 단위 테스트와 invalid-length stress</td></tr>
+<tr><td>콜백 예외로 인한 worker 종료</td><td><code>src/server.cpp</code></td><td><code>IsolatesHandlerExceptionsAndKeepsServing</code></td></tr>
+<tr><td>종료 이벤트 유실</td><td><code>src/queued_event_adapter.cpp</code></td><td><code>DeliversCloseAfterTheRingDrainsWhenQueueWasFull</code>, <code>HoldsBackANewGenerationUntilTheParkedCloseIsSeen</code></td></tr>
+<tr><td>close 이후 수신 콜백 전달</td><td><code>RIONetLite/impl/server_net_io_worker.h</code></td><td><code>NeverDeliversDataAfterCloseWhenClosingFromCallback</code></td></tr>
+<tr><td>index 단독 강제 종료</td><td><code>RIONetLite/impl/server_net.h</code>, <code>RIONetLite/impl/session_manager.h</code></td><td><code>ForcedCloseIgnoresAStaleGeneration</code></td></tr>
+<tr><td>cold-start worker 편중</td><td><code>RIONetLite/impl/session_manager.h</code></td><td><code>LeasesSessionsRoundRobinAcrossWorkersFromColdStart</code></td></tr>
+<tr><td>drain 실패 시 자원 조기 회수</td><td><code>RIONetLite/impl/server_net.h</code>, <code>src/win32_resources.cpp</code></td><td>소켓 abort 후 재drain, 실패 시 소유권 포기</td></tr>
+</table></div></div></details></section></article>

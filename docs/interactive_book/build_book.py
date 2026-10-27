@@ -1,26 +1,318 @@
-"""Build a standalone offline book: python docs/interactive_book/build_book.py"""
+"""Assemble the offline book. --check is read-only; --require-complete gates release."""
+from argparse import ArgumentParser
+from hashlib import sha256
+from html.parser import HTMLParser
+from html import escape
 from pathlib import Path
-import hashlib
 import json
-import subprocess
+import re
+import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-FILES = ['samples/echo_server/main.cpp', 'include/rionetlite/packet_decoder.h',
-         'include/rionetlite/event_handler.h', 'include/rionetlite/server.h',
-         'src/detail/session_lifecycle.h', 'RIONetLite/impl/server_net_io_worker.h',
-         'RIONetLite/impl/send_immediately.h', 'RIONetLite/impl/server_net.h',
-         'tests/unit/rio_request_test.cpp', 'tests/unit/correctness_primitives_test.cpp',
-         'tests/integration/smoke_test.cpp', 'include/rionetlite/queued_event_adapter.h']
-sources = {}
-for name in FILES:
-    raw = (ROOT / name).read_bytes()
-    sources[name] = {'text': raw.decode('utf-8-sig'), 'sha256': hashlib.sha256(raw).hexdigest()}
-commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, text=True).strip()
-data = json.dumps(sources, ensure_ascii=False).replace('<', '\\u003c')
-html = (HERE / 'book_template.html').read_text(encoding='utf-8')
-html = html.replace('<!-- STYLES -->', '<style>' + (HERE / 'book.css').read_text(encoding='utf-8') + '</style>')
-html = html.replace('<!-- SCRIPTS -->', '<script>const SOURCES = ' + data + ';\n' + (HERE / 'book.js').read_text(encoding='utf-8') + '</script>')
-html = html.replace('{{COMMIT}}', commit)
-(HERE / 'index.html').write_text(html, encoding='utf-8')
-print(f'Built {HERE / "index.html"}: {len(sources)} source snapshots, commit {commit}')
+
+
+def read_json(path):
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("schemaVersion") != 1:
+        raise ValueError(f"{path.name}: unsupported schemaVersion")
+    return value
+
+
+def contained(base, relative):
+    path = (base / relative).resolve()
+    if Path(relative).is_absolute() or not path.is_relative_to(base.resolve()):
+        raise ValueError(f"Path outside allowlist root: {relative}")
+    return path
+
+
+def unique(items, label):
+    if len(set(items)) != len(items):
+        raise ValueError(f"Duplicate {label}")
+
+
+class Fragment(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.ids, self.text, self.sources, self.links, self.evidence, self.labs = [], [], [], [], [], []
+        self.prose = []
+        self.in_prose = 0
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag in ("p", "li", "td", "pre"):
+            self.in_prose += 1
+        if "id" in attrs:
+            self.ids.append(attrs["id"])
+        if "data-file" in attrs:
+            self.sources.append((attrs["data-file"], attrs.get("data-find", "")))
+        if tag == "a" and "href" in attrs:
+            self.links.append(attrs["href"])
+        if "data-evidence" in attrs:
+            self.evidence.append(attrs["data-evidence"])
+        if "data-lab" in attrs:
+            self.labs.append(attrs["data-lab"])
+        if tag in ("script", "iframe", "object") or any(k.startswith("on") for k in attrs):
+            raise ValueError("Executable content in manuscript")
+
+    def handle_data(self, data):
+        self.text.append(data)
+        if self.in_prose:
+            self.prose.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in ("p", "li", "td", "pre"):
+            self.in_prose = max(0, self.in_prose - 1)
+
+
+def check_test(item):
+    test_raw = contained(ROOT, item["testSource"]).read_bytes()
+    if sha256(test_raw).hexdigest() != item["reviewedTestSha256"]:
+        raise ValueError(f"{item['id']}: test source changed; review required")
+    suite, name = item["testName"].split(".", 1)
+    pattern = rf"\bTEST(?:_F|_P)?\s*\(\s*{re.escape(suite)}\s*,\s*{re.escape(name)}\s*\)"
+    if len(re.findall(pattern, test_raw.decode("utf-8-sig"))) != 1:
+        raise ValueError(f"{item['id']}: test declaration missing or ambiguous")
+
+
+def collect_evidence(evidence, sources, chapters):
+    unique([e["id"] for e in evidence["items"]], "evidence id")
+    result = []
+    for item in evidence["items"]:
+        source = sources.get(item["source"])
+        if source is None:
+            raise ValueError(f"{item['id']}: source not allowlisted")
+        if source["sha256"] != item["reviewedSourceSha256"]:
+            raise ValueError(f"{item['id']}: source changed; review required (hash is never refreshed automatically)")
+        text = source["text"]
+        start, end = item["selector"]["start"], item["selector"]["end"]
+        if not start or not end or text.count(start) != 1 or text.count(end) != 1:
+            raise ValueError(f"{item['id']}: selector missing or ambiguous")
+        offset, limit = text.index(start), text.index(end)
+        if limit <= offset:
+            raise ValueError(f"{item['id']}: inverted selector")
+        if item["selector"].get("includeEnd", False):
+            limit += len(end)
+        chapter = chapters.get(item["chapter"])
+        if chapter is None or item["section"] not in [s["id"] for s in chapter["sections"]]:
+            raise ValueError(f"{item['id']}: missing chapter/section")
+        if item.get("kind") not in ("implementation", "contract", "historical"):
+            raise ValueError(f"{item['id']}: invalid evidence kind")
+        check_test(item)
+        result.append({**item, "startLine": text.count("\n", 0, offset) + 1,
+                       "endLine": text.count("\n", 0, limit), "commit": source["commit"]})
+    return result
+
+
+def check_migration(migration, complete, fragments=None):
+    records = migration["documents"]
+    originals = [r for r in records if r["revision"] == migration["originalCommit"]]
+    if len(originals) != 24:
+        raise ValueError("Migration must retain all 24 original documents")
+    unique([(r["source"], r["revision"]) for r in records], "migration revision")
+    for record in records:
+        if not record["items"]:
+            raise ValueError(f"Empty migration inventory: {record['source']}")
+        if record["revision"] == "worktree" and record["status"] != "removed":
+            path = contained(ROOT, record["source"])
+            if sha256(path.read_bytes()).hexdigest() != record["sourceSha256"]:
+                raise ValueError(f"Migration original changed: {record['source']}; reconcile content before continuing")
+        if record["revision"] == "worktree" and record["status"] == "removed" and contained(ROOT, record["source"]).exists():
+            raise ValueError(f"Removed documentation reappeared: {record['source']}")
+        if complete and (record["status"] not in ("removed", "retained_fixture") or
+                         any(not i["reviewed"] or not i["destination"] for i in record["items"])):
+            raise ValueError(f"Migration not complete: {record['source']}")
+        for item in record["items"]:
+            if not item.get("destination"):
+                continue
+            slug, anchor = item["destination"].split("#", 1)
+            if fragments is not None:
+                text = fragments.get(slug, "")
+                match = re.search(r'<details class="archive" id="' + re.escape(anchor) + r'">.*?</div></details>', text, re.S)
+                if match is None or sha256(match[0].encode()).hexdigest() != item["preservation"]["fragmentSha256"]:
+                    raise ValueError(f"Migration preserved fragment changed: {record['source']}:{item['id']}")
+                proof = item["preservation"]
+                if sha256(item["content"].encode()).hexdigest() != proof["originalContentSha256"]:
+                    raise ValueError("Migration inventory text changed")
+                if proof["type"] == "source-and-notes":
+                    raw = contained(ROOT, proof["source"]).read_bytes()
+                    if proof.get("comparison") == "lf-normalized":
+                        matches = sha256(raw.replace(b"\r\n", b"\n")).hexdigest() == proof["originalNormalizedSourceSha256"]
+                    else:
+                        matches = sha256(raw).hexdigest() == proof["originalSourceSha256"]
+                    if not matches:
+                        raise ValueError(f"Historical source equivalence changed: {proof['source']}")
+
+
+def table(headers, rows):
+    return '<div class="table-wrap"><table><thead><tr>' + ''.join('<th>' + escape(h) + '</th>' for h in headers) + '</tr></thead><tbody>' + ''.join('<tr>' + ''.join('<td>' + c + '</td>' for c in row) + '</tr>' for row in rows) + '</tbody></table></div>'
+
+
+def validate_links(links, chapters, ids):
+    from urllib.parse import parse_qs, unquote
+    by_slug = {c["slug"]: c for c in chapters}
+    for link in links:
+        if link.startswith(("https://", "http://", "mailto:")):
+            continue
+        if not link.startswith("#"):
+            raise ValueError(f"Manuscript must use canonical local routes: {link}")
+        fragment = unquote(link[1:])
+        if fragment.startswith("chapter="):
+            values = parse_qs(fragment)
+            slug = values.get("chapter", [""])[0]
+            if slug not in by_slug:
+                raise ValueError(f"Unknown chapter link: {link}")
+            section = values.get("section", [""])[0]
+            if section and section not in ids.get(slug, []):
+                raise ValueError(f"Unknown section link: {link}")
+        elif fragment not in {f"p{i}" for i in range(1, 11)} and not any(fragment in group for group in ids.values()) and fragment != "content":
+            raise ValueError(f"Unknown anchor: {link}")
+
+
+def build(complete=False):
+    manifest = read_json(HERE / "manifest.json")
+    chapters = manifest["chapters"]
+    expected = [f"C{i:02}" for i in range(1, 29)] + [f"A{i:02}" for i in range(1, 6)]
+    if [c["id"] for c in chapters] != expected:
+        raise ValueError("Manifest must contain C01-C28 and A01-A05 in order")
+    unique([c["slug"] for c in chapters], "chapter slug")
+    if [lab["id"] for lab in manifest["labs"]] != [f"L{i:02}" for i in range(1, 21)]:
+        raise ValueError("Manifest must contain L01-L20")
+    by_id = {c["id"]: c for c in chapters}
+    for route in manifest["readingRoutes"]:
+        if any(c not in by_id for c in route["chapters"]):
+            raise ValueError("Unknown chapter in reading route")
+    fragments = []
+    chapter_ids = {}
+    chapter_links = []
+    for chapter in chapters:
+        if chapter["status"] not in ("planned", "excerpt", "draft", "complete"):
+            raise ValueError(f"{chapter['id']}: invalid status")
+        if chapter["file"] is None:
+            if chapter["status"] != "planned" or chapter["sections"]:
+                raise ValueError(f"{chapter['id']}: missing manuscript")
+            if complete:
+                raise ValueError(f"{chapter['id']}: manuscript not complete")
+            continue
+        text = contained(HERE, chapter["file"]).read_text(encoding="utf-8")
+        parsed = Fragment(text)
+        chapter_ids[chapter["slug"]] = parsed.ids
+        chapter_links.extend(parsed.links)
+        if not "".join(parsed.prose).strip():
+            raise ValueError(f"{chapter['id']}: empty manuscript")
+        if re.search(r"\bTODO\b|\bTBD\b|자리표시자", "".join(parsed.text), re.I):
+            raise ValueError(f"{chapter['id']}: unfinished marker in manuscript")
+        for section in chapter["sections"]:
+            if section["id"] not in parsed.ids:
+                raise ValueError(f"{chapter['id']}: missing section {section['id']}")
+        if complete and (chapter["status"] != "complete" or not chapter["technicalReviewed"] or
+                         not chapter["editorialReviewed"]):
+            raise ValueError(f"{chapter['id']}: technical/editorial review not complete")
+        fragments.append((chapters.index(chapter), text))
+    for lab in manifest["labs"]:
+        if lab["chapter"] not in by_id:
+            raise ValueError(f"{lab['id']}: unknown chapter")
+        if lab["model"] is not None:
+            contained(HERE, lab["model"]).read_text(encoding="utf-8")
+        if complete and lab["status"] != "complete":
+            raise ValueError(f"{lab['id']}: lab not complete")
+    unique(manifest["sourceFiles"], "source path")
+    sources = {}
+    for name in manifest["sourceFiles"]:
+        raw = contained(ROOT, name).read_bytes()
+        sources[name] = {"text": raw.decode("utf-8-sig"), "sha256": sha256(raw).hexdigest(),
+                         "commit": manifest["sourceCommit"]}
+    evidence = collect_evidence(read_json(HERE / "evidence.json"), sources, by_id)
+    glossary = read_json(HERE / "glossary.json")
+    unique([g["id"] for g in glossary["items"]], "glossary id")
+    for term in glossary["items"]:
+        if not term["definition"] or not term["aliases"] or any(c not in by_id for c in term["chapters"]):
+            raise ValueError(f"{term['id']}: invalid glossary entry")
+    migration = read_json(HERE / "migration.json")
+    check_migration(migration, complete, {chapters[n]["slug"]:text for n,text in fragments})
+    html = (HERE / "book_template.html").read_text(encoding="utf-8")
+    html = html.replace("<!-- CHAPTERS -->", "\n".join(t for _, t in sorted(fragments)))
+    parsed = Fragment(html)
+    unique(parsed.ids, "HTML id")
+    for file, find in parsed.sources:
+        if file not in sources or not find or find not in sources[file]["text"]:
+            raise ValueError(f"Missing source reference: {file}: {find}")
+    progress = sum(c["status"] == "complete" for c in chapters)
+    api = read_json(HERE / "generated/api.json")
+    actual_headers = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "include/rionetlite").glob("*.h"))
+    if [h["path"] for h in api["headers"]] != actual_headers:
+        raise ValueError("API JSON header inventory is stale")
+    for header in api["headers"]:
+        if sha256(contained(ROOT, header["path"]).read_bytes()).hexdigest() != header["sha256"]:
+            raise ValueError(f"API JSON header changed: {header['path']}")
+    html = html.replace("<!-- API_REFERENCE -->", table(["헤더", "심볼", "설명"], [
+        [escape(s["header"]), '<code>'+escape(s["symbol"])+ '</code>', escape(s["description"])] for s in api["symbols"]]))
+    html = html.replace("<!-- GLOSSARY -->", table(["용어", "의미", "검색 별칭", "관련 장"], [
+        [escape(g["term"]),escape(g["definition"]),escape(', '.join(g["aliases"])),', '.join('<a href="#chapter='+by_id[c]["slug"]+'">'+c+'</a>' for c in g["chapters"])] for g in glossary["items"]]))
+    html = html.replace("<!-- MIGRATION_SUMMARY -->", table(["원본", "개정본", "항목", "처리 상태"], [
+        [escape(d["source"]),escape(d["revision"][:12]),str(len(d["items"])),escape(d["status"])] for d in migration["documents"]]))
+    verification = read_json(HERE / "verification.json")
+    if complete and any(r["status"] == "pending" for r in verification["checks"]):
+        raise ValueError("Final verification still pending")
+    html = html.replace("<!-- VERIFICATION_SUMMARY -->", table(["검사", "결과", "범위·근거"], [
+        [escape(r["name"]),escape(r["status"]),escape(r["result"])] for r in verification["checks"]]))
+    validate_links(chapter_links, chapters, chapter_ids)
+    evidence_ids = {e["id"] for e in evidence}
+    if any(e not in evidence_ids for e in parsed.evidence):
+        raise ValueError("Unknown data-evidence reference: " + str(set(parsed.evidence)-evidence_ids))
+    lab_ids = {l["id"] for l in manifest["labs"]}
+    if set(parsed.labs) != lab_ids or len(parsed.labs) != len(lab_ids):
+        raise ValueError("Each lab must occur exactly once in the manuscripts")
+    data = {"manifest": manifest, "evidence": evidence, "glossary": glossary["items"], "api":api}
+    script = "const BOOK = " + json.dumps(data, ensure_ascii=False).replace("<", "\\u003c") + ";\n"
+    script += "const SOURCES = " + json.dumps(sources, ensure_ascii=False).replace("<", "\\u003c") + ";\n"
+    models = manifest.get("modelFiles", [])
+    if any(lab["model"] not in models for lab in manifest["labs"] if lab["model"]):
+        raise ValueError("Lab model missing from modelFiles")
+    unique(models, "model path")
+    for model in models:
+        script += contained(HERE, model).read_text(encoding="utf-8") + "\n"
+    script += (HERE / "book.js").read_text(encoding="utf-8")
+    if "</script" in script.lower():
+        raise ValueError("Unsafe inline script terminator")
+    html = html.replace("<!-- STYLES -->", "<style>" + (HERE / "book.css").read_text(encoding="utf-8") + "</style>")
+    html = html.replace("<!-- SCRIPTS -->", "<script>" + script + "</script>")
+    html = html.replace("{{COMMIT}}", manifest["sourceCommit"][:12])
+    html = html.replace("{{PROGRESS}}", f"집필 완료 {progress}/33")
+    html = html.replace("{{EXCERPTS}}", str(len(fragments)))
+    html = html.replace("{{SOURCE_COUNT}}", str(len(sources)))
+    if re.search(r"\{\{[A-Z_]+\}\}|<!-- (STYLES|SCRIPTS|CHAPTERS) -->", html):
+        raise ValueError("Unresolved template slot")
+    return html, progress, len(evidence)
+
+
+def main():
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--require-complete", action="store_true")
+    parser.add_argument("--output", type=Path, default=HERE / "index.html")
+    args = parser.parse_args()
+    try:
+        html, progress, evidence_count = build(args.require_complete)
+        if args.check:
+            if not args.output.is_file() or args.output.read_bytes() != html.encode("utf-8"):
+                raise ValueError("Generated HTML is stale; run python docs/interactive_book/build_book.py")
+            mode = "manuscript/lab/migration completion enforced" if args.require_complete else "consistency check"
+            print(f"Book verified (read-only): {progress}/33 complete chapters, {evidence_count} reviewed source selections; {mode}. Native and browser execution are separate checks.")
+        else:
+            output = args.output.resolve()
+            if output.suffix != ".html" or (output.is_relative_to(ROOT) and output != HERE / "index.html" and
+                    not output.is_relative_to(ROOT / ".artifacts") and not output.is_relative_to(ROOT / "artifacts")):
+                raise ValueError("Use index.html, an artifacts HTML path, or an external validation path for --output")
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(html.encode("utf-8"))
+            print(f"Built {output}: {progress}/33 complete chapters, {evidence_count} reviewed source selections.")
+    except (ValueError, KeyError, OSError, TypeError) as error:
+        print(f"Book validation failed: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

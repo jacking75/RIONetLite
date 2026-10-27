@@ -1,0 +1,165 @@
+<article class="chapter" id="api-reference" data-title="공개 API 계약"><div class="eyebrow">부록 · A01</div><h1>호출 전에 수명과 반환값을 확인한다</h1><p class="lead">아래 목록은 공개 헤더의 최상위 심볼과 직접 작성한 멤버 계약을 함께 보여 준다. 구현 클래스의 편의 함수는 애플리케이션 API에 포함하지 않는다.</p>
+<section id="reference-ownership"><h2>namespace와 소유권을 먼저 정한다</h2>
+<p>신규 코드는 <code>include/rionetlite/</code>와 <code>rionetlite</code> namespace를 사용한다. Server는 내부 구현을 단독 소유하는 move-only 객체이며 handler와 logger는 빌려 쓴다. 생성 순서를 handler·logger, Server 순으로 두어 파괴가 반대로 일어나게 한다. 이동·대입·파괴 전에 모든 애플리케이션 호출자가 빠져나와야 한다. 자기 콜백 안에서 Server를 파괴하지 않는다.</p>
+<p>소멸자는 미종료 transport의 정리를 시도하지만 종료 오류를 반환할 수 없다. 정상 경로에서는 명시적으로 Stop을 호출해 결과를 검사한다. 소멸자가 실패를 없애거나 미완료 등록 메모리를 강제로 안전하게 해제해 주는 것으로 기대하지 않는다. 종료 timeout과 의도적 자원 보존 경로는 C17에서 확인한다.</p>
+<p>기본형 값, span과 string_view의 수명은 다르다. SessionId는 값으로 보관한다. OnData의 span과 Logger의 string_view는 호출 중에만 유효하다. 다른 스레드로 넘길 데이터는 반환 전에 복사한다. Send의 입력 span은 반환 전에 복사되므로 호출 후 원본을 다시 사용할 수 있다.</p><button class="source" data-evidence="reference.server">실제 코드 · 공개 Server 선언</button>
+</section>
+<section id="reference-functions"><h2>함수와 콜백의 계약을 대조한다</h2>
+<p>공개 namespace는 rionetlite다. 신규 코드는 include/rionetlite만 사용한다. 아래 표는 호출 계약이며 symbol 목록은 이 문서 아래에 있다. 다른 스레드에서 객체를 이동·파괴하려면 모든 애플리케이션 호출자가 빠져나와야 한다. handler/logger도 Server보다 오래 살아야 한다.</p>
+<div class="table-scroll"><table>
+<tr><th>함수·signature</th><th>사전 조건·스레드</th><th>수명·결과·실패</th></tr>
+<tr><td><code>ValidateServerConfig(const ServerConfig&amp;) -&gt; expected&lt;ValidatedServerConfig, Error&gt;</code></td><td>자원 확보 전 검증이다. 독립 호출 가능하다.</td><td>범위·CQ·page·overflow를 확인한다. 실패 field를 읽는다. 계산 예산은 실제 process 메모리가 아니다.</td></tr>
+<tr><td><code>DefaultIoWorkerCount() noexcept -&gt; uint32_t</code></td><td>processor group을 반영한다.</td><td>max_sessions를 줄이면 worker 수도 그 이하로 지정한다.</td></tr>
+<tr><td><code>Server::Create(ServerConfig, EventHandler&amp;, Logger*=nullptr)</code></td><td>실행할 주 스레드에서 호출한다.</td><td>성공은 kInitialized다. 즉시 bind·자원 확보하며 설정·Winsock·RIO·allocation 오류를 expected로 보고한다. 포트 실패는 native_code를 보존한다.</td></tr>
+<tr><td><code>Server::Start() -&gt; expected&lt;void, Error&gt;</code></td><td>kInitialized에서 한 번이다. 같은 서버 event/logger callback에서는 거절한다.</td><td>accept/I/O 시작이다. kRunning은 시작 중에도 관측될 수 있다. 중간 실패 시 rollback 후 kStopped다. 실패한 객체를 재시작하지 않고 새로 Create한다.</td></tr>
+<tr><td><code>Server::Stop(StopMode=kGraceful) noexcept</code></td><td>kInitialized/kRunning 및 반복 종료 가능하다. 동시 호출은 같은 결과를 기다린다. event/logger callback은 kInvalidState다.</td><td>kStopped 뒤 재시작 불가다. Send/RequestClose 진입자를 배출한 뒤 join한다. 시간 초과·CQ 오류는 실패다. <a href="#chapter=configuration">종료</a>에서 deadline의 한계를 확인한다.</td></tr>
+<tr><td><code>Send(SessionId, span&lt;const byte&gt;) noexcept</code></td><td>kRunning이다. 다른 Send/RequestClose/Stop과 동시 호출 가능하다.</td><td>반환 전에 복사한다. empty도 kMessageTooLarge다. 아래 결과표를 따른다.</td></tr>
+<tr><td><code>Send(SessionId, header span, payload span) noexcept</code></td><td>위와 같다.</td><td>두 span 합계가 message maximum 이하다. header와 payload가 하나의 수락 단위다.</td></tr>
+<tr><td><code>RequestClose(SessionId, CloseReason=kApplicationRequest) noexcept -&gt; bool</code></td><td>kRunning이다. callback에서 호출 가능하다.</td><td>비동기 close 전이 승자는 true다. stale/이미 closing/비실행은 false다. application/protocol/overload/idle 원인을 지정할 수 있으며 나머지 지정값은 application으로 매핑된다.</td></tr>
+<tr><td><code>state() const noexcept</code></td><td>동시 조회 가능하다.</td><td>순간 snapshot이며 다음 API 성공을 보장하지 않는다. moved-from은 kStopped다.</td></tr>
+<tr><td><code>Metrics() const noexcept</code></td><td>동시 조회 가능하다.</td><td>누적 counter의 eventually consistent snapshot이다. adapter 지표는 별도 metrics다. enable_metrics=false면 모두 0이다.</td></tr>
+<tr><td>Server move/destructor</td><td>callback 내부에서 파괴하지 않는다. 모든 application 호출자 종료가 선행한다.</td><td>destructor가 미종료 transport를 정리한다. 명시적 Stop으로 오류를 먼저 확인한다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>SendResult</th><th>의미와 대응</th></tr>
+<tr><td>kQueued</td><td>복사·수락이다. RIO 완료나 상대 ACK가 아니다.</td></tr>
+<tr><td>kWouldBlock</td><td>send 링 공간 부족이다. 유계 retry/상위 rate limit/close를 선택한다.</td></tr>
+<tr><td>kMessageTooLarge</td><td>empty 또는 합계 크기 초과다. 입력을 수정한다.</td></tr>
+<tr><td>kStaleSession</td><td>index/generation이 현재 연결과 다르다. 이전 작업을 버린다.</td></tr>
+<tr><td>kClosing</td><td>서버나 세션이 종료 중이다. 새 작업을 만들지 않는다.</td></tr>
+<tr><td>kUnavailable</td><td>전송 게시 등 내부 실패다. 오류 로그와 close를 확인한다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>callback</th><th>실행 위치·계약</th></tr>
+<tr><td><code>OnConnected(SessionId)</code></td><td>accept 스레드다. 다른 세션의 I/O callback과 동시 실행 가능하다. 같은 세션의 OnClosed가 반환 전에 추월하지 않는다. 예외는 격리·기록한다.</td></tr>
+<tr><td><code>OnData(SessionId, span&lt;const byte&gt;) -&gt; size_t</code></td><td>해당 세션의 소유 I/O 워커다. 소비량은 0..span.size다. span 저장 금지다. 예외·초과 소비는 protocol close다.</td></tr>
+<tr><td><code>OnClosed(SessionId, CloseReason)</code></td><td>소유 I/O 워커다. 같은 수명에서 한 번이며 이후 OnData가 없다. 예외는 격리·기록한다.</td></tr>
+<tr><td><code>Logger::IsEnabled(LogSeverity) const noexcept</code></td><td>여러 호출 스레드에서 실행될 수 있다. 짧게 반환하고 예외를 던지지 않는다.</td></tr>
+<tr><td><code>Logger::Log(LogSeverity,string_view)</code> 및 <code>Log(const LogEvent&amp;)</code></td><td>lifecycle/accept/I/O 등 동시 실행 가능하다. 저장하려면 string_view 내용을 복사한다. Log 예외는 격리한다. blocking file write는 별도 logging queue로 넘긴다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>adapter/decoder 함수</th><th>계약</th></tr>
+<tr><td>QueuedEventAdapter constructors</td><td>shard/events/payload/session 양수다. kDisconnect에는 CloseRequest가 필수다. invalid_argument 또는 allocation 예외가 가능하다. 명시적인 max_session_count는 서버와 맞춘다. 생략 overload는 shard×events를 session capacity로 사용한다.</td></tr>
+<tr><td>adapter OnConnected/OnData/OnClosed</td><td>EventHandler 구현이다. raw stream은 max_payload_bytes 이하 조각으로 복사·소비한다. 정책은 <a href="#chapter=configuration">배압</a>을 따른다.</td></tr>
+<tr><td><code>TryPop(shard, destination, header) noexcept</code></td><td>동시 producer/consumer 가능하며 짧은 shard mutex를 사용한다. kEvent면 destination이 owned copy다. kDestinationTooSmall은 제거 없이 필요한 크기를 header에 적는다. 잘못된 shard는 kEmpty다.</td></tr>
+<tr><td><code>shard_count()</code>, <code>EstimatedMemoryBytes()</code>, <code>metrics()</code></td><td>고정 설정/추정 또는 atomic snapshot이다. process 전체 메모리나 kernel pinned bytes를 뜻하지 않는다.</td></tr>
+<tr><td><code>LengthPrefixedDecoder(max_packet_bytes)</code></td><td>minimum header 크기 이상 maximum을 사용한다. 생성 자체는 noexcept다.</td></tr>
+<tr><td><code>Decode(span, handler) -&gt; DecodeResult</code></td><td>immutable decoder를 공유할 수 있지만 handler의 공유 상태는 사용자가 보호한다. span 전체에서 완성 packet만 callback한다. span 수명과 handler 예외는 호출자 책임이다. 자체 누적 없음, consumed_bytes/packet_count/error를 반환한다.</td></tr>
+<tr><td><code>ToString(ErrorCategory/ErrorCode/SendResult/CloseReason) noexcept</code></td><td>진단 문자열 변환이다.</td><td>반환 string_view를 수정하지 않는다.</td></tr>
+</table></div>
+<p>이동한 원본 객체의 state는 kStopped, Metrics는 0이다. Send는 kClosing, RequestClose는 false이며 Stop과 Start는 kInvalidState 오류를 반환한다. 이동한 원본의 Stop을 일반적인 반복 종료 성공과 혼동하지 않는다. Start는 내부 시작 전에 kRunning을 게시하므로 시작 도중 조회와 콜백에서도 그 상태가 보인다.</p>
+<p>Server의 동시 호출 허용은 애플리케이션의 공유 상태까지 자동 보호한다는 뜻이 아니다. Handler와 Logger의 자료구조는 사용자가 보호한다. Stop의 다중 호출은 동일 종료 결과를 기다리지만, 콜백에서 호출하면 재진입 오류다. 소유 스레드로 종료 요청을 전달한다.</p>
+</section>
+<section id="reference-errors"><h2>오류 계층과 종료 원인을 구분한다</h2>
+<p>Error의 category는 실패한 계층, code는 공개 오류 종류다. native_code는 Winsock·Windows 원인을 보존하며 field는 설정 항목, message는 문맥이다. 성공 여부만 출력하면 bind 충돌과 RIO 미지원, 자원 부족을 구분하기 어렵다. Error의 string은 값이 소유하며 로그로 전달하는 view는 별도 수명 규칙을 따른다.</p>
+<table><thead><tr><th>enum</th><th>정의된 값</th><th>사용 지점</th></tr></thead><tbody>
+<tr><td>ErrorCategory</td><td>kNone, kConfiguration, kLifecycle, kWinsock, kRio, kResource, kInternal</td><td>설정·플랫폼·수명·자원 실패의 계층이다.</td></tr>
+<tr><td>ErrorCode</td><td>kNone, kInvalidConfiguration, kAlreadyInitialized, kInvalidState, kWinsockStartupFailed, kListenSocketCreateFailed, kBindFailed, kListenFailed, kRioUnavailable, kRioCompletionQueueCreateFailed, kSessionPoolCreateFailed, kThreadStartFailed, kShutdownTimedOut, kResourceAllocationFailed, kInternalError</td><td>Create·Start·Stop 및 설정 검증의 실패를 기록한다.</td></tr>
+<tr><td>CloseReason</td><td>kNone, kPeerClosed, kApplicationRequest, kProtocolError, kReceiveError, kSendError, kServerStopping, kOverloaded, kIdleTimeout, kInternalError</td><td>연결 종료 통지의 원인이다. RequestClose로 모든 내부 원인을 지정할 수 있는 것은 아니다.</td></tr>
+<tr><td>DecodeError</td><td>kNone, kInvalidLength, kMessageTooLarge</td><td>덜 도착한 정상 패킷은 오류가 아니며 소비하지 않고 기다린다.</td></tr>
+<tr><td>PollEventResult</td><td>kEvent, kEmpty, kDestinationTooSmall</td><td>destination 부족은 이벤트를 제거하지 않는다. 필요한 payload_bytes를 확인한다.</td></tr>
+</tbody></table>
+<p>ToString은 ErrorCategory, ErrorCode, SendResult, CloseReason에 대한 overload를 제공한다. enum 정수값을 그대로 wire protocol로 사용하지 않는다. 알 수 없는 cast 값의 fallback은 오류 변환 구현에서 확인한다. C++ enum에 새 값이 추가되면 이 표와 변환 함수·검사를 함께 검토한다.</p><button class="source" data-evidence="reference.errors">실제 코드 · 오류와 결과 타입</button>
+</section>
+<section id="reference-decoder"><h2>디코더는 미완성 꼬리를 소유하지 않는다</h2>
+<p>LengthPrefixedDecoder의 kHeaderBytes는 4다. max_packet_bytes는 헤더를 포함한 최대 길이다. 생성자는 noexcept이며 별도 입력 검증을 하지 않으므로 호출자가 최소 4 이상으로 지정한다. 길이 0~3은 kInvalidLength, 설정 최대 초과는 kMessageTooLarge다. 최대와 같은 길이는 허용한다.</p>
+<p>Decode는 완성된 앞부분마다 handler를 부르고 consumed_bytes와 packet_count를 누적한다. 정상 패킷 다음 잘못된 길이가 있으면 앞부분의 소비량과 오류가 함께 반환된다. handler 예외는 Decode 밖으로 전파되며 함수가 호출자에게 결과를 반환하지 못한다. EventHandler 안에서 쓰는 경우 상위 콜백 격리와 protocol close 경로를 함께 고려한다.</p>
+<p>불완전한 꼬리를 다음 입력과 합치는 책임은 호출자에게 있다. 네트워크 OnData에서는 실제 소비량만 반환해 receive 링이 보관하게 하고, Chat 로직에서는 복사한 조각을 Player 입력에 누적한다. 각 handler가 받은 패킷 span도 원본의 view다.</p><button class="source" data-evidence="framing.decode">실제 코드 · Decode</button>
+</section>
+<section id="reference-generated"><h2>공개 헤더의 심볼 목록을 확인한다</h2>
+<p>이 표는 <code>tools/generate-api-docs.ps1</code>이 선언과 @api를 대조해 만든 JSON에서 생성한다. 멤버 함수·필드의 전체 설명을 자동 추론한 목록은 아니며 위 계약과 C21·C22의 설정·지표 설명을 함께 읽는다.</p>
+<!-- API_REFERENCE -->
+<p>version.h의 RIONETLITE_VERSION_MAJOR, MINOR, PATCH와 문자열 버전은 패키지 버전·CHANGELOG와 함께 검사한다. 현재 배포는 x64 정적 라이브러리이며 같은 toolset·런타임 조건을 요구한다. RIONetLite/ 호환 계층에 관한 옛 제거 목표는 A03의 당시 결정 기록이며, 현재 제거를 약속하는 새로운 계약으로 읽지 않는다.</p>
+</section><section id="api-reference-prior-notes"><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d24-i0"><summary>통합한 기존 안내 · docs/api/README.md · 공개 API 레퍼런스</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-1-15</p><div class="archive-body"><h3>공개 API 레퍼런스</h3>
+<div class="table-scroll"><table>
+<tr><th>헤더</th><th>주요 API</th></tr>
+<tr><td><code>config.h</code></td><td><code>ServerConfig</code>, <code>ValidateServerConfig</code>, worker policy와 메모리 예산</td></tr>
+<tr><td><code>error.h</code></td><td><code>Error</code>, <code>SendResult</code>, <code>CloseReason</code>, 안정된 문자열 변환</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>SessionId</code>, <code>EventHandler</code>, 구조화 <code>Logger</code></td></tr>
+<tr><td><code>server.h</code></td><td>move-only <code>Server</code>, lifecycle, send/close/metrics</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td>안전한 big-endian length-prefix decoder</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td>shard 유계 이벤트 전달과 포화 정책</td></tr>
+<tr><td><code>metrics.h</code></td><td>인스턴스별 누적 metric snapshot</td></tr>
+<tr><td><code>version.h</code></td><td>SemVer compile-time macro</td></tr>
+</table></div>
+<p>공개 C++ 타입과 함수는 <code>rionetlite</code> namespace에 있다. thread safety와 span lifetime은 각 헤더 주석 및 <a href="#chapter=architecture">스레딩 문서</a>를 따른다. <code>RIONetLite/</code> 경로는 전환 호환 계층이며 신규 코드에서 사용하지 않는다.</p></div></details>
+<details class="archive" id="migration-d24-i1"><summary>통합한 기존 안내 · docs/api/README.md · 함수별 계약</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-16-63</p><div class="archive-body"><h3>함수별 계약</h3>
+<p>공개 namespace는 rionetlite다. 신규 코드는 include/rionetlite만 사용한다. 아래 표는 호출 계약이며 symbol 목록은 이 문서 아래에 있다. 다른 스레드에서 객체를 이동·파괴하려면 모든 애플리케이션 호출자가 빠져나와야 한다. handler/logger도 Server보다 오래 살아야 한다.</p>
+<div class="table-scroll"><table>
+<tr><th>함수·signature</th><th>사전 조건·스레드</th><th>수명·결과·실패</th></tr>
+<tr><td><code>ValidateServerConfig(const ServerConfig&amp;) -&gt; expected&lt;ValidatedServerConfig, Error&gt;</code></td><td>자원 확보 전 검증이다. 독립 호출 가능하다.</td><td>범위·CQ·page·overflow를 확인한다. 실패 field를 읽는다. 계산 예산은 실제 process 메모리가 아니다.</td></tr>
+<tr><td><code>DefaultIoWorkerCount() noexcept -&gt; uint32_t</code></td><td>processor group을 반영한다.</td><td>max_sessions를 줄이면 worker 수도 그 이하로 지정한다.</td></tr>
+<tr><td><code>Server::Create(ServerConfig, EventHandler&amp;, Logger*=nullptr)</code></td><td>실행할 주 스레드에서 호출한다.</td><td>성공은 kInitialized다. 즉시 bind·자원 확보하며 설정·Winsock·RIO·allocation 오류를 expected로 보고한다. 포트 실패는 native_code를 보존한다.</td></tr>
+<tr><td><code>Server::Start() -&gt; expected&lt;void, Error&gt;</code></td><td>kInitialized에서 한 번이다. 같은 서버 event/logger callback에서는 거절한다.</td><td>accept/I/O 시작이다. kRunning은 시작 중에도 관측될 수 있다. 중간 실패 시 rollback 후 kStopped다. 실패한 객체를 재시작하지 않고 새로 Create한다.</td></tr>
+<tr><td><code>Server::Stop(StopMode=kGraceful) noexcept</code></td><td>kInitialized/kRunning 및 반복 종료 가능하다. 동시 호출은 같은 결과를 기다린다. event/logger callback은 kInvalidState다.</td><td>kStopped 뒤 재시작 불가다. Send/RequestClose 진입자를 배출한 뒤 join한다. 시간 초과·CQ 오류는 실패다. <a href="#chapter=configuration">종료</a>에서 deadline의 한계를 확인한다.</td></tr>
+<tr><td><code>Send(SessionId, span&lt;const byte&gt;) noexcept</code></td><td>kRunning이다. 다른 Send/RequestClose/Stop과 동시 호출 가능하다.</td><td>반환 전에 복사한다. empty도 kMessageTooLarge다. 아래 결과표를 따른다.</td></tr>
+<tr><td><code>Send(SessionId, header span, payload span) noexcept</code></td><td>위와 같다.</td><td>두 span 합계가 message maximum 이하다. header와 payload가 하나의 수락 단위다.</td></tr>
+<tr><td><code>RequestClose(SessionId, CloseReason=kApplicationRequest) noexcept -&gt; bool</code></td><td>kRunning이다. callback에서 호출 가능하다.</td><td>비동기 close 전이 승자는 true다. stale/이미 closing/비실행은 false다. application/protocol/overload/idle 원인을 지정할 수 있으며 나머지 지정값은 application으로 매핑된다.</td></tr>
+<tr><td><code>state() const noexcept</code></td><td>동시 조회 가능하다.</td><td>순간 snapshot이며 다음 API 성공을 보장하지 않는다. moved-from은 kStopped다.</td></tr>
+<tr><td><code>Metrics() const noexcept</code></td><td>동시 조회 가능하다.</td><td>누적 counter의 eventually consistent snapshot이다. adapter 지표는 별도 metrics다. enable_metrics=false면 모두 0이다.</td></tr>
+<tr><td>Server move/destructor</td><td>callback 내부에서 파괴하지 않는다. 모든 application 호출자 종료가 선행한다.</td><td>destructor가 미종료 transport를 정리한다. 명시적 Stop으로 오류를 먼저 확인한다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>SendResult</th><th>의미와 대응</th></tr>
+<tr><td>kQueued</td><td>복사·수락이다. RIO 완료나 상대 ACK가 아니다.</td></tr>
+<tr><td>kWouldBlock</td><td>send 링 공간 부족이다. 유계 retry/상위 rate limit/close를 선택한다.</td></tr>
+<tr><td>kMessageTooLarge</td><td>empty 또는 합계 크기 초과다. 입력을 수정한다.</td></tr>
+<tr><td>kStaleSession</td><td>index/generation이 현재 연결과 다르다. 이전 작업을 버린다.</td></tr>
+<tr><td>kClosing</td><td>서버나 세션이 종료 중이다. 새 작업을 만들지 않는다.</td></tr>
+<tr><td>kUnavailable</td><td>전송 게시 등 내부 실패다. 오류 로그와 close를 확인한다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>callback</th><th>실행 위치·계약</th></tr>
+<tr><td><code>OnConnected(SessionId)</code></td><td>accept 스레드다. 다른 세션의 I/O callback과 동시 실행 가능하다. 같은 세션의 OnClosed가 반환 전에 추월하지 않는다. 예외는 격리·기록한다.</td></tr>
+<tr><td><code>OnData(SessionId, span&lt;const byte&gt;) -&gt; size_t</code></td><td>해당 세션의 소유 I/O 워커다. 소비량은 0..span.size다. span 저장 금지다. 예외·초과 소비는 protocol close다.</td></tr>
+<tr><td><code>OnClosed(SessionId, CloseReason)</code></td><td>소유 I/O 워커다. 같은 수명에서 한 번이며 이후 OnData가 없다. 예외는 격리·기록한다.</td></tr>
+<tr><td><code>Logger::IsEnabled(LogSeverity) const noexcept</code></td><td>여러 호출 스레드에서 실행될 수 있다. 짧게 반환하고 예외를 던지지 않는다.</td></tr>
+<tr><td><code>Logger::Log(LogSeverity,string_view)</code> 및 <code>Log(const LogEvent&amp;)</code></td><td>lifecycle/accept/I/O 등 동시 실행 가능하다. 저장하려면 string_view 내용을 복사한다. Log 예외는 격리한다. blocking file write는 별도 logging queue로 넘긴다.</td></tr>
+</table></div>
+<div class="table-scroll"><table>
+<tr><th>adapter/decoder 함수</th><th>계약</th></tr>
+<tr><td>QueuedEventAdapter constructors</td><td>shard/events/payload/session 양수다. kDisconnect에는 CloseRequest가 필수다. invalid_argument 또는 allocation 예외가 가능하다. 명시적인 max_session_count는 서버와 맞춘다. 생략 overload는 shard×events를 session capacity로 사용한다.</td></tr>
+<tr><td>adapter OnConnected/OnData/OnClosed</td><td>EventHandler 구현이다. raw stream은 max_payload_bytes 이하 조각으로 복사·소비한다. 정책은 <a href="#chapter=configuration">배압</a>을 따른다.</td></tr>
+<tr><td><code>TryPop(shard, destination, header) noexcept</code></td><td>동시 producer/consumer 가능하며 짧은 shard mutex를 사용한다. kEvent면 destination이 owned copy다. kDestinationTooSmall은 제거 없이 필요한 크기를 header에 적는다. 잘못된 shard는 kEmpty다.</td></tr>
+<tr><td><code>shard_count()</code>, <code>EstimatedMemoryBytes()</code>, <code>metrics()</code></td><td>고정 설정/추정 또는 atomic snapshot이다. process 전체 메모리나 kernel pinned bytes를 뜻하지 않는다.</td></tr>
+<tr><td><code>LengthPrefixedDecoder(max_packet_bytes)</code></td><td>minimum header 크기 이상 maximum을 사용한다. 생성 자체는 noexcept다.</td></tr>
+<tr><td><code>Decode(span, handler) -&gt; DecodeResult</code></td><td>immutable decoder를 공유할 수 있지만 handler의 공유 상태는 사용자가 보호한다. span 전체에서 완성 packet만 callback한다. span 수명과 handler 예외는 호출자 책임이다. 자체 누적 없음, consumed_bytes/packet_count/error를 반환한다.</td></tr>
+<tr><td><code>ToString(ErrorCategory/ErrorCode/SendResult/CloseReason) noexcept</code></td><td>진단 문자열 변환이다.</td><td>반환 string_view를 수정하지 않는다.</td></tr>
+</table></div>
+<p>대표 회귀 근거는 public_helpers_test, chat_protocol_test, worker_control_test와 실제 RIO integration의 bind/native error·callback reentry·throwing logger·stale slot·동시 Stop·parked close·반복 handle 회수 검사다. 단위 검사가 전체 OS·사용자·운영 환경 검증을 대신하지 않는다.</p></div></details>
+<details class="archive" id="migration-d24-i2"><summary>통합한 기존 안내 · docs/api/README.md · 공개 symbol 목록</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-64-98</p><div class="archive-body"><h3>공개 symbol 목록</h3>
+<p>&gt; <code>tools\generate-api-docs.ps1</code>이 공개 헤더의 <code>@api</code> 주석에서 생성한다.</p>
+<div class="table-scroll"><table>
+<tr><th>헤더</th><th>symbol</th><th>설명</th></tr>
+<tr><td><code>config.h</code></td><td><code>DefaultIoWorkerCount</code></td><td>processor group을 반영한 기본 worker 수다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ServerConfig</code></td><td>서버 생성 전 사용자가 지정하는 설정이다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ValidatedServerConfig</code></td><td>검증된 설정과 계산된 자원 예산이다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ValidateServerConfig</code></td><td>설정 범위와 메모리/CQ 관계를 검증한다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>WorkerWaitMode</code></td><td>RIO worker의 대기 전략이다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>CloseReason</code></td><td>세션이 닫힌 원인을 나타낸다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>Error</code></td><td>라이브러리·native 오류와 진단 문맥이다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ErrorCategory</code></td><td>오류가 발생한 계층을 분류한다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ErrorCode</code></td><td>공개 API의 안정된 오류 코드다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>SendResult</code></td><td>비동기 송신 요청의 즉시 결과다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ToString</code></td><td>공개 enum을 안정된 문자열로 변환한다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>EventHandler</code></td><td>네트워크 수명·수신 이벤트 callback 계약이다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>LogEvent</code></td><td>세션·작업·native 오류를 포함한 로그 이벤트다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>Logger</code></td><td>서버 인스턴스별 구조화 로그 sink다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>LogSeverity</code></td><td>구조화 로그의 심각도다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>SessionId</code></td><td>슬롯 인덱스와 재사용 세대를 결합한 세션 식별자다.</td></tr>
+<tr><td><code>metrics.h</code></td><td><code>MetricsSnapshot</code></td><td>서버와 event queue의 누적 계측 snapshot이다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>DecodeError</code></td><td>length-prefix decode 실패 원인이다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>DecodeResult</code></td><td>소비 바이트와 decode 오류를 반환한다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>LengthPrefixedDecoder</code></td><td>big-endian length-prefix stream decoder다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>EventQueueFullPolicy</code></td><td>event queue 포화 시 대기 없이 거절하는 정책이다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>PollEventResult</code></td><td>event dequeue 시도 결과다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventAdapter</code></td><td>callback을 shard별 유계 queue로 전달한다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventHeader</code></td><td>queue event의 세션·순서·payload 메타데이터다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventType</code></td><td>유계 queue에 저장되는 이벤트 종류다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>Server</code></td><td>move-only RIO TCP 서버 인스턴스다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>ServerState</code></td><td>공개 서버 수명 상태다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>StopMode</code></td><td>graceful 또는 immediate 종료 정책이다.</td></tr>
+</table></div></div></details>
+<details class="archive" id="migration-d31-i104"><summary>과거 원문 · docs/rionetlite_book.html · 즉시 결과와 종료 원인</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: worktree · 항목: atlas-4</p><div class="archive-body"><h2>즉시 결과와 종료 원인</h2><p class="file-path">include/rionetlite/error.h</p><p>ErrorCategory는 실패 계층, ErrorCode는 공개 오류 종류를 나타낸다. Error에는 native code와 설정 field, message가 함께 들어 있다. code 문자열만 보고 OS 원인을 잃지 않는다.</p><p>SendResult는 동기 API의 즉시 수락 여부다. CloseReason은 나중 종료 통지의 원인이다. 이 둘을 하나의 bool로 줄이면 배압과 stale 연결, protocol 오류의 의미가 사라진다.</p><p>ToString은 enum을 로그나 UI에서 읽기 쉬운 이름으로 바꾸는 함수다. wire protocol type과 이 enum의 정수값을 같은 계약으로 쓰지 않는다. 내부 enum 순서가 네트워크 메시지 정의는 아니다.</p><figure class="diagram" id="migration-d31-i104-fig-51" data-count="4"><svg viewBox="0 0 640 104" role="img" aria-labelledby="migration-d31-i104-fig-51-title"><title id="migration-d31-i104-fig-51-title">즉시 결과와 종료 원인의 책임</title><defs><marker id="migration-d31-i104-fig-51-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#59748b"/></marker></defs><path d="M158 40 H165" marker-end="url(#migration-d31-i104-fig-51-arrow)"/><path d="M308 40 H315" marker-end="url(#migration-d31-i104-fig-51-arrow)"/><path d="M458 40 H465" marker-end="url(#migration-d31-i104-fig-51-arrow)"/><g class="node" data-step="0"><rect x="20" y="12" width="134" height="56" rx="9"/><text x="87" y="37" text-anchor="middle">ErrorCategory</text><text class="sub" x="87" y="55" text-anchor="middle">계층</text></g><g class="node" data-step="1"><rect x="170" y="12" width="134" height="56" rx="9"/><text x="237" y="37" text-anchor="middle">ErrorCode</text><text class="sub" x="237" y="55" text-anchor="middle">library 원인</text></g><g class="node" data-step="2"><rect x="320" y="12" width="134" height="56" rx="9"/><text x="387" y="37" text-anchor="middle">native + field</text><text class="sub" x="387" y="55" text-anchor="middle">세부 문맥</text></g><g class="node" data-step="3"><rect x="470" y="12" width="134" height="56" rx="9"/><text x="537" y="37" text-anchor="middle">Send / Close</text><text class="sub" x="537" y="55" text-anchor="middle">수락·종료 구분</text></g></svg><figcaption>그림 51. 즉시 결과와 종료 원인의 책임</figcaption></figure><h3>이 파일에서 추적할 연결</h3><ul><li>src/error.cpp에서 모든 enum의 문자열을 비교한다.</li><li>ConvertLegacyError와 ConvertCloseReason을 찾는다.</li><li>Chat의 SendResult 처리 정책을 읽는다.</li></ul><p class="source-hash">원문 SHA-256<br>3eb794921625614d7e81dc422d2d4386e816791a1c9ec3c4f119b7eb97691125</p></div></details>
+<details class="archive" id="migration-d31-i105"><summary>과거 원문 · docs/rionetlite_book.html · 즉시 결과와 종료 원인</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: worktree · 항목: source-4-1</p><div class="archive-body"><h2>즉시 결과와 종료 원인</h2><p class="source-locator">include/rionetlite/error.h · 1-40행</p><p>원래 1~40행은 현재 포함 소스와 바이트 해시가 같다. 전체 파일과 등록 구간은 코드 탐험기에서 읽는다.</p><button class="source" data-file="include/rionetlite/error.h" data-find="#pragma once">실제 코드 · include/rionetlite/error.h</button><aside class="reading-note"><h3>독해 포인트</h3><p>ErrorCode의 종류와 실제 실패 경로의 매핑을 구분한다. enum에 값이 존재한다고 모든 path가 그 값을 직접 반환하는 것은 아니다. 원문의 변환 switch를 따라간다.</p></aside><p class="cross-read">연결해서 읽기: src/error.cpp에서 모든 enum의 문자열을 비교한다.</p></div></details>
+<details class="archive" id="migration-d31-i106"><summary>과거 원문 · docs/rionetlite_book.html · 즉시 결과와 종료 원인</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: worktree · 항목: source-4-41</p><div class="archive-body"><h2>즉시 결과와 종료 원인</h2><p class="source-locator">include/rionetlite/error.h · 41-78행</p><p>원래 41~78행은 현재 포함 소스와 바이트 해시가 같다. 전체 파일과 등록 구간은 코드 탐험기에서 읽는다.</p><button class="source" data-file="include/rionetlite/error.h" data-find="ErrorCategory category = ErrorCategory::kNone;">실제 코드 · include/rionetlite/error.h</button><aside class="reading-note"><h3>독해 포인트</h3><p>ErrorCode의 종류와 실제 실패 경로의 매핑을 구분한다. enum에 값이 존재한다고 모든 path가 그 값을 직접 반환하는 것은 아니다. 원문의 변환 switch를 따라간다.</p><p>kQueued는 수락이며 kWouldBlock은 링 부족이다. kStaleSession과 kClosing은 정체성 실패와 상태 실패를 구분한다.</p></aside><p class="cross-read">연결해서 읽기: ConvertLegacyError와 ConvertCloseReason을 찾는다.</p></div></details></section></article>

@@ -1,0 +1,17 @@
+{
+  "name": "rionetlite-book-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local offline book checks; no CI or product dependencies",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:content": "python content_checks.py",
+    "test:models": "node --test model_tests.cjs network_tests.cjs scenario_tests.cjs",
+    "test:browser": "node verify_reader.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

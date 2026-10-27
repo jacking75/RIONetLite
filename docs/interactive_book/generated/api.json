@@ -1,0 +1,179 @@
+{
+    "schemaVersion":  1,
+    "headers":  [
+                    {
+                        "path":  "include/rionetlite/config.h",
+                        "sha256":  "b77212e22bc228dff4480fac1c3575cdbadd5cc31d438aafc99d2ca11f9e5305"
+                    },
+                    {
+                        "path":  "include/rionetlite/error.h",
+                        "sha256":  "3eb794921625614d7e81dc422d2d4386e816791a1c9ec3c4f119b7eb97691125"
+                    },
+                    {
+                        "path":  "include/rionetlite/event_handler.h",
+                        "sha256":  "7e9ea4e45a4dd13004327e3e5fbc2fd311e45e23d0a2fd542fb80a39819484a4"
+                    },
+                    {
+                        "path":  "include/rionetlite/metrics.h",
+                        "sha256":  "2ebe0bd95fa12aba233d23ab323ce15fbc1cb6dba47b63e2798fdeadef9cf625"
+                    },
+                    {
+                        "path":  "include/rionetlite/packet_decoder.h",
+                        "sha256":  "3bdf70a7da376faa4405349622f80a05ff84315d8670b98b1c5faa33872c7ac3"
+                    },
+                    {
+                        "path":  "include/rionetlite/queued_event_adapter.h",
+                        "sha256":  "a42d6d7d8ec83a42fbaeded3aec302c2ecd473ff91c157bce171ce27e3db9abb"
+                    },
+                    {
+                        "path":  "include/rionetlite/server.h",
+                        "sha256":  "84d4942a958f82ef76294832e0f37f0f650e6a9b2af94d8690741314078fab41"
+                    },
+                    {
+                        "path":  "include/rionetlite/version.h",
+                        "sha256":  "ca396e9a7b9fca6da192aa7201279580310e62df3c0dfe7a62bf4e1eede690c7"
+                    }
+                ],
+    "symbols":  [
+                    {
+                        "header":  "config.h",
+                        "symbol":  "DefaultIoWorkerCount",
+                        "description":  "processor group을 반영한 기본 worker 수다."
+                    },
+                    {
+                        "header":  "config.h",
+                        "symbol":  "ServerConfig",
+                        "description":  "서버 생성 전 사용자가 지정하는 설정이다."
+                    },
+                    {
+                        "header":  "config.h",
+                        "symbol":  "ValidatedServerConfig",
+                        "description":  "검증된 설정과 계산된 자원 예산이다."
+                    },
+                    {
+                        "header":  "config.h",
+                        "symbol":  "ValidateServerConfig",
+                        "description":  "설정 범위와 메모리/CQ 관계를 검증한다."
+                    },
+                    {
+                        "header":  "config.h",
+                        "symbol":  "WorkerWaitMode",
+                        "description":  "RIO worker의 대기 전략이다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "CloseReason",
+                        "description":  "세션이 닫힌 원인을 나타낸다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "Error",
+                        "description":  "라이브러리·native 오류와 진단 문맥이다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "ErrorCategory",
+                        "description":  "오류가 발생한 계층을 분류한다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "ErrorCode",
+                        "description":  "공개 API의 안정된 오류 코드다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "SendResult",
+                        "description":  "비동기 송신 요청의 즉시 결과다."
+                    },
+                    {
+                        "header":  "error.h",
+                        "symbol":  "ToString",
+                        "description":  "공개 enum을 안정된 문자열로 변환한다."
+                    },
+                    {
+                        "header":  "event_handler.h",
+                        "symbol":  "EventHandler",
+                        "description":  "네트워크 수명·수신 이벤트 callback 계약이다."
+                    },
+                    {
+                        "header":  "event_handler.h",
+                        "symbol":  "LogEvent",
+                        "description":  "세션·작업·native 오류를 포함한 로그 이벤트다."
+                    },
+                    {
+                        "header":  "event_handler.h",
+                        "symbol":  "Logger",
+                        "description":  "서버 인스턴스별 구조화 로그 sink다."
+                    },
+                    {
+                        "header":  "event_handler.h",
+                        "symbol":  "LogSeverity",
+                        "description":  "구조화 로그의 심각도다."
+                    },
+                    {
+                        "header":  "event_handler.h",
+                        "symbol":  "SessionId",
+                        "description":  "슬롯 인덱스와 재사용 세대를 결합한 세션 식별자다."
+                    },
+                    {
+                        "header":  "metrics.h",
+                        "symbol":  "MetricsSnapshot",
+                        "description":  "서버와 event queue의 누적 계측 snapshot이다."
+                    },
+                    {
+                        "header":  "packet_decoder.h",
+                        "symbol":  "DecodeError",
+                        "description":  "length-prefix decode 실패 원인이다."
+                    },
+                    {
+                        "header":  "packet_decoder.h",
+                        "symbol":  "DecodeResult",
+                        "description":  "소비 바이트와 decode 오류를 반환한다."
+                    },
+                    {
+                        "header":  "packet_decoder.h",
+                        "symbol":  "LengthPrefixedDecoder",
+                        "description":  "big-endian length-prefix stream decoder다."
+                    },
+                    {
+                        "header":  "queued_event_adapter.h",
+                        "symbol":  "EventQueueFullPolicy",
+                        "description":  "event queue 포화 시 대기 없이 거절하는 정책이다."
+                    },
+                    {
+                        "header":  "queued_event_adapter.h",
+                        "symbol":  "PollEventResult",
+                        "description":  "event dequeue 시도 결과다."
+                    },
+                    {
+                        "header":  "queued_event_adapter.h",
+                        "symbol":  "QueuedEventAdapter",
+                        "description":  "callback을 shard별 유계 queue로 전달한다."
+                    },
+                    {
+                        "header":  "queued_event_adapter.h",
+                        "symbol":  "QueuedEventHeader",
+                        "description":  "queue event의 세션·순서·payload 메타데이터다."
+                    },
+                    {
+                        "header":  "queued_event_adapter.h",
+                        "symbol":  "QueuedEventType",
+                        "description":  "유계 queue에 저장되는 이벤트 종류다."
+                    },
+                    {
+                        "header":  "server.h",
+                        "symbol":  "Server",
+                        "description":  "move-only RIO TCP 서버 인스턴스다."
+                    },
+                    {
+                        "header":  "server.h",
+                        "symbol":  "ServerState",
+                        "description":  "공개 서버 수명 상태다."
+                    },
+                    {
+                        "header":  "server.h",
+                        "symbol":  "StopMode",
+                        "description":  "graceful 또는 immediate 종료 정책이다."
+                    }
+                ]
+}

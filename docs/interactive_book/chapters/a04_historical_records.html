@@ -1,0 +1,380 @@
+<article class="chapter" id="historical-records" data-title="과거 기준선과 검증 기록"><div class="eyebrow">부록 · A04</div><h1>과거 수치를 현재 승인과 구분한다</h1><p class="lead">다음 기록은 이전 문서의 수치와 조건을 잃지 않기 위한 자료다. 현재 실행법은 본문의 해당 장, 이번 판의 실행 결과는 A05를 기준으로 한다.</p>
+<section id="history-reading"><h2>날짜·버전·환경이 같은지 먼저 본다</h2>
+<p>원래 24개 Markdown의 조사 기준은 <code>a5f29df610bdbafe68a69e0698ca71260b4c1fa7</code>이다. 이후 main의 통합 문서와 2026-10-09 기술서도 별도로 대조했다. 같은 파일명의 개정본을 서로 덮어쓰지 않고 출처 revision과 SHA-256으로 구분했다.</p>
+<p>아래에 남긴 옛 명령·파일명·T 단계와 미해결 목록은 해당 시점의 기록이다. 현재 경로가 없다고 자동 복원하거나 현재 결함으로 다시 선언하지 않는다. 예전 release-checklist가 가리키던 perf-stability-audit-20260828.md는 조사 시점에도 원자료를 확인할 수 없었다. 현재 원고의 근거로 삼지 않으며 역사적 참조 누락으로 남긴다.</p>
+<p>세션 수명 다이어그램의 옛 Allocated·Closed 단계와 “pending app event=0 뒤 transport recycle” 설명은 현재 구현과 다르다. 현행 상태는 C11의 Free·Accepting·Active·Draining·Closing·Quarantined이며 TcpSession은 pending_events=0을 넘긴다. 게임 이벤트 정합성은 별도 adapter gate가 다룬다. 수신 콜백 예외가 모두 단순 격리되는 것으로 읽히는 옛 문장도 C07의 protocol close 설명으로 바로잡는다.</p>
+</section><section id="history-measurements"><h2>측정 기록의 적용 범위를 보존한다</h2>
+<p>옛 i7-12700KF·논리 프로세서 20개 환경, compiler 19.51.36256·SDK 10.0.26100과 당시 runtime·allocator·workload 표는 당시 결과의 일부다. 같은 PC 이름을 쓴다고 현재 코드의 승인된 baseline이 되는 것은 아니다. 2026-10-09의 ASan 8개 시나리오 및 600초·77개 표본·유휴 20개 측정 기록은 이번 집필에서 다시 실행하지 않았다.</p>
+<p>과거 유휴 handle 165→165, thread 21→21, private bytes 4,210,688→4,210,688과 correctness 오류 0은 당시 조건의 관찰이다. 다른 OS·긴 운영·처리량 목표의 인증으로 확대하지 않는다. 원문에 없는 장비·지연·원자료는 보충해 만들지 않았다.</p>
+</section><section id="history-originals"><h2>이전 안내의 고유한 내용과 표를 보존한다</h2>
+<p>각 접힘 영역은 출처 파일·revision과 원문 항목의 순서를 유지한다. 지금 배우는 경로에서는 C01~C28과 A01을 먼저 읽고, 변경 이유나 당시 명령을 대조할 때 이 기록을 펼친다. ADR 다섯 개는 A03에 있다.</p>
+<details class="archive" id="migration-d0-i0"><summary>과거 원문 · docs/getting-started.md · 설치와 첫 서버</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-13</p><div class="archive-body"><h3>설치와 첫 서버</h3>
+<p>Visual Studio 2026의 Desktop development with C++, MSVC v145, Windows SDK를 설치한다. 루트 <code>vcpkg.json</code>이 GoogleTest와 선택형 mimalloc을 복원한다.</p>
+<pre><code>tools\build.ps1 -Configuration Debug -Rebuild
+bin\x64\Debug\EchoServer.exe --port 32452</code></pre>
+<p><code>ServerConfig</code>를 검증한 뒤 <code>Server::Create</code>, <code>Start</code>, <code>Stop</code>을 호출한다. 실패한 <code>expected</code>를 무시하거나 <code>EventHandler</code>보다 Server를 오래 살게 하는 사용은 잘못이다. handler와 logger가 Server보다 오래 살도록 두는 것이 올바르다.</p>
+<p>LoadClient 정상 검증은 <code>bin\x64\Debug\LoadClient.exe --port 32452 --scenario echo --duration 10</code>이다.</p></div></details>
+<details class="archive" id="migration-d0-i1"><summary>과거 원문 · docs/getting-started.md · 배포 형식 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-14-16</p><div class="archive-body"><h3>배포 형식 결정</h3>
+<p>0.x는 Windows x64/MSVC v145 ABI에 고정된 versioned binary package를 기준으로 한다. vcpkg overlay port와 CMake package는 제공하지 않는다. <code>tools\package.ps1</code>이 공개 headers, Release <code>.lib</code>/PDB와 <code>samples/package_consumer</code>를 묶고, sample의 <code>RIONetLitePackageRoot</code> 기본값이 package 루트의 include/lib를 자동 참조한다. ABI가 안정되지 않은 0.x에서 소스 port를 배포해 toolchain 차이를 숨기는 것보다 지원 compiler와 binary를 명시하는 정책을 선택했다.</p></div></details>
+<details class="archive" id="migration-d1-i0"><summary>과거 원문 · docs/architecture.md · 아키텍처</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-18</p><div class="archive-body"><h3>아키텍처</h3>
+<pre><code>flowchart LR
+  Client --&gt; Accept[Accept thread]
+  Accept --&gt; RQ[RIO request queue]
+  RQ --&gt; IO[Owner I/O worker]
+  IO --&gt; Handler[EventHandler]
+  Handler --&gt; Adapter[QueuedEventAdapter]
+  Adapter --&gt; Logic[Sharded game workers]
+  Logic --&gt;|SessionId + owned bytes| Send[Bounded send ring]
+  Send --&gt; RQ</code></pre>
+<p>주 스레드가 Winsock, CQ와 세션 풀을 만든다. 각 세션은 한 I/O worker에 고정되고 <code>index+generation</code>이 수명을 식별한다. 세션 슬롯은 worker 파티션에 걸쳐 라운드로빈으로 대여하므로 기동 직후 부하가 한 worker에 몰리지 않는다. RIO 등록 버퍼는 완료가 끝날 때까지 주소와 등록 ID가 유지된다. 네트워크 callback에서 DB, 파일 I/O, room 처리를 실행하는 설계는 잘못이며 ChatServer처럼 유계 adapter로 넘기는 방식이 올바르다.</p>
+<p>세션당 in-flight RIO 요청은 수신 1개와 송신 1개다. 송신은 애플리케이션이 쌓은 바이트를 double-mapped 링에 모으고, 진행 중인 요청이 완료되면 그때까지 쌓인 전체 구간을 하나의 <code>RIO_BUF</code>로 다시 게시한다. 따라서 완료 이벤트 수가 패킷 수가 아니라 burst 수에 비례하고 CQ 용량이 세션당 2개로 고정된다. 수신은 완료를 반영한 직후 콜백보다 먼저 다음 요청을 게시해 콜백 구간에도 수신이 진행되게 한다.</p></div></details>
+<details class="archive" id="migration-d1-i1"><summary>과거 원문 · docs/architecture.md · 결정적 테스트 경계</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-19-23</p><div class="archive-body"><h3>결정적 테스트 경계</h3>
+<p><code>RioApi</code>와 <code>SocketApi</code>를 주입해 N번째 초기화 호출 실패와 롤백을 소켓 없이 재현한다. logger는 Server 인스턴스마다 주입하며 서로 다른 두 logger의 격리를 통합 테스트로 검증한다.</p>
+<p>세션 재사용은 시간 경과가 아니라 generation과 outstanding 요청 수로 결정하므로 production clock 의존성이 없다. application event adapter 역시 내부 작업자나 예약 실행기를 만들지 않고 <code>TryPop</code>으로 소비자가 직접 구동한다. 따라서 fake clock과 deterministic executor가 필요했던 비결정적 경계를 설계에서 제거했으며, 상태 전이와 큐 순서는 호출 순서만으로 단위 테스트한다.</p></div></details>
+<details class="archive" id="migration-d2-i0"><summary>과거 원문 · docs/threading-model.md · 스레딩 모델</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-9</p><div class="archive-body"><h3>스레딩 모델</h3>
+<p>accept thread는 연결을 배정하고 I/O worker는 소유 세션의 완료를 처리한다. <code>OnData</code>와 <code>OnClosed</code>는 해당 세션의 순서를 보존한다. <code>Send</code>, <code>RequestClose</code>, <code>Stop</code>, <code>Metrics</code>는 여러 애플리케이션 스레드에서 호출할 수 있다. handler와 logger 구현의 자체 공유 상태는 사용자가 동기화해야 한다.</p>
+<p>콜백에서 대기하거나 동일 서버의 종료를 장시간 막는 것은 잘못이다. <code>QueuedEventAdapter</code>를 사용해 <code>session.index % shard_count</code>로 전달하고 소비자가 소유 payload를 처리하는 것이 올바르다. 콜백 span을 저장하면 안 되며 반환 전에 복사해야 한다.</p>
+<p>콜백에서 벗어난 예외는 worker를 죽이지 않는다. <code>OnData</code>에서 예외가 나오면 해당 세션을 <code>kProtocolError</code>로 닫고 소비 바이트를 0으로 처리하며, <code>OnConnected</code>와 <code>OnClosed</code>의 예외는 오류 로그만 남기고 무시한다. 다만 예외에 의존해 제어 흐름을 만드는 것은 잘못이며, handler는 자체적으로 예외를 처리해야 한다.</p>
+<p>worker는 완료를 처리하기 전에 다음 수신을 먼저 게시한다. 커널이 쓰는 구간과 콜백이 읽는 구간은 세션 수신 링에서 겹치지 않으므로, 콜백이 도는 동안에도 같은 세션의 수신이 진행된다.</p></div></details>
+<details class="archive" id="migration-d3-i0"><summary>과거 원문 · docs/session-lifecycle.md · 세션 수명</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-18</p><div class="archive-body"><h3>세션 수명</h3>
+<pre><code>stateDiagram-v2
+  [*] --&gt; Free
+  Free --&gt; Allocated: generation++ (zero 제외)
+  Allocated --&gt; Active: accept/RQ ready
+  Active --&gt; Closing: close 승자
+  Closing --&gt; Draining: socket close, CQ drain
+  Draining --&gt; Closed: outstanding=0, close notified
+  Closed --&gt; Free: pending app event=0</code></pre>
+<p>인덱스만 보관해 다음 연결에 송신하는 것은 잘못이다. 모든 send, close, I/O context와 app event에 전체 <code>SessionId</code>를 저장하고 현재 generation과 다르면 접근 없이 폐기해야 한다. 동일 수명에서 close 전이와 <code>OnClosed</code> 통지는 각각 한 번뿐이다.</p>
+<p><code>OnClosed</code> 이후에는 같은 세션의 <code>OnData</code>가 오지 않는다. 종료를 관찰한 뒤 커널이 이미 완료시킨 수신이 남아 있어도 콜백 없이 요청만 정리한다. 세션 슬롯은 worker 파티션에 걸쳐 라운드로빈으로 대여되므로, 기동 직후 첫 접속들도 특정 worker에 몰리지 않는다.</p>
+<p><code>idle_timeout_ms</code>를 설정하면 마지막 수신 이후 무통신 상태가 상한을 넘은 세션이 <code>kIdleTimeout</code>으로 닫힌다. 이는 정상 종료 경로와 동일하게 <code>OnClosed</code>를 한 번 통지한다.</p></div></details>
+<details class="archive" id="migration-d4-i0"><summary>과거 원문 · docs/packet-framing.md · 패킷 프레이밍</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-7</p><div class="archive-body"><h3>패킷 프레이밍</h3>
+<p>TCP는 메시지 경계를 보존하지 않는다. <code>LengthPrefixedDecoder</code>는 big-endian 32비트 전체 길이를 읽고 header 미만이면 기다리며, 최소 길이 미만 또는 설정 최대값 초과를 protocol error로 반환한다. raw pointer를 정수로 cast하거나 한 recv가 한 packet이라고 가정하는 코드는 잘못이다.</p>
+<p>콜백은 완성된 모든 packet을 처리한 뒤 실제 소비 바이트 수를 반환한다. 반환값이 readable보다 크거나 0을 반복해 버퍼를 채우면 서버가 계약 위반 또는 과부하로 연결을 닫는다.</p>
+<p>응답을 만들 때 header와 payload를 이어붙인 임시 buffer를 할당하는 것은 잘못이다. <code>Server::Send(session, header, payload)</code>는 두 span을 그대로 세션 송신 링에 이어 쓰므로, header는 스택 배열로 만들고 payload는 수신한 span을 그대로 넘기는 것이 올바르다. ChatServer의 <code>EncodeHeader</code>가 이 패턴이다.</p></div></details>
+<details class="archive" id="migration-d5-i0"><summary>과거 원문 · docs/backpressure.md · 백프레셔</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-9</p><div class="archive-body"><h3>백프레셔</h3>
+<p>모든 큐는 유계다. <code>Send</code>의 <code>kWouldBlock</code>은 재시도 가능한 포화를, <code>kMessageTooLarge</code>는 계약 위반을, <code>kStaleSession</code>과 <code>kClosing</code>은 재시도하면 안 되는 수명 종료를 뜻한다. 반환값을 무시하거나 무제한 보조 큐를 두는 것은 잘못이다.</p>
+<p>송신 배압의 단위는 in-flight 요청 수가 아니라 <code>send_buffer_bytes</code>다. 세션당 RIO 송신 요청은 항상 1개이고, 진행 중인 요청이 완료되면 그 사이에 쌓인 바이트 전체를 하나의 요청으로 묶어 다시 게시한다. 따라서 소형 패킷 burst는 완료 이벤트를 늘리지 않고 링에 합쳐지며, 링에 들어가지 못한 메시지만 <code>kWouldBlock</code>이 된다. 버스트 크기를 링 크기로 나눠 <code>send_buffer_bytes</code>를 정하고, <code>send_would_block</code> 카운터로 검증하는 것이 올바르다.</p>
+<p><code>QueuedEventAdapter</code>는 <code>Disconnect</code> 또는 <code>RejectNewest</code>를 제공하며 네트워크 worker를 block하는 정책은 제공하지 않는다. 게임 서버는 중요도에 따라 접속 종료, 패킷 폐기 또는 상위 rate limit을 선택하고 queue depth/high-watermark/rejection을 관찰해야 한다.</p>
+<p>종료 이벤트는 폐기 대상이 아니다. 큐가 가득 차 <code>kClosed</code>를 넣지 못하면 어댑터는 그 이벤트를 보류했다가 해당 세션의 남은 이벤트를 모두 소비한 뒤 순서를 지켜 전달하고, 그 전까지 같은 슬롯의 새 세대 <code>kConnected</code>를 받지 않는다. <code>kData</code>만 정책에 따라 거부된다.</p></div></details>
+<details class="archive" id="migration-d6-i0"><summary>과거 원문 · docs/graceful-shutdown.md · 정상 종료</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-23</p><div class="archive-body"><h3>정상 종료</h3>
+<pre><code>sequenceDiagram
+  participant App
+  participant Server
+  participant Accept
+  participant Worker
+  participant CQ
+  App-&gt;&gt;Server: Stop(kGraceful)
+  Server-&gt;&gt;Accept: 새 accept 차단 및 join
+  Server-&gt;&gt;Worker: 새 send/recv 차단, close 명령
+  Worker-&gt;&gt;CQ: 수락된 send와 취소 완료 drain
+  CQ--&gt;&gt;Worker: outstanding = 0
+  Worker--&gt;&gt;Server: join
+  Server--&gt;&gt;App: CQ/buffer/Winsock 해제 완료</code></pre>
+<p>graceful은 timeout까지 수락된 send를 drain하고 immediate는 새 게시를 막고 취소 완료만 drain한다. <code>Stop</code>은 동시 호출해도 같은 종료를 기다린다. callback이나 등록 버퍼보다 CQ를 먼저 없애는 순서는 잘못이다.</p>
+<p>worker가 timeout 안에 drain하지 못하면 소켓을 먼저 모두 닫아 커널이 미완료 요청을 취소하게 하고, 취소 완료를 종료 스레드에서 짧게 다시 drain한다. 그래도 outstanding이 남으면 등록 버퍼, 이중 매핑과 CQ를 해제하지 않고 소유권만 포기해 의도적으로 누수시킨다. 커널이 참조할 수 있는 메모리를 회수하는 것보다 누수가 안전하기 때문이다. 이 경우 <code>Stop</code>은 <code>kShutdownTimedOut</code>과 함께 <code>remaining_outstanding</code>을 보고하므로, 이 값이 0이 아닌 종료는 정상으로 취급하면 안 된다.</p>
+<p>peer가 FIN 직후 사라져 미완료 송신이 완료되지 않으면 세션이 drain 상태로 남는다. <code>peer_close_drain_timeout_ms</code>를 넘기면 abortive close로 강등해 슬롯을 회수한다.</p></div></details>
+<details class="archive" id="migration-d7-i0"><summary>과거 원문 · docs/configuration.md · 설정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-25</p><div class="archive-body"><h3>설정</h3>
+<div class="table-scroll"><table>
+<tr><th>설정</th><th>기본값</th><th>범위/단위</th><th>영향</th></tr>
+<tr><td><code>port</code></td><td>0</td><td>1..65535</td><td>listen port, 0은 거부</td></tr>
+<tr><td><code>io_worker_count</code></td><td>CPU 기반</td><td>1..min(<code>max_sessions</code>, 256)</td><td>CQ/스레드 수</td></tr>
+<tr><td><code>max_sessions</code></td><td>1024</td><td>1..INT32_MAX</td><td>모든 메모리 예산에 선형 영향</td></tr>
+<tr><td><code>max_receive_chunk_bytes</code></td><td>4096</td><td>1..recv buffer</td><td>RIO recv 길이</td></tr>
+<tr><td><code>receive_buffer_bytes</code></td><td>64 KiB</td><td>page 배수, ≤1 GiB</td><td>세션별 등록/매핑</td></tr>
+<tr><td><code>max_message_bytes</code></td><td>16 KiB</td><td>양쪽 buffer 이하</td><td>단일 Send/packet 제한</td></tr>
+<tr><td><code>send_buffer_bytes</code></td><td>256 KiB</td><td>page 배수, ≤1 GiB</td><td>유계 send 저장소이자 송신 배압 단위</td></tr>
+<tr><td><code>completion_batch_size</code></td><td>64</td><td>1..4096</td><td>결과 배열과 batch</td></tr>
+<tr><td><code>worker_wait_mode</code></td><td>adaptive</td><td>polling/adaptive/notification</td><td>지연과 idle CPU</td></tr>
+<tr><td><code>adaptive_spin_count</code></td><td>128</td><td>0..1,000,000</td><td>adaptive spin 비용</td></tr>
+<tr><td><code>enable_thread_affinity</code></td><td>false</td><td>bool</td><td>opt-in affinity</td></tr>
+<tr><td><code>enable_metrics</code></td><td>true</td><td>bool</td><td>false이면 hot-path 카운터를 생략하고 <code>Metrics()</code>는 0 snapshot 반환</td></tr>
+<tr><td><code>enable_callback_timing</code></td><td>true</td><td>bool</td><td>false이면 콜백당 QPC 2회를 생략하고 <code>callback_*</code>만 0이 된다</td></tr>
+<tr><td><code>graceful_shutdown_timeout_ms</code></td><td>5000</td><td>1..300000 ms</td><td>drain 상한</td></tr>
+<tr><td><code>peer_close_drain_timeout_ms</code></td><td>5000</td><td>1..60000 ms</td><td>peer FIN 후 송신 drain 상한</td></tr>
+<tr><td><code>idle_timeout_ms</code></td><td>0</td><td>0 또는 ≥1000 ms</td><td>0이면 사용 안 함, 무통신 세션 종료</td></tr>
+<tr><td><code>keepalive_time_ms</code></td><td>0</td><td>0이면 사용 안 함</td><td>TCP keepalive 시작 시점</td></tr>
+<tr><td><code>keepalive_interval_ms</code></td><td>1000</td><td>keepalive 사용 시 ≥1</td><td>TCP keepalive 재시도 간격</td></tr>
+</table></div>
+<p><code>ValidateServerConfig</code>의 <code>estimated_*_bytes</code>가 등록, 예약 virtual, commit, control 메모리를 시작 전에 분리 보고한다. page 정렬을 무시하는 설정은 잘못이다. 검증을 통과한 뒤에도 실제 자원 확보가 실패할 수 있으며, <code>Server::Create</code>는 이 경우 예외를 외부로 전파하지 않고 <code>kResourceAllocationFailed</code>를 반환한다.</p></div></details>
+<details class="archive" id="migration-d7-i1"><summary>과거 원문 · docs/configuration.md · 송신 배압 단위</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-26-29</p><div class="archive-body"><h3>송신 배압 단위</h3>
+<p>세션당 in-flight RIO 송신 요청은 1개로 고정된다. 애플리케이션이 보낸 바이트는 세션 송신 링에 쌓이고, 진행 중인 요청이 완료되면 그때까지 쌓인 전체 구간이 하나의 <code>RIO_BUF</code>로 다시 게시된다. 따라서 배압은 요청 슬롯 수가 아니라 <code>send_buffer_bytes</code>에 남은 바이트로 판정하며, 링에 들어가지 못한 메시지만 <code>kWouldBlock</code>이 된다. 소형 패킷이 많은 게임 트래픽에서 완료 이벤트 수가 패킷 수가 아니라 burst 수에 비례하고, RIO completion queue 용량도 세션당 2개로 줄어든다.</p></div></details>
+<details class="archive" id="migration-d7-i2"><summary>과거 원문 · docs/configuration.md · 죽은 연결 회수</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-30-32</p><div class="archive-body"><h3>죽은 연결 회수</h3>
+<p><code>keepalive_time_ms</code>를 지정하면 세션 소켓에 <code>SIO_KEEPALIVE_VALS</code>를 설정한다. 사라진 피어의 미완료 수신이 오류로 완료되어 기존 오류 경로가 슬롯을 회수한다. <code>idle_timeout_ms</code>를 지정하면 각 I/O worker가 약 1초 주기로 자기 파티션의 세션만 훑어 마지막 수신 이후 경과 시간이 상한을 넘은 세션을 <code>kIdleTimeout</code>으로 닫는다. 두 설정은 독립이며 함께 사용할 수 있다.</p></div></details>
+<details class="archive" id="migration-d8-i0"><summary>과거 원문 · docs/observability.md · 관측성</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-11</p><div class="archive-body"><h3>관측성</h3>
+<p><code>Logger::Log(LogEvent)</code>는 timestamp, severity, component, worker, <code>SessionId</code>, operation, library/native error를 연결한다. 비활성 로그는 <code>IsEnabled</code>로 hot-path 문자열 생성을 피한다. 라이브러리는 프로세스 전역 exception filter를 바꾸지 않는다.</p>
+<p><code>Metrics()</code>는 연결, recv/send bytes와 operation, would-block, stale, protocol error, close reason, CQ corrupt, callback 시간과 adapter queue 지표를 snapshot한다. 평균 callback 대기는 total/count로 계산하며 max와 high-watermark를 함께 확인한다. 서로 다른 Server의 logger와 counter는 공유되지 않는다.</p>
+<p><code>ServerConfig::enable_metrics=false</code>이면 hot-path atomic counter와 callback 시간 측정을 생략하고 <code>Metrics()</code>는 0 snapshot을 반환한다. counter는 유지하면서 콜백 시간 측정만 끄려면 <code>enable_callback_timing=false</code>를 쓴다. 이 경우 콜백당 <code>QueryPerformanceCounter</code> 2회가 사라지고 <code>callback_count</code>/<code>callback_total_nanoseconds</code>/<code>callback_max_nanoseconds</code>만 0이 된다. EchoServer의 <code>--observability off</code>는 metrics와 logger를 함께 끈다.</p>
+<p><code>send_operations</code>는 애플리케이션의 <code>Send</code> 호출 수이고 실제 RIO 송신 요청 수는 아니다. 송신이 링에서 합쳐지므로 완료 이벤트는 이보다 적을 수 있다. 배압을 볼 때는 <code>send_would_block</code>을 본다.</p>
+<p>2026-08-27 Release, adaptive/64, 32연결, 128-byte payload, 2초×5회 비교에서 모든 오류·누락은 0이었다. 중앙값은 off 37,205 packets/s·P99 1,804µs·서버 CPU 4.688%, on 40,668 packets/s·P99 1,495µs·서버 CPU 4.882%였다. 짧은 측정의 표준편차가 각각 3,112/4,904 packets/s여서 유의한 성능 악화는 관찰되지 않았으며, 수치는 고정 장비 장시간 결과를 대신하지 않는다.</p></div></details>
+<details class="archive" id="migration-d9-i0"><summary>과거 원문 · docs/troubleshooting.md · 문제 해결</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-13</p><div class="archive-body"><h3>문제 해결</h3>
+<p class="archive-point">- <code>RIO unavailable</code>: x64 Windows와 RIO 지원 Winsock provider인지 확인한다.</p>
+<p class="archive-point">- <code>bind failed</code>: 동일 port 프로세스를 종료하거나 다른 <code>--port</code>를 쓴다. 테스트는 OS 배정 port를 사용한다.</p>
+<p class="archive-point">- vcpkg restore 실패: Visual Studio 2026의 vcpkg 구성요소와 루트 <code>vcpkg.json</code> baseline을 확인한다.</p>
+<p class="archive-point">- page alignment 오류: recv/send buffer를 <code>GetSystemInfo</code> page size 배수로 둔다.</p>
+<p class="archive-point">- 높은 CPU: notification 또는 adaptive로 바꾸고 spin을 낮춘다.</p>
+<p class="archive-point">- <code>kWouldBlock</code>: 배압 단위는 <code>send_buffer_bytes</code>다. 확대 전에 소비 속도, rate limit과 high-watermark를 조사한다.</p>
+<p class="archive-point">- shutdown timeout: logger의 session/outstanding/native error와 dump를 보존한다. <code>remaining_outstanding</code>이 0이 아니면 등록 버퍼와 CQ를 의도적으로 누수시킨 상태이므로 프로세스를 재사용하지 않는다.</p>
+<p class="archive-point">- 세션 슬롯 고갈: 죽은 클라이언트가 슬롯을 점유하는지 확인하고 <code>keepalive_time_ms</code>와 <code>idle_timeout_ms</code>를 설정한다.</p>
+<p class="archive-point">- accept 거부 급증: <code>OnRejectedConnection</code>의 native error를 본다. 핸들 고갈이면 accept 스레드가 백오프하므로 CPU 대신 거부 카운터가 오른다.</p>
+<p>임의 Sleep으로 타이밍을 숨기지 말고 seed, 설정, JSON과 resource CSV를 함께 남기는 것이 올바르다. ASan x64와 Application Verifier/PageHeap의 정확한 구성, 해제 명령과 판정 기준은 <a href="#chapter=historical-records&amp;section=history-reading">메모리 안전성 검사</a>를 따른다.</p></div></details>
+<details class="archive" id="migration-d10-i0"><summary>과거 원문 · docs/memory-safety.md · 메모리 안전성 검사</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-4</p><div class="archive-body"><h3>메모리 안전성 검사</h3>
+<p>메모리 검사 결과는 사용한 도구, 실행 파일, 구성과 테스트 시나리오를 함께 기록한다. RIO를 지원하지 않거나 실제로 실행하지 않은 sanitizer 구성을 릴리스 통과로 표기하지 않는다.</p></div></details>
+<details class="archive" id="migration-d10-i1"><summary>과거 원문 · docs/memory-safety.md · MSVC AddressSanitizer x64</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-5-15</p><div class="archive-body"><h3>MSVC AddressSanitizer x64</h3>
+<p>Visual Studio Installer에서 C++ AddressSanitizer 구성 요소를 설치한다. 공식 검사는 제품 라이브러리와 EchoServer를 <code>/fsanitize=address</code>로 별도 빌드한 뒤 일반 Winsock/IOCP LoadClient로 실제 RIO 정상·오류 시나리오 8개를 실행한다.</p>
+<pre><code>tools\build.ps1 -Configuration Release -Rebuild
+tools\run-memory-safety.ps1</code></pre>
+<p>스크립트는 <code>EnableASAN=true</code>를 사용해 일반 빌드와 분리된 <code>artifacts/memory-safety/</code> 경로에 빌드한다. echo, split, coalesce, half-close, slow-read, abrupt-close, invalid-length와 no-read가 모두 정합성 오류 없이 끝나고 서버 exit code와 sanitizer 보고가 0이어야 통과다. 비계측 GoogleTest 정적 라이브러리는 STL annotation ABI가 다르므로 ASan 실행 파일에 링크하지 않는다.</p></div></details>
+<details class="archive" id="migration-d10-i2"><summary>과거 원문 · docs/memory-safety.md · Application Verifier와 PageHeap</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-16-49</p><div class="archive-body"><h3>Application Verifier와 PageHeap</h3>
+<p>관리자 PowerShell에서 테스트 실행 파일에만 설정한다. 현재 Windows의 <code>appverif.exe /?</code>로 확인한 명령 형식은 다음과 같다.</p>
+<pre><code>$unit = (Resolve-Path .\bin\tests\x64\Debug\RIONetLite.UnitTests.exe).Path
+$integration = (Resolve-Path .\bin\tests\x64\Debug\RIONetLite.IntegrationTests.exe).Path
+appverif.exe -enable Heaps Handles Locks Memory Threadpool Leak -for $unit $integration
+&amp; $unit
+&amp; $integration
+appverif.exe -export log -for $unit -with to=.\artifacts\appverif-unit.xml
+appverif.exe -export log -for $integration -with to=.\artifacts\appverif-integration.xml
+appverif.exe -disable &#x27;*&#x27; -for $unit $integration</code></pre>
+<p>Application Verifier의 full PageHeap만 좁게 적용하려면 다음 구성을 사용한다.</p>
+<pre><code>appverif.exe -enable Heaps -for $unit $integration -with Heaps.full=true</code></pre>
+<p>Windows SDK Debugging Tools의 <code>gflags.exe</code>를 사용하는 동등한 full PageHeap 절차는 다음과 같다. 반드시 테스트 후 설정을 해제한다.</p>
+<pre><code>gflags.exe /p /enable RIONetLite.UnitTests.exe /full
+gflags.exe /p /enable RIONetLite.IntegrationTests.exe /full
+&amp; $unit
+&amp; $integration
+gflags.exe /p /disable RIONetLite.UnitTests.exe
+gflags.exe /p /disable RIONetLite.IntegrationTests.exe</code></pre>
+<p>현재 검증 머신에는 <code>appverif.exe</code>가 있지만 <code>gflags.exe</code>는 없다. 따라서 실제 릴리스 증거에는 실행한 도구 한 가지만 기록하고, 미설치 도구를 통과로 표시하지 않는다.</p></div></details>
+<details class="archive" id="migration-d10-i3"><summary>과거 원문 · docs/memory-safety.md · 통과 판정과 보존 자료</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-50-52</p><div class="archive-body"><h3>통과 판정과 보존 자료</h3>
+<p>테스트 exit code가 0이고 sanitizer 보고, verifier stop, heap corruption과 handle 오류가 없어야 통과다. 실패 시 seed, 명령행, Debug symbols, Application Verifier XML 또는 sanitizer 로그와 관련 stress JSON/CSV를 같은 artifact 디렉터리에 보존한다.</p></div></details>
+<details class="archive" id="migration-d11-i0"><summary>과거 원문 · docs/benchmarking.md · 벤치마킹</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-13</p><div class="archive-body"><h3>벤치마킹</h3>
+<p>Release를 빌드한 뒤 <code>tools\run-benchmark.ps1 -Profile suite -Runs 5 -DurationSeconds 10 -Connections 32</code>를 실행한다. <code>suite</code>는 latency 32/128 B, throughput 1/4/16 KiB, fan-in, burst, slow consumer와 churn을 실행한다. <code>matrix</code>는 <code>-WaitModes</code>, <code>-BatchSizes</code>, <code>-ObservabilityModes</code>, <code>-AffinityModes</code>의 조합을 비교한다. 결과는 <code>benchmarks/results/&lt;date&gt;-&lt;commit&gt;/</code>에 raw JSON, <code>summary.csv</code>, 중앙값·표준편차·서버 CPU·컨텍스트 스위치·자원 최고치를 담은 <code>aggregate.csv</code>, 환경 JSON과 요약으로 저장된다.</p>
+<p>Latency(32/128 B), throughput(1/4/16 KiB), fan-in, burst, slow consumer, churn을 분리한다. worker wait mode, batch, affinity, mimalloc을 한 번에 하나만 변경한다. P99, packets/bytes, CPU와 resource 추세를 함께 보고 data/connection error가 있는 실행은 무효다. 큰 ETW/WPA trace는 CI artifact에만 둔다.</p>
+<p>LoadClient JSON의 <code>data_errors</code>, <code>dropped_packets</code>, <code>timeouts</code>가 모두 0인 결과만 사용한다. 정상 응답 시나리오는 측정 종료 뒤 최대 5초 동안 진행 중 왕복을 drain하므로 종료 경계의 미수신 패킷도 성공으로 숨기지 않는다.</p>
+<p>고정 장비의 승인된 <code>aggregate.csv</code>를 기준선으로 보관한 뒤 <code>-BaselineCsv &lt;path&gt;</code>를 지정하면 같은 case/wait/batch/observability를 비교한다. 기준 디렉터리에는 <code>approval.json</code>과 <code>environment.json</code>이 함께 있어야 하며 현재 컴퓨터명, CPU, 논리 코어 수와 측정 조건이 모두 일치해야 실행된다. 0.2.x 기준은 <code>benchmarks/baselines/heungbae-1-vs2026/</code>다. 0.3.0의 송신 경로 변경으로 이 기준선과는 직접 비교하지 않는다. 기본 실패 조건은 처리량 중앙값 5% 초과 하락 또는 P99 중앙값 10% 초과 증가이며 <code>regression.csv</code>를 남긴다.</p>
+<p>하네스는 각 측정 중 <code>\Thread(EchoServer*)\Context Switches/sec</code>를 1초마다 표본화한다. <code>summary.csv</code>에는 실행별 평균·최댓값·표본 수, <code>aggregate.csv</code>에는 중앙값을 기록하므로 관리자 권한이 없는 장비에서도 wait mode 비교가 가능하다. <code>-CaptureEtw</code>는 추가로 WPR CPU file-mode trace를 <code>cpu-context-switches.etl</code>로 저장하며, 스레드별 스케줄링 원인 분석용이다. WPR 시스템 성능 프로파일 정책이 허용된 관리자 또는 CI 계정이 필요하다. 2026-08-27 로컬 실행에서는 정책 오류 <code>0xc5585011</code>로 ETW trace 시작이 거부됐지만 성능 카운터 계측은 정상 동작했다.</p>
+<p><code>tools\run-design-benchmark.ps1</code>은 실제 RIO 함수 테이블로 세션별 버퍼 등록과 단일 arena 등록의 초기화 시간을 비교한다. 같은 실행에서 8개 <code>RIO_BUF</code> descriptor 준비와 8×128바이트를 1KiB 연속 영역으로 복사하는 준비 비용도 비교한다. 컴파일러가 준비 작업을 제거하지 못하도록 결과 메모리를 volatile 간접 호출에 노출하고, 5회 중앙값과 환경을 <code>design.json</code> 및 <code>environment.json</code>에 남긴다. 이는 초기화와 CPU 준비 비용의 미시 측정이며 네트워크 처리량 비교는 공식 suite가 담당한다.</p></div></details>
+<details class="archive" id="migration-d12-i0"><summary>과거 원문 · docs/performance-tuning.md · 성능 튜닝</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-2</p><div class="archive-body"><h3>성능 튜닝</h3></div></details>
+<details class="archive" id="migration-d12-i1"><summary>과거 원문 · docs/performance-tuning.md · 2026-08-28 송신 링 코얼레싱 A/B</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-3-15</p><div class="archive-body"><h3>2026-08-28 송신 링 코얼레싱 A/B</h3>
+<p><code>36a03af</code>(고정 슬롯 송신)와 0.3.0(링 코얼레싱)의 EchoServer를 동일한 LoadClient로 비교했다. 20 logical processor(i7-12700KF), Release, adaptive/64, observability off, echo 시나리오, 조합별 3초×5회 중앙값이다. 20회 모두 data error, dropped packet과 timeout이 0이었다.</p>
+<div class="table-scroll"><table>
+<tr><th>연결 수</th><th>payload</th><th>baseline packets/s</th><th>0.3.0 packets/s</th><th>baseline P99 µs</th><th>0.3.0 P99 µs</th></tr>
+<tr><td>8</td><td>128 B</td><td>48,242</td><td>116,929</td><td>280</td><td>114</td></tr>
+<tr><td>64</td><td>128 B</td><td>72,089</td><td>162,328</td><td>2,390</td><td>1,273</td></tr>
+<tr><td>64</td><td>1 KiB</td><td>70,725</td><td>163,819</td><td>2,325</td><td>1,296</td></tr>
+<tr><td>256</td><td>128 B</td><td>103,125</td><td>161,047</td><td>3,828</td><td>3,691</td></tr>
+</table></div>
+<p>모든 조합에서 처리량이 1.6~2.4배 오르고 P99가 같거나 낮았다. 요청당 완료 이벤트가 패킷 수가 아니라 burst 수에 비례하게 바뀐 효과이며, 저부하(8연결)에서도 회귀가 없다. 짧은 로컬 측정이므로 고정 장비의 승인된 회귀선을 대신하지 않는다.</p></div></details>
+<details class="archive" id="migration-d12-i2"><summary>과거 원문 · docs/performance-tuning.md · 기본 정책</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-16-21</p><div class="archive-body"><h3>기본 정책</h3>
+<p>기본값은 logical processor에서 한 코어의 애플리케이션 여유를 남긴 worker 수, batch 64, adaptive 128 spin이다. polling은 최고 부하에서 지연을 낮출 수 있지만 idle 코어를 소비하고, notification은 idle 효율이 좋으며, adaptive는 둘의 절충이다. affinity는 NUMA와 processor group을 측정한 뒤에만 켠다.</p>
+<p>한 번에 worker, batch(32/64/128/256), wait mode, buffer, allocator 중 하나만 바꾸고 <code>tools\run-benchmark.ps1</code> 결과를 비교한다. correctness error가 0이 아닌 결과를 성능 개선으로 채택하면 안 된다. mimalloc은 최종 executable이 선택적으로 링크하며 RIO 등록 메모리 소유와 무관하다.</p></div></details>
+<details class="archive" id="migration-d12-i3"><summary>과거 원문 · docs/performance-tuning.md · 2026-08-27 짧은 기준 측정 (0.2.0 기준, 이력)</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-22-39</p><div class="archive-body"><h3>2026-08-27 짧은 기준 측정 (0.2.0 기준, 이력)</h3>
+<p>아래 절들은 고정 슬롯 송신을 쓰던 0.2.0 기준의 측정이다. wait mode와 batch 선택 근거는 그대로 유효하지만 절대 수치는 0.3.0과 직접 비교하지 않는다.</p>
+<p>20 logical processor 장비, Release, 8개 연결, 128-byte payload, 조합별 1초×5회 중앙값이다. 모든 데이터 오류는 0이었다. 짧은 로컬 측정이므로 릴리스용 고정 장비 결과를 대신하지 않는다.</p>
+<div class="table-scroll"><table>
+<tr><th>wait mode</th><th>batch</th><th>median packets</th><th>median P99 µs</th></tr>
+<tr><td>polling</td><td>32 / 64 / 128 / 256</td><td>26,601 / 33,485 / 33,165 / 36,943</td><td>437 / 348 / 445 / 342</td></tr>
+<tr><td>adaptive</td><td>32 / 64 / 128 / 256</td><td>51,869 / 51,513 / 50,206 / 51,467</td><td>288 / 282 / 298 / 275</td></tr>
+<tr><td>notification</td><td>32 / 64 / 128 / 256</td><td>52,636 / 52,610 / 52,208 / 54,105</td><td>280 / 290 / 277 / 284</td></tr>
+</table></div>
+<p>기본 adaptive/64는 notification에 가까운 지연·처리량을 유지하면서 burst 시 spin 여지를 남기는 보수적 절충이다. polling은 기본 worker 수가 많은 이 장비에서 CPU 경쟁으로 오히려 악화됐으므로 기본값으로 선택하지 않았다.</p>
+<p><code>tools\test-mimalloc.ps1</code>은 동일 ChatServer create/start/graceful-stop 수명 검증과 Echo 부하를 allocator off/on으로 각각 빌드·실행한다.</p>
+<p>2026-08-27 로컬 Release 비교에서는 32개 연결, 128바이트 payload, 2초 측정을 각각 3회 실행했다. 중앙값은 기본 allocator가 37,420 packets/s와 P99 1,509us, mimalloc이 28,179 packets/s와 P99 2,576us였으며 양쪽 모두 데이터 오류와 누락이 0이었다. 짧은 측정에서 mimalloc의 이점이 없으므로 기본값은 비활성으로 유지한다. 원본 JSON/CSV는 <code>benchmarks/results/&lt;timestamp&gt;-mimalloc/</code>에 생성된다.</p></div></details>
+<details class="archive" id="migration-d12-i4"><summary>과거 원문 · docs/performance-tuning.md · 2026-08-27 공식 시나리오 초기 기준선</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-40-65</p><div class="archive-body"><h3>2026-08-27 공식 시나리오 초기 기준선</h3>
+<p>20 logical processor 장비의 Release, adaptive/64, observability off에서 각 시나리오를 warm-up 1초 후 2초×5회 측정했다. 45회 모두 connection/data/dropped/timeout counter가 0이었다. 이는 이 장비의 초기 로컬 기준선이며 승인된 고정 릴리스 장비 회귀선은 아니다.</p>
+<div class="table-scroll"><table>
+<tr><th>scenario</th><th>median packets/s</th><th>median P99 µs</th><th>median server CPU</th></tr>
+<tr><td>latency 32 B</td><td>47,160</td><td>171</td><td>4.882%</td></tr>
+<tr><td>latency 128 B</td><td>47,065</td><td>181</td><td>4.882%</td></tr>
+<tr><td>throughput 1 KiB</td><td>40,992</td><td>1,504</td><td>4.845%</td></tr>
+<tr><td>throughput 4 KiB</td><td>30,077</td><td>2,071</td><td>4.805%</td></tr>
+<tr><td>throughput 16 KiB</td><td>13,200</td><td>4,094</td><td>4.882%</td></tr>
+<tr><td>fan-in, 128 connections × 10pps</td><td>194</td><td>764,840</td><td>0.118%</td></tr>
+<tr><td>burst</td><td>45,034</td><td>2,463</td><td>4.882%</td></tr>
+<tr><td>slow consumer</td><td>42,170</td><td>1,430</td><td>4.805%</td></tr>
+<tr><td>churn</td><td>17,494</td><td>1,700</td><td>3.360%</td></tr>
+</table></div>
+<p>같은 날 32연결·128-byte·1초×3회 wait/batch 매트릭스를 context-switch 성능 카운터와 함께 다시 측정했다. 36회 모두 정확성 오류가 0이었다.</p>
+<div class="table-scroll"><table>
+<tr><th>wait mode</th><th>batch 32 / 64 / 128 / 256 median packets/s</th><th>median P99 µs</th><th>median server CPU</th><th>median context switches/s</th></tr>
+<tr><td>polling</td><td>24,916 / 28,462 / 29,331 / 28,399</td><td>7,590 / 6,079 / 5,779 / 7,269</td><td>691.56 / 604.295 / 602.345 / 625.31%</td><td>5,056.974 / 5,752.086 / 5,505.324 / 5,187.016</td></tr>
+<tr><td>adaptive</td><td>43,712 / 40,684 / 43,953 / 44,782</td><td>1,252 / 1,199 / 1,158 / 1,204</td><td>5 / 5 / 5 / 5%</td><td>363.878 / 372.794 / 365.526 / 363.83</td></tr>
+<tr><td>notification</td><td>41,183 / 43,224 / 43,268 / 43,182</td><td>1,293 / 1,215 / 1,212 / 1,213</td><td>5 / 4.92 / 4.92 / 5%</td><td>346.603 / 338.025 / 341.205 / 343.032</td></tr>
+</table></div>
+<p>polling은 이 20 logical processor 장비에서 worker가 경쟁해 처리량과 P99가 모두 나쁘고 context switch도 adaptive의 약 14~16배다. notification은 유휴 CPU를 최소화하고 adaptive는 burst에서 제한된 spin 여지를 유지하면서 notification과 유사한 CPU·지연을 보인다. 따라서 게임 로직용 CPU 여유와 지연을 함께 고려해 adaptive/64를 기본값으로 유지한다. WPR ETW는 정책 오류 <code>0xc5585011</code>로 차단됐으며 스레드별 원인 분석이 필요한 승인 환경에서만 추가 수집한다.</p></div></details>
+<details class="archive" id="migration-d12-i5"><summary>과거 원문 · docs/performance-tuning.md · 2026-08-27 버퍼 등록·송신 준비·affinity 비교</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-66-86</p><div class="archive-body"><h3>2026-08-27 버퍼 등록·송신 준비·affinity 비교</h3>
+<p>20 logical processor 장비의 Release에서 <code>tools\run-design-benchmark.ps1</code>을 실행했다. 256세션, 세션당 64KiB 버퍼 2개, 5회 중앙값이며 correctness error는 0이었다.</p>
+<div class="table-scroll"><table>
+<tr><th>비교 항목</th><th>중앙값</th></tr>
+<tr><td>세션별 512개 <code>VirtualAlloc</code> + <code>RIORegisterBuffer</code></td><td>3,792.3µs</td></tr>
+<tr><td>단일 32MiB arena <code>VirtualAlloc</code> + <code>RIORegisterBuffer</code></td><td>1,348.3µs</td></tr>
+<tr><td>8개 scatter <code>RIO_BUF</code> 준비</td><td>3.211ns/회</td></tr>
+<tr><td>8×128바이트를 연속 1KiB로 복사해 준비</td><td>28.0525ns/회</td></tr>
+</table></div>
+<p>arena 등록은 초기화 시간이 64.4% 짧았지만 현재 세션별 double-mapped 저장소는 세션 수명과 실패 롤백을 독립적으로 격리하고 wrap 복사를 없앤다. 등록 비용은 시작 시 한 번만 발생하므로 현재 구조를 유지하며, 대규모 세션 구성에서 시작 시간이 병목으로 확인될 때 worker arena와 정렬된 offset 타입을 도입한다. 송신은 scatter 준비가 연속 복사보다 약 8.7배 짧았으므로 단일 <code>RIO_BUF</code>를 직접 게시하는 경로를 유지한다. 0.3.0은 여기에 링 코얼레싱을 더해 요청 자체를 burst 단위로 줄였다. 원본 결과는 <code>benchmarks/results/20260827-171244-7d80c68-design</code>에 있다.</p>
+<p>같은 장비에서 adaptive/64, metrics off, 32연결, 128바이트 payload를 affinity off/on 각각 1초×3회 측정했다. 모든 오류 카운터는 0이었다.</p>
+<div class="table-scroll"><table>
+<tr><th>affinity</th><th>median packets/s</th><th>median P99 µs</th><th>median server CPU</th></tr>
+<tr><td>off</td><td>46,480</td><td>1,323</td><td>5.235%</td></tr>
+<tr><td>on</td><td>46,789</td><td>1,256</td><td>4.610%</td></tr>
+</table></div>
+<p>affinity on은 처리량이 0.7% 높고 P99가 5.1% 낮았지만 3회의 짧은 측정 변동 범위 안이다. 기본 동작을 바꿀 만큼 명확한 이점이 아니므로 OS scheduler를 사용하는 off를 유지하고, affinity는 실제 배포 장비의 processor group과 NUMA 구성을 측정한 경우에만 opt-in으로 사용한다. 원본 결과는 <code>benchmarks/results/20260827-171306-7d80c68</code>에 있다.</p></div></details>
+<details class="archive" id="migration-d13-i0"><summary>과거 원문 · docs/release-checklist.md · 릴리스 체크리스트</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-2</p><div class="archive-body"><h3>릴리스 체크리스트</h3></div></details>
+<details class="archive" id="migration-d13-i1"><summary>과거 원문 · docs/release-checklist.md · 0.3.0</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-3-15</p><div class="archive-body"><h3>0.3.0</h3>
+<p class="archive-point">- [x] VS2026/v145 x64 Debug와 Release 빌드, 경고 0, 단위 56개와 통합 18개 통과</p>
+<p class="archive-point">- [x] clang-format, <code>git diff --check</code>, 문서·API 링크 검사 통과</p>
+<p class="archive-point">- [x] 실제 RIO 8개 시나리오(echo/split/coalesce/half-close/slow-read/abrupt-close/invalid-length/no-read) data error 0</p>
+<p class="archive-point">- [x] <code>36a03af</code> 대비 송신 경로 A/B 4개 조합에서 처리량 1.6~2.4배, P99 동등 이상 (<code>docs/performance-tuning.md</code>)</p>
+<p class="archive-point">- [x] <code>version.h</code>, <code>vcpkg.json</code>, CHANGELOG 버전 일치</p>
+<p class="archive-point">- [ ] <code>v0.3.0</code> tag 생성과 <code>tools\verify-version.ps1 -ExpectedVersion 0.3.0</code></p>
+<p class="archive-point">- [ ] 고정 장비 benchmark 기준선 재승인 (송신 경로 변경으로 0.2.x 기준선과 직접 비교 불가)</p>
+<p class="archive-point">- [ ] 10분 이상 stress soak와 ASan RIO 재실행</p>
+<p><code>docs/perf-stability-audit-20260828.md</code>의 안정성 10건, 성능 5건, 기능 2건을 모두 반영했다. 남은 항목은 고정 장비 기준선 재승인과 장시간 soak다.</p></div></details>
+<details class="archive" id="migration-d13-i2"><summary>과거 원문 · docs/release-checklist.md · 0.2.0</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-16-33</p><div class="archive-body"><h3>0.2.0</h3>
+<p class="archive-point">- [x] VS2026/v145 x64 Debug와 Release 빌드, unit/integration 통과</p>
+<p class="archive-point">- [x] clang-format dry-run, <code>git diff --check</code>, <code>/analyze</code> 통과</p>
+<p class="archive-point">- [x] 최종 후보 10분 stress 통과 (<code>artifacts/stress/20260827-171938-7d80c68-final-10m</code>)</p>
+<p class="archive-point">- [x] 1시간 재검증과 24시간 scheduled soak는 사용자 승인으로 최종 게이트에서 제외</p>
+<p class="archive-point">- [x] 고정 장비 benchmark의 9개 케이스가 처리량/P99 회귀 기준 통과 (<code>benchmarks/results/20260827-171359-7d80c68</code>)</p>
+<p class="archive-point">- [x] mimalloc on/off 기능 및 성능 결과 기록</p>
+<p class="archive-point">- [x] package consumer가 artifact headers/lib만으로 빌드</p>
+<p class="archive-point">- [x] <code>v0.2.0</code> tag, <code>version.h</code>, <code>vcpkg.json</code>, CHANGELOG, package VERSION 일치</p>
+<p class="archive-point">- [x] 미해결 P0/P1 없음, package PDB와 source tag 보존</p>
+<p>장시간 게이트의 범위 변경은 사용자 승인에 따른 것이다. 중단된 1시간 산출물은 통과 근거로 사용하지 않으며, 위 10분 final soak와 고정 장비 benchmark를 <code>v0.2.0</code> 릴리스 근거로 사용한다.</p>
+<p>추가 검증 산출물은 ASan RIO 8개 시나리오 <code>artifacts/memory-safety/20260827-171207-asan-rio</code>, 설계 벤치마크 <code>benchmarks/results/20260827-171244-7d80c68-design</code>, affinity 비교 <code>benchmarks/results/20260827-171306-7d80c68</code>에 있다.</p>
+<p>GitHub Actions workflow는 사용자 요청으로 릴리스 트리에서 제거했다. 동일 검사는 <code>tools/</code>의 로컬 스크립트로 실행한다.</p></div></details>
+<details class="archive" id="migration-d13-i3"><summary>과거 원문 · docs/release-checklist.md · P0/P1 위험 추적</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-34-59</p><div class="archive-body"><h3>P0/P1 위험 추적</h3>
+<div class="table-scroll"><table>
+<tr><th>위험</th><th>해결 코드</th><th>회귀 근거</th></tr>
+<tr><td>세션 과다 생성·잘못된 worker 배정</td><td><code>src/detail/session_partition.h</code>, <code>RIONetLite/impl/session_manager.h</code></td><td><code>SessionPartitionTest.AssignsEverySessionExactlyOnce</code></td></tr>
+<tr><td>실행 플래그와 close 경쟁</td><td><code>RIONetLite/impl/server_net*.h</code>, <code>src/detail/shutdown_coordinator.h</code></td><td><code>ConcurrentStopCallsWaitForTheSameShutdown</code>, <code>ImmediateStopRacesWithConcurrentSendsWithoutHang</code></td></tr>
+<tr><td>CQ 참조 수명·완료 배열 해제</td><td><code>RIONetLite/impl/server_net_io_worker.h</code></td><td>Debug/Release 통합 suite와 <code>/analyze</code></td></tr>
+<tr><td>지연 종료 큐의 동시 생성</td><td><code>RIONetLite/impl/server_net_lazyed_dis_conn_manager.h</code></td><td><code>StartsAndStopsWithoutConnections</code>, stress의 abrupt-close</td></tr>
+<tr><td>outstanding 송신 버퍼 덮어쓰기</td><td><code>RIONetLite/impl/send_immediately.h</code>, <code>RIONetLite/impl/rio_context.h</code></td><td><code>SendQueueTest.*</code></td></tr>
+<tr><td>CQ·등록 버퍼 조기 해제</td><td><code>RIONetLite/impl/server_net.h</code>, <code>src/detail/shutdown_coordinator.h</code>, <code>src/detail/win32_resources.h</code></td><td><code>DoesNotDeregisterOutstandingMemory</code>, graceful/immediate stop 통합 테스트</td></tr>
+<tr><td>오류 완료·stale generation 처리</td><td><code>RIONetLite/impl/rio_context.h</code>, <code>RIONetLite/impl/server_net_io_worker.h</code></td><td><code>ProducesDeterministicErrorAndCorruptCompletions</code>, <code>ReusesSlotWithNewGenerationAndRejectsStaleId</code></td></tr>
+<tr><td>수신 소비량·경계 위반</td><td><code>RIONetLite/impl/ring_buffer.h</code>, <code>include/rionetlite/packet_decoder.h</code></td><td><code>RecvBufferTest.*</code>, <code>ClosesWhenCallbackConsumesBeyondReadableBytes</code>, fragmentation/coalescing·최대 프레임 통합 테스트</td></tr>
+<tr><td>accept/RQ 실패 소켓 누수</td><td><code>RIONetLite/impl/server_net_accepter.h</code></td><td><code>UniqueSocket</code> RAII와 N번째 RIO 실패 fake</td></tr>
+<tr><td>TCP_NODELAY 적용 대상 오류</td><td><code>RIONetLite/impl/tcp_session.h</code></td><td>실제 RIO connect/echo 통합 suite</td></tr>
+<tr><td>초기화·시작 중간 실패 롤백</td><td><code>RIONetLite/impl/server_net_init.h</code>, <code>src/server.cpp</code></td><td><code>BindFailureRollsBackAndAllowsRetry</code>, <code>FailsConfiguredNthCallForEveryFallibleRioOperation</code></td></tr>
+<tr><td>전역 logger와 null 호출</td><td><code>include/rionetlite/event_handler.h</code>, <code>src/server.cpp</code></td><td><code>TwoServersUseIndependentResourcesAndLoggers</code></td></tr>
+<tr><td>링 버퍼 full/empty·해제 오류</td><td><code>RIONetLite/impl/ring_buffer.h</code>, <code>RIONetLite/impl/send_immediately.h</code></td><td><code>RecvBufferTest.*</code>, <code>SendQueueTest.*</code></td></tr>
+<tr><td>예제 packet 검증·무제한 큐</td><td><code>packet_decoder.h</code>, <code>queued_event_adapter.h</code>, ChatServer</td><td>decoder/queue 단위 테스트와 invalid-length stress</td></tr>
+<tr><td>콜백 예외로 인한 worker 종료</td><td><code>src/server.cpp</code></td><td><code>IsolatesHandlerExceptionsAndKeepsServing</code></td></tr>
+<tr><td>종료 이벤트 유실</td><td><code>src/queued_event_adapter.cpp</code></td><td><code>DeliversCloseAfterTheRingDrainsWhenQueueWasFull</code>, <code>HoldsBackANewGenerationUntilTheParkedCloseIsSeen</code></td></tr>
+<tr><td>close 이후 수신 콜백 전달</td><td><code>RIONetLite/impl/server_net_io_worker.h</code></td><td><code>NeverDeliversDataAfterCloseWhenClosingFromCallback</code></td></tr>
+<tr><td>index 단독 강제 종료</td><td><code>RIONetLite/impl/server_net.h</code>, <code>RIONetLite/impl/session_manager.h</code></td><td><code>ForcedCloseIgnoresAStaleGeneration</code></td></tr>
+<tr><td>cold-start worker 편중</td><td><code>RIONetLite/impl/session_manager.h</code></td><td><code>LeasesSessionsRoundRobinAcrossWorkersFromColdStart</code></td></tr>
+<tr><td>drain 실패 시 자원 조기 회수</td><td><code>RIONetLite/impl/server_net.h</code>, <code>src/win32_resources.cpp</code></td><td>소켓 abort 후 재drain, 실패 시 소유권 포기</td></tr>
+</table></div>
+<p>최종 release commit을 만든 뒤 이 표와 동일한 트리의 tag를 <code>tools\verify-version.ps1 -ExpectedVersion 0.3.0</code>으로 확인한다.</p></div></details>
+<details class="archive" id="migration-d14-i0"><summary>과거 원문 · docs/baseline.md · RIONetLite 기준선</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-2</p><div class="archive-body"><h3>RIONetLite 기준선</h3></div></details>
+<details class="archive" id="migration-d14-i1"><summary>과거 원문 · docs/baseline.md · 기준 정보</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-3-16</p><div class="archive-body"><h3>기준 정보</h3>
+<p class="archive-point">- 기준 커밋: <code>b92c2bdb58a199680d8a8664d3d863220aaf0b9d</code></p>
+<p class="archive-point">- 측정일: 2026-08-26</p>
+<p class="archive-point">- 운영체제: Windows NT 10.0.26200.0 x64</p>
+<p class="archive-point">- CPU: Intel64 Family 6 Model 183 Stepping 1, 16 logical processors</p>
+<p class="archive-point">- Visual Studio: Visual Studio 2026 Community 18.7</p>
+<p class="archive-point">- MSBuild: 18.7.8.30822</p>
+<p class="archive-point">- MSVC: 19.44.35228</p>
+<p class="archive-point">- 대상 도구 집합: v145</p>
+<p class="archive-point">- C++ 표준: <code>/std:c++latest</code></p>
+<p>이 문서의 수치는 성능 목표가 아니라 T00 시점 동작을 비교하기 위한 기준이다. 성능 수치는 T18의 고정 부하 도구와 측정 절차가 준비된 뒤 추가한다.</p></div></details>
+<details class="archive" id="migration-d14-i2"><summary>과거 원문 · docs/baseline.md · 기준선 빌드</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-17-37</p><div class="archive-body"><h3>기준선 빌드</h3>
+<p>Developer PowerShell 또는 Visual Studio 개발 환경에서 다음 명령을 순차 실행한다.</p>
+<pre><code>$msbuild = &#x27;C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe&#x27;
+&amp; $msbuild samples\echo_server\EchoServer.sln /m /t:Rebuild /p:Configuration=Debug /p:Platform=x64
+&amp; $msbuild samples\echo_server\EchoServer.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64
+&amp; $msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Debug /p:Platform=x64
+&amp; $msbuild samples\chat_server\ChatServer.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64</code></pre>
+<p>현재 Codex 실행 환경은 process environment에 <code>Path</code>와 <code>PATH</code>가 동시에 존재한다. MSBuild 18은 child process 환경을 만들 때 이를 중복 키로 판단한다. 이 환경에서만 다음 정규화를 빌드 프로세스 앞에 적용한다.</p>
+<pre><code>$taskPath = $env:Path
+Remove-Item Env:Path -ErrorAction SilentlyContinue
+Remove-Item Env:PATH -ErrorAction SilentlyContinue
+$env:Path = $taskPath</code></pre></div></details>
+<details class="archive" id="migration-d14-i3"><summary>과거 원문 · docs/baseline.md · 확인된 기준선 결과</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-38-48</p><div class="archive-body"><h3>확인된 기준선 결과</h3>
+<div class="table-scroll"><table>
+<tr><th>대상</th><th>순차 빌드</th><th>비고</th></tr>
+<tr><td>Echo Debug x64</td><td>성공</td><td>기존 프로젝트 기준</td></tr>
+<tr><td>Echo Release x64</td><td>성공</td><td>기존 프로젝트 기준</td></tr>
+<tr><td>Chat Debug x64</td><td>성공</td><td>mimalloc manifest restore 사용</td></tr>
+<tr><td>Chat Release x64</td><td>성공</td><td>mimalloc DLL 배치 확인</td></tr>
+</table></div>
+<p>기존 예제는 Debug와 Release가 모두 <code>samples/bin/&lt;name&gt;.exe</code>를 사용한다. 같은 예제를 Debug/Release로 동시에 rebuild하면 <code>LNK1104</code>가 발생할 수 있다. T02에서 <code>bin/&lt;Platform&gt;/&lt;Configuration&gt;</code>으로 분리한다.</p></div></details>
+<details class="archive" id="migration-d14-i4"><summary>과거 원문 · docs/baseline.md · 알려진 결함과 재현 대상</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-49-65</p><div class="archive-body"><h3>알려진 결함과 재현 대상</h3>
+<div class="table-scroll"><table>
+<tr><th>ID</th><th>현상</th><th>재현/검증 위치</th><th>해결 태스크</th></tr>
+<tr><td>KI-001</td><td>작업자 수보다 한 분량 많은 세션을 생성한다.</td><td><code>SessionPartitionTest</code></td><td>T04</td></tr>
+<tr><td>KI-002</td><td>0 작업자 설정에서 나눗셈 오류가 가능하다.</td><td><code>ConfigValidationTest</code></td><td>T04</td></tr>
+<tr><td>KI-003</td><td>작업자 람다가 지역 CQ 변수를 참조 캡처한다.</td><td>정적 검토 및 이후 통합 테스트</td><td>T05/T07</td></tr>
+<tr><td>KI-004</td><td>accept, worker와 send 실행 플래그에 data race가 있다.</td><td>이후 stress test</td><td>T06/T08</td></tr>
+<tr><td>KI-005</td><td>RIO 완료 배열의 초기화/해제 크기가 잘못되었다.</td><td>이후 fake RIO test</td><td>T07</td></tr>
+<tr><td>KI-006</td><td>송신 완료 전에 등록 버퍼 영역을 덮을 수 있다.</td><td><code>RegisteredBufferTest</code>, 이후 <code>SendQueueTest</code></td><td>T05/T10</td></tr>
+<tr><td>KI-007</td><td>수신 callback의 소비 크기를 검증하지 않는다.</td><td>이후 <code>RecvBufferTest</code></td><td>T09</td></tr>
+<tr><td>KI-008</td><td>RQ 생성 실패 시 accepted socket 누수가 가능하다.</td><td><code>UniqueSocketTest</code>, 이후 fault injection</td><td>T05</td></tr>
+<tr><td>KI-009</td><td>CQ close와 buffer deregister가 outstanding 완료보다 빠를 수 있다.</td><td>이후 shutdown integration test</td><td>T08</td></tr>
+<tr><td>KI-010</td><td>전역 log function pointer가 null일 수 있다.</td><td>API compile/smoke test</td><td>T03/T14</td></tr>
+</table></div>
+<p>T00에서는 위 결함을 숨기지 않고 테스트 이름과 후속 태스크에 연결한다. T04와 T05 범위에 해당하는 설정, 세션 분배와 RAII 결함은 이번 변경에서 회귀 테스트로 전환한다.</p></div></details>
+<details class="archive" id="migration-d14-i5"><summary>과거 원문 · docs/baseline.md · 기준 실행 인자</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-66-72</p><div class="archive-body"><h3>기준 실행 인자</h3>
+<pre><code>bin\x64\Debug\EchoServer.exe --PortNumber=32452 --IoWorkThreadCount=4 --IoSendThreadCount=1 --MaxConnectionCount=256 --MaxRecvPacketSize=1024 --MaxTry1RecvBufferSize=4096 --MAXRecvCountPer1Sec=5 --MaxRecvBufferSize=65536 --MaxSendPacketSize=1024 --MAXSendCountPer1Sec=5 --MaxSendBufferSize=65536</code></pre>
+<p>서버를 시작하고 TCP client가 length-prefixed packet을 보낸 뒤 동일 byte가 반환되는지 확인한다. 자동 루프백 실행은 T16에서 추가한다.</p></div></details>
+<details class="archive" id="migration-d15-i0"><summary>과거 원문 · docs/samples/echo-server.md · EchoServer</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-10</p><div class="archive-body"><h3>EchoServer</h3>
+<p>EchoServer는 공개 <code>Server</code>, <code>EventHandler</code>, <code>LengthPrefixedDecoder</code>만 사용한다. callback에서 완전한 big-endian length-prefix packet을 즉시 echo하고 포화면 연결을 닫는다. <code>quit</code>, Ctrl+C와 <code>--duration</code>은 모두 graceful <code>Stop</code>으로 모인다.</p>
+<pre><code>bin\x64\Debug\EchoServer.exe --port 32452 --duration 30
+bin\x64\Debug\LoadClient.exe --port 32452 --scenario split --duration 10</code></pre>
+<p>내부 <code>impl/</code> 헤더를 include하거나 한 recv를 한 packet으로 보는 코드는 이 예제의 계약이 아니다.</p></div></details>
+<details class="archive" id="migration-d16-i0"><summary>과거 원문 · docs/samples/chat-server.md · ChatServer</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-11</p><div class="archive-body"><h3>ChatServer</h3>
+<p>ChatServer의 네트워크 callback은 <code>QueuedEventAdapter</code>에 connect/data/close만 넣고 즉시 반환한다. shard worker가 자신의 session과 room 상태를 소유하며 login → lobby → room 전이, heartbeat/idle timeout, room broadcast를 처리한다.</p>
+<p>packet은 protocol version과 big-endian 길이를 명시적으로 검증한다. malformed 입력과 event/send queue 포화는 close 정책으로 이어진다. 종료는 network accept/drain → adapter drain → logic worker join 순서다. 공유 room을 callback에서 직접 잠그거나 payload span을 저장하는 구현은 잘못이다.</p>
+<p>응답과 room broadcast는 8바이트 헤더를 스택에 만들고 payload span을 그대로 넘기는 <code>Send(session, header, payload)</code>를 사용한다. 패킷마다 임시 벡터를 할당해 헤더와 본문을 이어붙이는 구현은 broadcast 대상 수만큼 할당을 반복하므로 잘못이다.</p>
+<pre><code>bin\x64\Debug\ChatServer.exe --port 32453 --logic-workers 4 --max-sessions 1024 --idle-seconds 30</code></pre></div></details>
+<details class="archive" id="migration-d17-i0"><summary>과거 원문 · docs/api/README.md · 공개 API 레퍼런스</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-16</p><div class="archive-body"><h3>공개 API 레퍼런스</h3>
+<div class="table-scroll"><table>
+<tr><th>헤더</th><th>주요 API</th></tr>
+<tr><td><code>config.h</code></td><td><code>ServerConfig</code>, <code>ValidateServerConfig</code>, worker policy와 메모리 예산</td></tr>
+<tr><td><code>error.h</code></td><td><code>Error</code>, <code>SendResult</code>, <code>CloseReason</code>, 안정된 문자열 변환</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>SessionId</code>, <code>EventHandler</code>, 구조화 <code>Logger</code></td></tr>
+<tr><td><code>server.h</code></td><td>move-only <code>Server</code>, lifecycle, send/close/metrics</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td>안전한 big-endian length-prefix decoder</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td>shard 유계 이벤트 전달과 포화 정책</td></tr>
+<tr><td><code>metrics.h</code></td><td>인스턴스별 누적 metric snapshot</td></tr>
+<tr><td><code>version.h</code></td><td>SemVer compile-time macro</td></tr>
+</table></div>
+<p>공개 symbol은 모두 <code>rionetlite</code> namespace에 있다. thread safety와 span lifetime은 각 헤더 주석 및 <a href="#chapter=historical-records&amp;section=history-reading">스레딩 문서</a>를 따른다. <code>RIONetLite/</code> 경로는 전환 호환 계층이며 신규 코드에서 사용하지 않는다. 0.4.0에서 제거할 예정이다.</p>
+<p>헤더의 <code>@api</code> 주석에서 생성한 전체 최상위 symbol 목록은 <a href="#chapter=historical-records&amp;section=history-reading">generated.md</a>다. <code>tools\generate-api-docs.ps1 -Check</code>는 새 공개 타입이나 함수를 주석·생성 문서에 반영하지 않으면 실패한다.</p></div></details>
+<details class="archive" id="migration-d18-i0"><summary>과거 원문 · docs/api/generated.md · 생성된 공개 API 목록</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-34</p><div class="archive-body"><h3>생성된 공개 API 목록</h3>
+<p>&gt; <code>tools\generate-api-docs.ps1</code>이 공개 헤더의 <code>@api</code> 주석에서 생성한다.</p>
+<div class="table-scroll"><table>
+<tr><th>헤더</th><th>symbol</th><th>설명</th></tr>
+<tr><td><code>config.h</code></td><td><code>DefaultIoWorkerCount</code></td><td>processor group을 반영한 기본 worker 수다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ServerConfig</code></td><td>서버 생성 전 사용자가 지정하는 설정이다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ValidatedServerConfig</code></td><td>검증된 설정과 계산된 자원 예산이다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>ValidateServerConfig</code></td><td>설정 범위와 메모리/CQ 관계를 검증한다.</td></tr>
+<tr><td><code>config.h</code></td><td><code>WorkerWaitMode</code></td><td>RIO worker의 대기 전략이다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>CloseReason</code></td><td>세션이 닫힌 원인을 나타낸다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>Error</code></td><td>라이브러리·native 오류와 진단 문맥이다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ErrorCategory</code></td><td>오류가 발생한 계층을 분류한다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ErrorCode</code></td><td>공개 API의 안정된 오류 코드다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>SendResult</code></td><td>비동기 송신 요청의 즉시 결과다.</td></tr>
+<tr><td><code>error.h</code></td><td><code>ToString</code></td><td>공개 enum을 안정된 문자열로 변환한다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>EventHandler</code></td><td>네트워크 수명·수신 이벤트 callback 계약이다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>LogEvent</code></td><td>세션·작업·native 오류를 포함한 로그 이벤트다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>Logger</code></td><td>서버 인스턴스별 구조화 로그 sink다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>LogSeverity</code></td><td>구조화 로그의 심각도다.</td></tr>
+<tr><td><code>event_handler.h</code></td><td><code>SessionId</code></td><td>슬롯 인덱스와 재사용 세대를 결합한 세션 식별자다.</td></tr>
+<tr><td><code>metrics.h</code></td><td><code>MetricsSnapshot</code></td><td>서버와 event queue의 누적 계측 snapshot이다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>DecodeError</code></td><td>length-prefix decode 실패 원인이다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>DecodeResult</code></td><td>소비 바이트와 decode 오류를 반환한다.</td></tr>
+<tr><td><code>packet_decoder.h</code></td><td><code>LengthPrefixedDecoder</code></td><td>big-endian length-prefix stream decoder다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>EventQueueFullPolicy</code></td><td>event queue 포화 시 비차단 정책이다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>PollEventResult</code></td><td>event dequeue 시도 결과다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventAdapter</code></td><td>callback을 shard별 유계 queue로 전달한다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventHeader</code></td><td>queue event의 세션·순서·payload 메타데이터다.</td></tr>
+<tr><td><code>queued_event_adapter.h</code></td><td><code>QueuedEventType</code></td><td>유계 queue에 저장되는 이벤트 종류다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>Server</code></td><td>move-only RIO TCP 서버 인스턴스다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>ServerState</code></td><td>공개 서버 수명 상태다.</td></tr>
+<tr><td><code>server.h</code></td><td><code>StopMode</code></td><td>graceful 또는 immediate 종료 정책이다.</td></tr>
+</table></div></div></details>
+<details class="archive" id="migration-d31-i393"><summary>과거 원문 · docs/rionetlite_book.html · 무엇을 확인했고 무엇이 남았는가</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: worktree · 항목: limits</p><div class="archive-body"><h2>무엇을 확인했고 무엇이 남았는가</h2><p>책 작성에 앞서 0.3.0 preview 수정 코드에서 x64 Debug/Release 빌드와 테스트를 실행했다. Debug는 단위 63개, 실제 RIO 통합 25개를 통과했다. Release는 단위 62개 통과, Debug 할당 후크용 1개 제외, RIO 통합 25개 통과다. 두 구성의 빌드 경고와 오류는 0개였다. 이 숫자는 2026년 10월 9일 로컬 수정본의 증거다.</p><p>Chat은 1/2/4 로직 샤드에서 공통 fixture 8개, 각 구성의 broadcast 21회 수신과 malformed 5개 종료를 확인했다. 종료 시 active_players, queued_events, pending_broadcasts가 모두 0이었다. GUI 버튼을 사람이 조작한 검증은 수행하지 않았으므로 headless 프로토콜 검증과 구분한다.</p><p>8개 실제 RIO ASan 시나리오는 오류 0, exit 0이었다. 600초 안정성 측정은 전체 경로 warmup 이후 20회 iteration, 원시 표본 77개와 유휴 표본 20개를 얻었다. 같은 유휴 상태에서 handle 165→165, thread 21→21, private bytes 4,210,688→4,210,688이며 correctness 오류 0, server exit 0이었다. 이것은 장기 운영이나 처리량 목표 인증이 아니다.</p><p>ZIP에 들어 있는 소스 스냅샷으로 정적 라이브러리를 새로 만들고 ZIP만 꺼낸 consumer를 빌드·실행했다. 개발 PC에서의 검증이며 새 PC 설치, 다른 Windows/Server 조합, 일반 독자의 학습 성공, 실제 게임 운영 부하는 아직 별도 검증이 필요하다.</p><figure class="diagram" id="migration-d31-i393-fig-97" data-count="4"><svg viewBox="0 0 640 104" role="img" aria-labelledby="migration-d31-i393-fig-97-title"><title id="migration-d31-i393-fig-97-title">증거마다 적용 범위가 다르다</title><defs><marker id="migration-d31-i393-fig-97-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="#59748b"/></marker></defs><path d="M158 40 H165" marker-end="url(#migration-d31-i393-fig-97-arrow)"/><path d="M308 40 H315" marker-end="url(#migration-d31-i393-fig-97-arrow)"/><path d="M458 40 H465" marker-end="url(#migration-d31-i393-fig-97-arrow)"/><g class="node" data-step="0"><rect x="20" y="12" width="134" height="56" rx="9"/><text x="87" y="37" text-anchor="middle">코드·빌드</text><text class="sub" x="87" y="55" text-anchor="middle">컴파일·범위</text></g><g class="node" data-step="1"><rect x="170" y="12" width="134" height="56" rx="9"/><text x="237" y="37" text-anchor="middle">실제 RIO</text><text class="sub" x="237" y="55" text-anchor="middle">완료·종료</text></g><g class="node" data-step="2"><rect x="320" y="12" width="134" height="56" rx="9"/><text x="387" y="37" text-anchor="middle">장기·장치</text><text class="sub" x="387" y="55" text-anchor="middle">추가 환경 필요</text></g><g class="node" data-step="3"><rect x="470" y="12" width="134" height="56" rx="9"/><text x="537" y="37" text-anchor="middle">운영 채택</text><text class="sub" x="537" y="55" text-anchor="middle">애플리케이션 책임</text></g></svg><figcaption>그림 97. 증거마다 적용 범위가 다르다</figcaption></figure><p>이 책의 browser/인쇄 검증은 HTML의 기능과 조판을 확인한다. 라이브러리의 네트워크 테스트를 대체하지 않는다. 실습 결과를 기록할 때 반드시 코드 버전, 도구 체인, 설정과 실행 환경을 함께 남긴다.</p></div></details>
+</section></article>

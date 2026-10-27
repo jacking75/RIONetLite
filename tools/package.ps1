@@ -83,7 +83,20 @@ foreach ($binary in @('RIONetLite.lib', 'RIONetLite.pdb')) {
 Copy-Item -Recurse (Join-Path $stage 'source\include\rionetlite') (Join-Path $stage 'include')
 Copy-Item -LiteralPath (Join-Path $stage 'source\LICENSE'), (Join-Path $stage 'source\CHANGELOG.md'),
     (Join-Path $stage 'source\SECURITY.md'), (Join-Path $stage 'source\THIRD_PARTY_NOTICES.md') -Destination $stage
-Copy-Item -LiteralPath (Join-Path $stage 'source\docs\package-consumption.md') -Destination (Join-Path $stage 'README.md')
+$packageReadme = @'
+# RIONetLite package
+
+This x64 Release static library uses MSVC v145, /MD and /std:c++latest.
+Use include/ and lib/RIONetLite.lib with Ws2_32.lib, Mswsock.lib and Mincore.lib.
+Read package-manifest.json for the exact compiler, SDK, source hash and flags.
+Build samples/package_consumer/PackageConsumer.vcxproj to check this ZIP alone.
+
+Open [the offline book](source/docs/interactive_book/index.html#chapter=packaging-and-release)
+for ABI, consumer settings, provenance, limitations and packaging instructions.
+The book and its source snapshots are included under source/docs/interactive_book/.
+This candidate is not an approved or tagged release unless its manifest says so.
+'@
+[IO.File]::WriteAllText((Join-Path $stage 'README.md'), $packageReadme.Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath (Join-Path $stage 'source\samples\package_consumer\main.cpp'),
     (Join-Path $stage 'source\samples\package_consumer\PackageConsumer.vcxproj') `
     -Destination (Join-Path $stage 'samples\package_consumer')

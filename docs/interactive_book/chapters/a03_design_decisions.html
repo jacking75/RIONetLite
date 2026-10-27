@@ -1,0 +1,108 @@
+<article class="chapter" id="design-decisions" data-title="설계 결정 기록"><div class="eyebrow">부록 · A03</div><h1>선택한 이유와 당시의 경계를 남긴다</h1><p class="lead">설계 기록은 현재 코드의 검증 결과와 다르다. 날짜와 승인 상태를 보존하고 지금 읽을 구현으로 연결한다.</p>
+<section id="decisions-current"><h2>현재 설계에서 지키는 선택을 읽는다</h2>
+<table><thead><tr><th>결정</th><th>이유와 비용</th><th>현재 확인 지점</th></tr></thead><tbody>
+<tr><td>Windows x64·RIO·정적 라이브러리</td><td>등록 메모리와 완료 큐의 수명을 한 플랫폼 계약에서 다룬다. Linux·x86이나 안정된 C ABI를 제공하지 않는다.</td><td>C02 환경, C27 ABI·패키지</td></tr>
+<tr><td>소유 I/O 워커와 별도 게임 큐</td><td>같은 연결의 수신·종료 순서를 보존하고 긴 작업을 분리한다. 다른 세션의 콜백 동시성은 애플리케이션이 다룬다.</td><td>C07 콜백, C18 adapter</td></tr>
+<tr><td>유계 저장소와 명시적인 포화 결과</td><td>무제한 메모리 증가를 피한다. retry·drop·disconnect의 게임 의미는 상위 계층에서 결정한다.</td><td>C14 Send, C20 큐 정책</td></tr>
+<tr><td>공유 종료 deadline과 안전 우선 정리</td><td>수락·요청·완료·버퍼의 의존 순서를 지킨다. callback 무한 대기를 강제로 중단하지 못하며 불완전 drain은 실패다.</td><td>C16·C17 종료</td></tr>
+<tr><td>correctness 통과 뒤 동일 조건 비교</td><td>처리량 증가가 손실·종료 오류를 숨기지 않게 한다. 승인 기준선은 지정 환경의 별도 증거가 필요하다.</td><td>C25·C26 측정</td></tr>
+</tbody></table>
+<p>아래 원문은 2026-08-26에 작성된 ADR 다섯 개다. 승인 상태·배경·대안·결과와 단계 이름을 그대로 보존한다. 당시 T03·T08·T11 같은 구현 단계 표현과 0.4.0 제거 목표는 역사적 맥락이다. 현행 완료 여부나 새 출시 약속으로 해석하지 않는다.</p>
+</section><section id="decisions-archive"><h2>다섯 설계 결정의 원문을 대조한다</h2>
+<details class="archive" id="migration-d19-i0"><summary>과거 원문 · docs/adr/0001-supported-platform.md · ADR 0001: 지원 플랫폼과 배포 단위</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0001: 지원 플랫폼과 배포 단위</h3>
+<p class="archive-point">- 상태: 승인</p>
+<p class="archive-point">- 날짜: 2026-08-26</p></div></details>
+<details class="archive" id="migration-d19-i1"><summary>과거 원문 · docs/adr/0001-supported-platform.md · 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-6-20</p><div class="archive-body"><h3>결정</h3>
+<p>RIONetLite 1차 릴리스는 다음 환경을 지원한다.</p>
+<p class="archive-point">- Windows x64 전용이다.</p>
+<p class="archive-point">- Windows 10 1803 이상, Windows 11, Windows Server 2019 이상을 대상으로 한다.</p>
+<p class="archive-point">- Visual Studio 2026, MSVC v145와 Windows SDK 10.0을 기준 도구 체인으로 사용한다.</p>
+<p class="archive-point">- C++은 <code>/std:c++latest</code>, 런타임은 Release <code>/MD</code>, Debug <code>/MDd</code>를 사용한다.</p>
+<p class="archive-point">- 전송 계층은 Registered I/O 기반 TCP/IPv4 서버다.</p>
+<p class="archive-point">- 배포 기본 단위는 정적 라이브러리, 공개 헤더와 PDB다.</p>
+<p class="archive-point">- RIO 함수 테이블을 얻지 못하면 일반 Winsock으로 자동 fallback하지 않고 구체적인 초기화 오류를 반환한다.</p>
+<p class="archive-point">- mimalloc은 vcpkg로 제공하되 최종 executable이 적용 여부를 결정한다. 공개 ABI에 mimalloc 타입을 노출하지 않는다.</p>
+<p>IPv6, TLS, UDP, 클라이언트 API와 DLL ABI는 별도 ADR 없이 1차 범위에 추가하지 않는다.</p></div></details>
+<details class="archive" id="migration-d19-i2"><summary>과거 원문 · docs/adr/0001-supported-platform.md · 이유</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-21-24</p><div class="archive-body"><h3>이유</h3>
+<p>현재 구현은 <code>VirtualAlloc2</code>, double mapping과 Windows RIO에 강하게 의존한다. 플랫폼 추상화를 먼저 넓히면 세션과 비동기 요청 수명 검증보다 범위가 커진다. 첫 안정 릴리스는 실제 게임 서버 대상 환경에 집중한다.</p></div></details>
+<details class="archive" id="migration-d19-i3"><summary>과거 원문 · docs/adr/0001-supported-platform.md · 결과</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-25-29</p><div class="archive-body"><h3>결과</h3>
+<p class="archive-point">- x86/Win32 프로젝트 구성은 만들지 않는다.</p>
+<p class="archive-point">- 지원 범위 밖 OS는 빌드 성공과 무관하게 공식 검증 대상으로 표기하지 않는다.</p>
+<p class="archive-point">- 플랫폼별 구현을 추가할 때 public API와 내부 transport 경계를 유지한다.</p></div></details>
+<details class="archive" id="migration-d20-i0"><summary>과거 원문 · docs/adr/0002-threading-and-callbacks.md · ADR 0002: 스레드와 콜백 계약</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0002: 스레드와 콜백 계약</h3>
+<p class="archive-point">- 상태: 승인</p>
+<p class="archive-point">- 날짜: 2026-08-26</p></div></details>
+<details class="archive" id="migration-d20-i1"><summary>과거 원문 · docs/adr/0002-threading-and-callbacks.md · 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-6-18</p><div class="archive-body"><h3>결정</h3>
+<p class="archive-point">- <code>Server::Send</code>, <code>Server::RequestClose</code>, <code>Server::state</code>는 여러 애플리케이션 스레드에서 호출할 수 있다.</p>
+<p class="archive-point">- <code>Start</code>와 <code>Stop</code>은 내부 상태 전이로 직렬화한다. 여러 스레드의 중복 <code>Stop</code>은 안전하고 같은 종료 결과를 관찰해야 한다.</p>
+<p class="archive-point">- 직접 <code>EventHandler</code>는 내부 네트워크 스레드에서 호출한다.</p>
+<p class="archive-point">- <code>OnConnected</code>는 accept 경로에서 호출하고, 동일 세션의 <code>OnData</code>와 <code>OnClosed</code>는 그 세션의 소유 I/O worker에서 호출한다.</p>
+<p class="archive-point">- 사용자는 callback에서 게임 로직, DB, 파일 I/O, sleep과 blocking lock을 실행하지 않아야 한다.</p>
+<p class="archive-point">- callback으로 전달한 data span은 callback이 반환될 때까지만 유효하다. 보관하려면 사용자가 복사해야 한다.</p>
+<p class="archive-point">- 한 <code>SessionId</code>에 대해 <code>OnConnected</code>가 먼저 관찰되고 <code>OnClosed</code>는 최대 한 번 관찰되어야 한다.</p>
+<p class="archive-point">- 같은 세션의 <code>OnData</code>와 <code>OnClosed</code>는 동시에 호출하지 않는다. 이 보장은 T06~T11에서 상태 머신과 event adapter로 완성한다.</p>
+<p class="archive-point">- 서로 다른 세션 callback은 동시에 호출될 수 있다.</p>
+<p class="archive-point">- callback 안에서 <code>Send</code>와 <code>RequestClose</code>를 호출할 수 있다. callback 재진입으로 다른 callback을 동기 호출하지 않는다.</p></div></details>
+<details class="archive" id="migration-d20-i2"><summary>과거 원문 · docs/adr/0002-threading-and-callbacks.md · 권장 사용</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-19-22</p><div class="archive-body"><h3>권장 사용</h3>
+<p>실제 게임 서버는 T11의 <code>QueuedEventAdapter</code>를 사용하여 네트워크 callback에서 소유 메시지를 유계 큐로 넘기고 즉시 반환한다. direct handler는 최소 지연이 필요하고 수명 규칙을 직접 관리할 수 있는 사용자에게 제공한다.</p></div></details>
+<details class="archive" id="migration-d20-i3"><summary>과거 원문 · docs/adr/0002-threading-and-callbacks.md · 결과</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-23-26</p><div class="archive-body"><h3>결과</h3>
+<p class="archive-point">- 공개 API 문서에는 함수별 thread safety와 view lifetime을 표기한다.</p>
+<p class="archive-point">- callback 수행 시간과 애플리케이션 큐 깊이를 T14 메트릭에 포함한다.</p></div></details>
+<details class="archive" id="migration-d21-i0"><summary>과거 원문 · docs/adr/0003-overload-policy.md · ADR 0003: 과부하와 백프레셔 정책</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0003: 과부하와 백프레셔 정책</h3>
+<p class="archive-point">- 상태: 승인</p>
+<p class="archive-point">- 날짜: 2026-08-26</p></div></details>
+<details class="archive" id="migration-d21-i1"><summary>과거 원문 · docs/adr/0003-overload-policy.md · 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-6-17</p><div class="archive-body"><h3>결정</h3>
+<p>모든 큐와 버퍼는 설정 가능한 상한을 가진다. 네트워크 worker를 애플리케이션 생산자나 소비자가 block하지 않는다.</p>
+<div class="table-scroll"><table>
+<tr><th>자원</th><th>포화 시 동작</th></tr>
+<tr><td>세션 풀</td><td>새 연결을 즉시 거절하고 counter를 증가시킨다.</td></tr>
+<tr><td>세션 recv buffer</td><td>새 recv 게시를 중단하고 protocol/receive overflow 사유로 연결을 종료한다.</td></tr>
+<tr><td>세션 send queue</td><td>데이터를 쓰지 않고 <code>SendResult::kWouldBlock</code>을 반환한다.</td></tr>
+<tr><td>application event queue</td><td>기본값은 해당 세션 종료다. 선택 정책은 newest reject를 허용하지만 blocking은 허용하지 않는다.</td></tr>
+<tr><td>RIO CQ</td><td>시작 전에 설정에서 요구 용량을 검증하고 생성 실패를 반환한다. corrupt CQ는 fatal server error로 승격한다.</td></tr>
+</table></div></div></details>
+<details class="archive" id="migration-d21-i2"><summary>과거 원문 · docs/adr/0003-overload-policy.md · 이유</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-18-21</p><div class="archive-body"><h3>이유</h3>
+<p>무제한 큐는 순간 부하를 메모리 고갈과 긴 tail latency로 바꾼다. 게임 서버에서는 손실 정책과 연결 종료가 명시적인 편이 시스템 전체 장애보다 낫다.</p></div></details>
+<details class="archive" id="migration-d21-i3"><summary>과거 원문 · docs/adr/0003-overload-policy.md · 결과</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-22-26</p><div class="archive-body"><h3>결과</h3>
+<p class="archive-point">- 각 포화 결과는 오류 코드, 로그와 메트릭으로 구분한다.</p>
+<p class="archive-point">- 기본 용량은 시작 시 예상 메모리에 포함한다.</p>
+<p class="archive-point">- T10과 T11이 실제 유계 큐를 구현하기 전까지 신규 API는 legacy 송신 실패를 <code>kUnavailable</code>로 보수적으로 매핑한다.</p></div></details>
+<details class="archive" id="migration-d22-i0"><summary>과거 원문 · docs/adr/0004-shutdown.md · ADR 0004: 종료 정책</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0004: 종료 정책</h3>
+<p class="archive-point">- 상태: 승인</p>
+<p class="archive-point">- 날짜: 2026-08-26</p></div></details>
+<details class="archive" id="migration-d22-i1"><summary>과거 원문 · docs/adr/0004-shutdown.md · 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-6-15</p><div class="archive-body"><h3>결정</h3>
+<p><code>StopMode</code>은 graceful과 immediate 두 모드를 제공한다.</p>
+<p class="archive-point">- graceful은 새 accept와 외부 send를 막고 이미 수락된 send 및 close event를 설정된 timeout까지 처리한다.</p>
+<p class="archive-point">- immediate는 새 I/O 게시를 막고 socket을 닫은 뒤 취소/오류 completion만 drain한다.</p>
+<p class="archive-point">- timeout 뒤에는 immediate 단계로 전환하며 남은 session과 outstanding request 수를 결과와 로그에 남긴다.</p>
+<p class="archive-point">- 종료 순서는 accept 중단 → session close 요청 → completion drain → worker join → CQ/registered buffer 해제 → Winsock 해제다.</p>
+<p class="archive-point">- <code>Stop</code>은 idempotent하며 소멸자에서 예외를 던지지 않는다.</p></div></details>
+<details class="archive" id="migration-d22-i2"><summary>과거 원문 · docs/adr/0004-shutdown.md · 단계적 적용</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-16-18</p><div class="archive-body"><h3>단계적 적용</h3>
+<p>T03은 API와 상태 전이를 제공한다. T05는 초기화 실패의 RAII rollback을 제공한다. outstanding completion을 포함한 전체 graceful drain은 T08에서 완성한다. 그 전에는 graceful 요청을 현재 가능한 안전한 immediate 종료로 처리하고 진단 가능하게 유지한다.</p></div></details>
+<details class="archive" id="migration-d23-i0"><summary>과거 원문 · docs/adr/0005-performance-method.md · ADR 0005: 성능 측정 방법</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0005: 성능 측정 방법</h3>
+<p class="archive-point">- 상태: 승인</p>
+<p class="archive-point">- 날짜: 2026-08-26</p></div></details>
+<details class="archive" id="migration-d23-i1"><summary>과거 원문 · docs/adr/0005-performance-method.md · 결정</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-6-15</p><div class="archive-body"><h3>결정</h3>
+<p class="archive-point">- Release x64와 symbol을 사용한다.</p>
+<p class="archive-point">- 장비, OS, 전원 정책, 커밋, worker/CQ/buffer 설정, client 수, payload와 시간을 결과에 기록한다.</p>
+<p class="archive-point">- warm-up, measurement, cool-down을 분리하고 같은 조합을 최소 5회 실행한다.</p>
+<p class="archive-point">- 처리량과 함께 P50/P95/P99 latency, CPU, context switch, queue high-watermark, 오류와 데이터 불일치를 기록한다.</p>
+<p class="archive-point">- 반복 결과의 중앙값을 대표값으로 사용한다.</p>
+<p class="archive-point">- correctness counter가 0이 아닌 결과는 성능 결과로 인정하지 않는다.</p>
+<p class="archive-point">- 기준선 이후 처리량 5% 이상 하락 또는 P99 10% 이상 악화를 기본 조사 조건으로 한다. 장비 분산이 큰 CI 결과는 자동 실패 대신 추세로 사용한다.</p></div></details>
+<details class="archive" id="migration-d23-i2"><summary>과거 원문 · docs/adr/0005-performance-method.md · 비교 규칙</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-16-18</p><div class="archive-body"><h3>비교 규칙</h3>
+<p>한 번에 worker count, batch size, polling mode, allocator 또는 buffer 전략 중 하나만 바꾼다. polling과 절전 모드는 별도 결과로 보고한다. 패킷당 allocation 0회를 정상 상태 목표로 둔다.</p></div></details>
+<details class="archive" id="migration-d25-i4"><summary>통합한 기존 안내 · docs/architecture.md · 플랫폼과 설계 결정</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-54-67</p><div class="archive-body"><h3>플랫폼과 설계 결정</h3>
+<p>다음 표는 기존 ADR 0001~0005의 현행 결정을 통합한 것이다. 2026-08-26의 단계별 구현 계획과 오래된 기준선 원문은 Git 이력에서 확인한다. 현재 계약은 이 문서, <a href="#chapter=api-reference">API</a>, <a href="#chapter=configuration">운영</a>, <a href="#chapter=testing-and-memory">검증</a>을 따른다.</p>
+<div class="table-scroll"><table>
+<tr><th>결정</th><th>범위와 이유</th></tr>
+<tr><td>Windows x64 TCP/IPv4 서버</td><td>Windows 10 1803+·11·Server 2019+가 대상이며 전체 OS 검증 완료를 뜻하지 않는다. double mapping과 RIO 의존성이 있어 x86/Win32·IPv6·TLS·UDP·클라이언트 transport·DLL ABI는 제공하지 않는다.</td></tr>
+<tr><td>VS2026/v145와 정적 배포</td><td><code>/std:c++latest</code>·<code>/utf-8</code>, Release <code>/MD</code>·Debug <code>/MDd</code>다. 정적 라이브러리·공개 헤더·PDB·정확한 소스 snapshot을 함께 배포한다.</td></tr>
+<tr><td>명시적 초기화 실패</td><td>RIO 함수 테이블을 얻지 못하면 일반 Winsock으로 자동 fallback하지 않는다. 구체적인 library/native 오류를 반환한다.</td></tr>
+<tr><td>세션별 등록 메모리</td><td>double-mapped 링이 wrap 복사를 없애고 수명과 실패 rollback을 세션 단위로 격리한다. worker arena로 바꾸기 전에 시작 비용이 실제 병목인지 측정한다.</td></tr>
+<tr><td>유계 저장소와 명시적 배압</td><td>무제한 queue가 메모리 고갈·tail latency로 이어지지 않도록 Send 거절과 overload close를 구분한다. adapter는 짧은 mutex를 사용하므로 lock-free나 무대기 API로 소개하지 않는다.</td></tr>
+<tr><td>완료를 확인하는 종료</td><td>graceful/immediate를 구분하며 완료 전에 등록 메모리를 해제하지 않는다. Stop 실패를 정상 서비스 재사용의 근거로 삼지 않는다.</td></tr>
+<tr><td>선택적 mimalloc</td><td>최종 executable이 적용 여부를 결정하며 공개 ABI에 allocator 타입을 노출하지 않는다. 현재 기본 패키지는 사용하지 않는다.</td></tr>
+<tr><td>비교 가능한 성능 증거</td><td>Release x64, 같은 장비·설정, 예열·측정·후처리 분리, 최소 5회 중앙값, correctness 오류 0이 기준이다. 한 번에 한 설정만 바꾼다.</td></tr>
+</table></div></div></details>
+</section></article>

@@ -1,0 +1,1053 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "echo.on_data",
+      "chapter": "C04",
+      "section": "echo-on-data",
+      "source": "samples/echo_server/main.cpp",
+      "selector": {
+        "start": "  std::size_t OnData(",
+        "end": "  void OnClosed("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.EchoesFragmentedAndCoalescedFrames",
+      "reviewedSourceSha256": "a6c510a1a1396b09644b007fae17cc98f08d85a9263730b9f90b8981ee1bc4ba",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-27 함수 본문과 관련 테스트 선언을 대조했다. 테스트 실행 결과와는 별개다.",
+      "label": "EchoHandler::OnData"
+    },
+    {
+      "id": "framing.decode",
+      "chapter": "C13",
+      "section": "framing-decoder",
+      "source": "include/rionetlite/packet_decoder.h",
+      "selector": {
+        "start": "  template <typename PacketHandler>",
+        "end": " private:"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "PacketDecoderTest.WaitsForFragmentsAndDecodesCoalescedPackets",
+      "reviewedSourceSha256": "3bdf70a7da376faa4405349622f80a05ff84315d8670b98b1c5faa33872c7ac3",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559",
+      "reviewNote": "2026-10-27 함수 본문과 관련 테스트 선언을 대조했다. 테스트 실행 결과와는 별개다.",
+      "label": "LengthPrefixedDecoder::Decode"
+    },
+    {
+      "id": "send.partial_completion",
+      "chapter": "C15",
+      "section": "repost-remainder",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  bool Completed(",
+        "end": "  void Failed("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.RepostsOnlyTheRemainderAfterPartialCompletion",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488",
+      "reviewNote": "2026-10-27 함수 본문과 관련 테스트 선언을 대조했다. 테스트 실행 결과와는 별개다.",
+      "label": "SendImmediately::Completed"
+    },
+    {
+      "id": "send.invalid_completion",
+      "chapter": "C15",
+      "section": "repost-remainder",
+      "source": "RIONetLite/impl/rio_context.h",
+      "selector": {
+        "start": "  bool CompleteSend(",
+        "end": "  bool CompleteReceive("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "IoContextTest.TracksPostRollbackPartialAndFinalCompletion",
+      "reviewedSourceSha256": "3eae834ebd494f145e3d12c39b359b9174791604161a295e5cc44f7662c248b1",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e",
+      "reviewNote": "2026-10-27 함수 본문과 관련 테스트 선언을 대조했다. 테스트 실행 결과와는 별개다.",
+      "label": "RioIoContext::CompleteSend"
+    },
+    {
+      "id": "send.post_rollback",
+      "chapter": "C15",
+      "section": "repost-remainder",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  NetErrorCode IssuePost()",
+        "end": "  void Clear()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "RioRequestTest.RollsBackOutstandingWhenPostFails",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488",
+      "reviewNote": "2026-10-27 함수 본문과 관련 테스트 선언을 대조했다. 테스트 실행 결과와는 별개다.",
+      "label": "IssuePost의 실패 롤백"
+    },
+    {
+      "id": "echo.main",
+      "chapter": "C04",
+      "section": "echo-objects",
+      "source": "samples/echo_server/main.cpp",
+      "selector": {
+        "start": "int main(int argc, char* argv[])",
+        "end": "  return 0;\n}\n",
+        "includeEnd": true
+      },
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.EchoesFragmentedAndCoalescedFrames",
+      "kind": "implementation",
+      "label": "Echo main",
+      "reviewedSourceSha256": "a6c510a1a1396b09644b007fae17cc98f08d85a9263730b9f90b8981ee1bc4ba",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "worker.dispatch",
+      "chapter": "C04",
+      "section": "echo-trace",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "  void ProcessRIOCQ(",
+        "end": "  // 받기 버퍼의 읽은 위치도"
+      },
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback",
+      "kind": "implementation",
+      "label": "RIO 완료 분기",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "send.context_retire",
+      "chapter": "C15",
+      "section": "repost-remainder",
+      "source": "RIONetLite/impl/rio_context.h",
+      "selector": {
+        "start": "  // 링 버퍼가 송신 진행 상태의 원본이므로",
+        "end": "  [[nodiscard]] bool IsIdle()"
+      },
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "IoContextTest.TracksPostRollbackPartialAndFinalCompletion",
+      "kind": "implementation",
+      "label": "RioIoContext::Retire",
+      "reviewedSourceSha256": "3eae834ebd494f145e3d12c39b359b9174791604161a295e5cc44f7662c248b1",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "send.prepare_post",
+      "chapter": "C15",
+      "section": "partial-one-request",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  bool PreparePostLocked()",
+        "end": "  // syscall을 lock 밖에서"
+      },
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.KeepsOnlyOneRequestInFlightPerSession",
+      "kind": "implementation",
+      "label": "PreparePostLocked",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488"
+    },
+    {
+      "id": "build.script",
+      "chapter": "C02",
+      "section": "build-commands",
+      "source": "tools/build.ps1",
+      "selector": {
+        "start": "param(",
+        "end": "if (-not $SkipTests)"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_api_test.cpp",
+      "testName": "PublicApiTest.PublicHeadersExposeThePackageVersion",
+      "label": "VS2026/x64 빌드 진입점",
+      "reviewedSourceSha256": "f70b7cb572c0dca4be6b75c4d0dd54f8cf6c39f57f94314631efa1cca4f362c9",
+      "reviewedTestSha256": "2430b5b5e1dfb54222d92853f742b46533f5fdbfc4c0e750485d57d2568cd7c1"
+    },
+    {
+      "id": "api.server_contract",
+      "chapter": "C03",
+      "section": "api-owned-and-borrowed",
+      "source": "include/rionetlite/server.h",
+      "selector": {
+        "start": "/// @api Server -",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "contract",
+      "testSource": "tests/unit/public_api_test.cpp",
+      "testName": "PublicApiTest.ServerIsMoveOnly",
+      "label": "Server 공개 계약",
+      "reviewedSourceSha256": "84d4942a958f82ef76294832e0f37f0f650e6a9b2af94d8690741314078fab41",
+      "reviewedTestSha256": "2430b5b5e1dfb54222d92853f742b46533f5fdbfc4c0e750485d57d2568cd7c1"
+    },
+    {
+      "id": "api.callback_contract",
+      "chapter": "C03",
+      "section": "api-owned-and-borrowed",
+      "source": "include/rionetlite/event_handler.h",
+      "selector": {
+        "start": "/// @api EventHandler -",
+        "end": "/// @api LogSeverity -"
+      },
+      "kind": "contract",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership",
+      "label": "콜백 span 수명",
+      "reviewedSourceSha256": "7e9ea4e45a4dd13004327e3e5fbc2fd311e45e23d0a2fd542fb80a39819484a4",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    },
+    {
+      "id": "api.create",
+      "chapter": "C03",
+      "section": "api-lifecycle",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "std::expected<Server, Error> Server::Create(",
+        "end": "Server::Server(std::unique_ptr<Impl> impl)"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.BindFailureRollsBackAndAllowsRetry",
+      "label": "Server::Create",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "api.send",
+      "chapter": "C03",
+      "section": "api-send-contract",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "SendResult Server::Send(const SessionId session,\n                        const std::span<const std::byte> data) noexcept {\n",
+        "end": "bool Server::RequestClose("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.EchoesHeaderAndPayloadSentAsOneScatterMessage",
+      "label": "Server::Send 오버로드",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "api.request_close",
+      "chapter": "C03",
+      "section": "api-close-contract",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "bool Server::RequestClose(",
+        "end": "ServerState Server::state()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.ReusesSlotWithNewGenerationAndRejectsStaleId",
+      "label": "RequestClose의 이유 변환",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "api.stop",
+      "chapter": "C03",
+      "section": "api-close-contract",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "std::expected<void, Error> Server::Stop(",
+        "end": "SendResult Server::Send(const SessionId session,\n                        const std::span<const std::byte> data) noexcept {\n"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.ConcurrentStopCallsWaitForTheSameShutdown",
+      "label": "Server::Stop",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "rio.api",
+      "chapter": "C05",
+      "section": "rio-components",
+      "source": "src/detail/rio_api.h",
+      "selector": {
+        "start": "class RioApi {",
+        "end": "class WindowsRioApi final"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "RioApiTest.FailsConfiguredNthCallForEveryFallibleRioOperation",
+      "label": "RIO 함수 접점",
+      "reviewedSourceSha256": "eed7e9c5384a9a27d7129ca02a261e3ec4d175fb4bcf136df128e0c5cdefe9ad",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "rio.initialize",
+      "chapter": "C05",
+      "section": "rio-initialize",
+      "source": "src/rio_api.cpp",
+      "selector": {
+        "start": "bool WindowsRioApi::Initialize(",
+        "end": "RIO_CQ WindowsRioApi::CreateCompletionQueue("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.StartsAndStopsWithoutConnections",
+      "label": "RIO 함수 표 초기화",
+      "reviewedSourceSha256": "87c4d046cb0dfb5b23ca3f455c1c9ad06187348b2cb20be98b46c9febc2a2250",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "rio.post_rollback",
+      "chapter": "C05",
+      "section": "rio-posting",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  NetErrorCode IssuePost()",
+        "end": "  void Clear()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "RioRequestTest.RollsBackOutstandingWhenPostFails",
+      "label": "게시 실패 롤백",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488"
+    },
+    {
+      "id": "architecture.bridge",
+      "chapter": "C06",
+      "section": "architecture-layers",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "class Server::Impl final : public INetEventManager",
+        "end": "std::expected<Server, Error> Server::Create("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.TwoServersUseIndependentResourcesAndLoggers",
+      "label": "Server::Impl 브리지",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "callbacks.accept_order",
+      "chapter": "C07",
+      "section": "callback-executors",
+      "source": "RIONetLite/impl/server_net_accepter.h",
+      "selector": {
+        "start": "  void Run(const SOCKET listen_handle,",
+        "end": "  void Stop()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.CloseCannotOvertakeAnUnfinishedConnectCallback",
+      "label": "accept 콜백 보호",
+      "reviewedSourceSha256": "a72af93febd793fd5d1d7b9f5f3651a77dd53200dc4d3ff901cc3ffac0f01785",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "callbacks.bridge",
+      "chapter": "C07",
+      "section": "callback-executors",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "  void OnConnect(",
+        "end": "  std::uint32_t RejectReceiveCallback("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.IsolatesHandlerExceptionsAndKeepsServing",
+      "label": "콜백 예외 격리",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "memory.registration",
+      "chapter": "C08",
+      "section": "memory-address",
+      "source": "src/win32_resources.cpp",
+      "selector": {
+        "start": "bool RegisteredRioBuffer::Register(",
+        "end": "UniqueRioCompletionQueue::UniqueRioCompletionQueue("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/win32_resources_test.cpp",
+      "testName": "RegisteredRioBufferTest.DoesNotDeregisterOutstandingMemory",
+      "label": "등록과 outstanding 게이트",
+      "reviewedSourceSha256": "da3c0dc406c3ea5288ae7016669815cc5f2a5609d46144150e94e32f229df94c",
+      "reviewedTestSha256": "7ce140ae778974d1ea34082edb08f3304fb7b59488f3a918cc4c80f37781ba45"
+    },
+    {
+      "id": "memory.mapping",
+      "chapter": "C08",
+      "section": "memory-mapping",
+      "source": "src/win32_resources.cpp",
+      "selector": {
+        "start": "std::expected<DoubleMappedBuffer, DWORD> DoubleMappedBuffer::Create(",
+        "end": "void DoubleMappedBuffer::Reset()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/win32_resources_test.cpp",
+      "testName": "DoubleMappedBufferTest.MapsTheSameStorageTwice",
+      "label": "이중 매핑과 중간 실패 정리",
+      "reviewedSourceSha256": "da3c0dc406c3ea5288ae7016669815cc5f2a5609d46144150e94e32f229df94c",
+      "reviewedTestSha256": "7ce140ae778974d1ea34082edb08f3304fb7b59488f3a918cc4c80f37781ba45"
+    },
+    {
+      "id": "ring.operations",
+      "chapter": "C09",
+      "section": "ring-counters",
+      "source": "RIONetLite/impl/ring_buffer.h",
+      "selector": {
+        "start": "class RingBufferVA2 {",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "RecvBufferTest.ExposesContiguousSpansAcrossWrapBoundary",
+      "label": "RingBufferVA2 연산",
+      "reviewedSourceSha256": "ecfff6f41b2dd3a1207ef0408366be9422440a7a9715cd6a650c929587aceff5",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "architecture.chat_path",
+      "chapter": "C06",
+      "section": "architecture-echo-chat",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  void RunShard(",
+        "end": "  rionetlite::QueuedEventAdapter adapter_"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "Chat 게임 shard 실행",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83"
+    },
+    {
+      "id": "accept.allocation",
+      "chapter": "C10",
+      "section": "accept-pool",
+      "source": "RIONetLite/impl/session_manager.h",
+      "selector": {
+        "start": "  TcpSession* AllocClientSession()",
+        "end": "  std::uint64_t Outstanding()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "SessionPoolTest.LeasesSessionsRoundRobinAcrossWorkersFromColdStart",
+      "label": "슬롯 할당과 격리 반환",
+      "reviewedSourceSha256": "46812641daf63fe4b789a7bf67c9478ab7389285564c75289a1a5c65af7ab14d",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "accept.partition",
+      "chapter": "C10",
+      "section": "accept-partitions",
+      "source": "src/detail/session_partition.h",
+      "selector": {
+        "start": "constexpr SessionPartition PartitionSessions(",
+        "end": "}  // namespace rionetlite::detail"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/session_partition_test.cpp",
+      "testName": "SessionPartitionTest.AssignsEverySessionExactlyOnce",
+      "label": "세션 파티션",
+      "reviewedSourceSha256": "73bae847216c22344f321a0a26746c853e9962e6d92c6f732f74fd6e01c49214",
+      "reviewedTestSha256": "77787da28c1fa46812ac09737a86b0b74c6245f3b1d875321c394fba164508e8"
+    },
+    {
+      "id": "accept.setup",
+      "chapter": "C10",
+      "section": "accept-setup",
+      "source": "RIONetLite/impl/server_net_accepter.h",
+      "selector": {
+        "start": "  bool NewSession(",
+        "end": "  void FailCreateRIOQueue("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.RejectsConnectionsWhenSessionPoolIsFull",
+      "label": "RQ와 소켓 setup",
+      "reviewedSourceSha256": "a72af93febd793fd5d1d7b9f5f3651a77dd53200dc4d3ff901cc3ffac0f01785",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "session.lifecycle",
+      "chapter": "C11",
+      "section": "identity-reuse",
+      "source": "src/detail/session_lifecycle.h",
+      "selector": {
+        "start": "class SessionLifecycle final",
+        "end": "}  // namespace rionetlite::detail"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "SessionStateTest.EnforcesLifecycleAndChangesGenerationOnReuse",
+      "label": "생명주기 전이",
+      "reviewedSourceSha256": "98313c56ce8a1429cbd09c9b676a808b3dc16c56510af6b8845a4fdaede89ff9",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "session.generation",
+      "chapter": "C11",
+      "section": "identity-delayed-work",
+      "source": "src/detail/session_lifecycle.h",
+      "selector": {
+        "start": "  [[nodiscard]] bool TryReserve()",
+        "end": "  [[nodiscard]] bool TryActivate()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "SessionStateTest.GenerationOverflowSkipsZero",
+      "label": "세대 예약과 0 건너뛰기",
+      "reviewedSourceSha256": "98313c56ce8a1429cbd09c9b676a808b3dc16c56510af6b8845a4fdaede89ff9",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "receive.post",
+      "chapter": "C12",
+      "section": "receive-posting",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  NetErrorCode PostRecv()",
+        "end": "  std::tuple<std::uint32_t, char*> ReadRecvBuffer()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.AcceptsMaximumFrameAndRejectsOneByteOverMaximum",
+      "label": "수신 게시와 완료",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "receive.callback",
+      "chapter": "C12",
+      "section": "receive-callback",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "  bool InvokeReceiveCallback(",
+        "end": "  bool PostRecv("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.ClosesWhenCallbackConsumesBeyondReadableBytes",
+      "label": "읽기 범위와 소비량",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "send.enqueue",
+      "chapter": "C14",
+      "section": "send-admission",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  NetErrorCode PostSendScatter(",
+        "end": "  // lock을 보유한 상태에서"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes",
+      "label": "송신 전체 접수와 용량 검사",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488"
+    },
+    {
+      "id": "close.session",
+      "chapter": "C16",
+      "section": "close-reasons",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  bool Disconnect(const std::uint64_t uid,",
+        "end": "  void DisConnectByAcceptFail()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.GracefulHalfCloseDrainsEchoThenReportsPeerClose",
+      "label": "연결 소켓 종료와 통지",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "close.peer_wait",
+      "chapter": "C16",
+      "section": "close-peer-drain",
+      "source": "RIONetLite/impl/server_net_lazyed_dis_conn_manager.h",
+      "selector": {
+        "start": "  void ProcessLazyedDisConnectSession(",
+        "end": "  std::function<bool(TcpSession*,"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/worker_control_test.cpp",
+      "testName": "WorkerControlTest.CoalescesRepeatedClosesAndBoundsDeferredWork",
+      "label": "지연 종료·peer 기한",
+      "reviewedSourceSha256": "779799ca40eb44375f378c76f6d7c311d07ee145f893915fed1c703b0726c2b2",
+      "reviewedTestSha256": "9210e5b044f1872f86c2fccc03df36de637beed3f0aadfb69418d864c4d45ac6"
+    },
+    {
+      "id": "shutdown.end",
+      "chapter": "C17",
+      "section": "shutdown-order",
+      "source": "RIONetLite/impl/server_net.h",
+      "selector": {
+        "start": "  bool End(const bool graceful,\n",
+        "end": "  [[nodiscard]] bool corrupt_completion_queue()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.ConcurrentStopCallsWaitForTheSameShutdown",
+      "label": "transport 종료 순서",
+      "reviewedSourceSha256": "37adb4f844be3e03484cef67fa254cdc4290bf3f7853058272b92a93d61df095",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "shutdown.force",
+      "chapter": "C17",
+      "section": "shutdown-timeout",
+      "source": "RIONetLite/impl/server_net.h",
+      "selector": {
+        "start": "  void ForceDrainAfterTimeout()",
+        "end": "  void RetireCompletion("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/worker_control_test.cpp",
+      "testName": "WorkerControlTest.CorruptQueueIsReportedAndStopFails",
+      "label": "실패 추가 drain·자원 보존",
+      "reviewedSourceSha256": "37adb4f844be3e03484cef67fa254cdc4290bf3f7853058272b92a93d61df095",
+      "reviewedTestSha256": "9210e5b044f1872f86c2fccc03df36de637beed3f0aadfb69418d864c4d45ac6"
+    },
+    {
+      "id": "shutdown.coordinator",
+      "chapter": "C17",
+      "section": "shutdown-owner",
+      "source": "src/detail/shutdown_coordinator.h",
+      "selector": {
+        "start": "class ShutdownCoordinator final",
+        "end": "}  // namespace rionetlite::detail"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "ShutdownCoordinatorTest.ElectsOneOwnerAndPreservesFirstStopMode",
+      "label": "종료 소유자와 완료 신호",
+      "reviewedSourceSha256": "a37550e0b04763a6350325003b6f838be12a3697f515ceb9d9de68781ab6ee53",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "queue.push",
+      "chapter": "C18",
+      "section": "queue-ownership",
+      "source": "src/queued_event_adapter.cpp",
+      "selector": {
+        "start": "  bool Push(",
+        "end": "  void AddDepth()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership",
+      "label": "소유 payload·gate·포화",
+      "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    },
+    {
+      "id": "queue.pop",
+      "chapter": "C18",
+      "section": "queue-consumption",
+      "source": "src/queued_event_adapter.cpp",
+      "selector": {
+        "start": "PollEventResult QueuedEventAdapter::TryPop(",
+        "end": "std::uint32_t QueuedEventAdapter::shard_count()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.HoldsBackANewGenerationUntilTheParkedCloseIsSeen",
+      "label": "TryPop과 parked close",
+      "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    },
+    {
+      "id": "chat.main",
+      "chapter": "C19",
+      "section": "chat-cli",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "int main(int argc, char* argv[])",
+        "end": "  return stopped && logic_drained ? 0 : 5;\n}",
+        "includeEnd": true
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "Chat 기동과 종료",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "chat.protocol",
+      "chapter": "C19",
+      "section": "chat-wire",
+      "source": "samples/chat_server/chat_protocol.h",
+      "selector": {
+        "start": "namespace rionetlite::chat {",
+        "end": "}  // namespace rionetlite::chat"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "v1 헤더와 wire 인코딩",
+      "reviewedSourceSha256": "382b8b5bad6036b481f52e8b9b0f0c1aa43d4ccf87ea556fdebe70583b04a003",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "chat.process",
+      "chapter": "C19",
+      "section": "chat-state",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool ProcessPacket(",
+        "end": "  bool ConsumeInput("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "패킷 상태·UTF-8 검사",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "chat.broadcast",
+      "chapter": "C19",
+      "section": "chat-broadcast",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool QueueBroadcast(",
+        "end": "  void RequestClose("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "모든 shard의 유계 fanout",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "chat.stop",
+      "chapter": "C19",
+      "section": "chat-stop",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool StopAfterDrain()",
+        "end": " private:"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "게임 작업·방송·Player 배출",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "application.shard",
+      "chapter": "C20",
+      "section": "application-boundary",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  void RunShard(",
+        "end": "  rionetlite::QueuedEventAdapter adapter_"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "PlayerMap 소유 게임 워커",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "chat.fixtures",
+      "chapter": "C19",
+      "section": "chat-fixtures",
+      "source": "docs/protocol/chat-fixtures.tsv",
+      "selector": {
+        "start": "# name<TAB>type<TAB>payload_hex (- for empty)<TAB>wire_hex",
+        "end": "chat_message\t103\t00026869\t0000000C0001006700026869",
+        "includeEnd": true
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "공통 golden wire 자료",
+      "reviewedSourceSha256": "7b5ec401984d6eed3ee1bb72ac67e58a0c75dae18fe9fcb48a562a0c2631f1dc",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "관련 C++ 단위 검사는 공통 wire 규칙을 확인한다. 상태·shard·종료의 실제 C# E2E 실행은 A05 기록과 tools/test-chat.ps1로 구분한다."
+    },
+    {
+      "id": "config.header",
+      "chapter": "C21",
+      "section": "config-defaults",
+      "source": "include/rionetlite/config.h",
+      "selector": {
+        "start": "struct ServerConfig final",
+        "end": "/// @api ValidatedServerConfig -"
+      },
+      "kind": "contract",
+      "testSource": "tests/unit/config_test.cpp",
+      "testName": "ConfigValidationTest.ReportsSeparateRegisteredAndVirtualMemoryBudgets",
+      "label": "ServerConfig의 모든 필드",
+      "reviewedSourceSha256": "b77212e22bc228dff4480fac1c3575cdbadd5cc31d438aafc99d2ca11f9e5305",
+      "reviewedTestSha256": "7bc6b9ee84135585cc3326f4536a0579e811d4519b87f2d7d15e5f0ae7ff20aa"
+    },
+    {
+      "id": "config.validation",
+      "chapter": "C21",
+      "section": "config-relationships",
+      "source": "src/config.cpp",
+      "selector": {
+        "start": "std::expected<ValidatedServerConfig, Error> ValidateServerConfig(",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/config_test.cpp",
+      "testName": "ConfigValidationTest.AcceptsNonDivisibleSessionCount",
+      "label": "설정 검증과 메모리 예산",
+      "reviewedSourceSha256": "60f65c21748654d93b0a9819119651cdf40686f7a46acf261170e7076c635523",
+      "reviewedTestSha256": "7bc6b9ee84135585cc3326f4536a0579e811d4519b87f2d7d15e5f0ae7ff20aa"
+    },
+    {
+      "id": "logs.emit",
+      "chapter": "C22",
+      "section": "logs-context",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "  void Emit(",
+        "end": "  WorkerMetrics& MetricsForWorker("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.IsolatesLoggerExceptionsThroughStop",
+      "label": "구조화 로그와 예외 경계",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "metrics.snapshot",
+      "chapter": "C22",
+      "section": "metrics-counters",
+      "source": "src/server.cpp",
+      "selector": {
+        "start": "MetricsSnapshot Server::Metrics()",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.AggregatesMetricsAcrossWorkers",
+      "label": "Metrics snapshot 집계",
+      "reviewedSourceSha256": "49a1510e95b79451d55e3ab8f2b561418807326abfea005696e2ce25fab07e73",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "queue.metrics",
+      "chapter": "C22",
+      "section": "metrics-queue",
+      "source": "src/queued_event_adapter.cpp",
+      "selector": {
+        "start": "MetricsSnapshot QueuedEventAdapter::metrics()",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.ReportsPreallocatedMemoryBudget",
+      "label": "adapter의 독립 snapshot",
+      "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    },
+    {
+      "id": "diagnostics.errors",
+      "chapter": "C23",
+      "section": "trouble-evidence",
+      "source": "src/error.cpp",
+      "selector": {
+        "start": "namespace rionetlite {",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_api_test.cpp",
+      "testName": "PublicApiTest.EnumStringsAreStable",
+      "label": "오류 enum의 안정된 문자열",
+      "reviewedSourceSha256": "b08a03f7b184aae1d11ffe60f2fe4d65b873260e094a9f806a7d92fc56bc2444",
+      "reviewedTestSha256": "2430b5b5e1dfb54222d92853f742b46533f5fdbfc4c0e750485d57d2568cd7c1"
+    },
+    {
+      "id": "testing.worker",
+      "chapter": "C24",
+      "section": "testing-fakes",
+      "source": "tests/unit/worker_control_test.cpp",
+      "selector": {
+        "start": "TEST(WorkerControlTest, IgnoresNullContextInTheRealWorkerLoop)",
+        "end": "}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/worker_control_test.cpp",
+      "testName": "WorkerControlTest.CorruptQueueIsReportedAndStopFails",
+      "label": "생산 워커의 fake 입력 검사",
+      "reviewedSourceSha256": "9210e5b044f1872f86c2fccc03df36de637beed3f0aadfb69418d864c4d45ac6",
+      "reviewedTestSha256": "9210e5b044f1872f86c2fccc03df36de637beed3f0aadfb69418d864c4d45ac6"
+    },
+    {
+      "id": "failure.register",
+      "chapter": "C24",
+      "section": "testing-rollback",
+      "source": "tests/unit/correctness_primitives_test.cpp",
+      "selector": {
+        "start": "TEST(RioApiTest, SessionPoolRollsBackSuccessfulBuffersOnNthRegisterFailure)",
+        "end": "}  // namespace\n}  // namespace rionetlite"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/correctness_primitives_test.cpp",
+      "testName": "RioApiTest.SessionPoolRollsBackSuccessfulBuffersOnNthRegisterFailure",
+      "label": "N번째 메모리 등록 실패",
+      "reviewedSourceSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e",
+      "reviewedTestSha256": "756a079736bd1768edd12cddc4f8b4bf874c19c67550b0f35479ab7294b1cd3e"
+    },
+    {
+      "id": "testing.asan_script",
+      "chapter": "C24",
+      "section": "testing-asan",
+      "source": "tools/run-memory-safety.ps1",
+      "selector": {
+        "start": "param(",
+        "end": "Write-Host \"AddressSanitizer RIO results: $OutputDirectory\"",
+        "includeEnd": true
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/win32_resources_test.cpp",
+      "testName": "RegisteredRioBufferTest.DoesNotDeregisterOutstandingMemory",
+      "label": "ASan 별도 빌드·실행 절차",
+      "reviewedSourceSha256": "26ef50890d609963112015f57a147c9be4ae9a7c4dd5d6498fa42c11ca3c320a",
+      "reviewedTestSha256": "7ce140ae778974d1ea34082edb08f3304fb7b59488f3a918cc4c80f37781ba45",
+      "testScope": "관련 단위 검사는 등록 참조를 확인한다. 이번 집필에서 ASan은 미실행이며 본문과 A05에 명시한다."
+    },
+    {
+      "id": "benchmark.script",
+      "chapter": "C25",
+      "section": "benchmark-harness",
+      "source": "tools/run-benchmark.ps1",
+      "selector": {
+        "start": "param(\n    [ValidateSet('matrix'",
+        "end": "Write-Host \"Results: $OutputDirectory\"",
+        "includeEnd": true
+      },
+      "kind": "contract",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.RepeatedRioWorkloadReleasesWorkerHandlesAtStop",
+      "label": "실제 workload와 집계",
+      "reviewedSourceSha256": "f9d6694b3b1cc51e443b583907f7781cafecaee295d0a463f2c8184260be1a57",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "testScope": "연결한 RIO 검사는 correctness와 반복 자원 회수다. 처리량·P99·집계의 운영 인수 검사가 아니며 이번 집필에서는 부하 하네스를 실행하지 않았다."
+    },
+    {
+      "id": "tuning.wait",
+      "chapter": "C26",
+      "section": "tuning-wait",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "  void WaitForWork(",
+        "end": "  void PrepareAffinityTargets()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.AcceptsKeepaliveAndDrainsInEveryWaitMode",
+      "label": "워커의 빈 CQ 대기",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "tuning.affinity",
+      "chapter": "C26",
+      "section": "tuning-affinity",
+      "source": "src/detail/processor_topology.h",
+      "selector": {
+        "start": "struct ProcessorLocation",
+        "end": "}  // namespace"
+      },
+      "kind": "contract",
+      "testSource": "tests/unit/session_partition_test.cpp",
+      "testName": "ProcessorTopologyTest.InterleavesNumaNodesAndPreservesGroupCoordinates",
+      "label": "토폴로지 정렬",
+      "reviewedSourceSha256": "b13d9d5801908156a8c3828cea8e089ca04eef6f078f2cba4712cbd64a5833de",
+      "reviewedTestSha256": "77787da28c1fa46812ac09737a86b0b74c6245f3b1d875321c394fba164508e8",
+      "testScope": "NUMA node 교차 정렬과 group 좌표 보존의 helper 검사다. 실제 장비의 affinity 적용 성공이나 성능 승인을 뜻하지 않는다."
+    },
+    {
+      "id": "package.consumer",
+      "chapter": "C27",
+      "section": "package-contract",
+      "source": "samples/package_consumer/PackageConsumer.vcxproj",
+      "selector": {
+        "start": "<Project DefaultTargets=",
+        "end": "</Project>",
+        "includeEnd": true
+      },
+      "kind": "contract",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.RepeatedRioWorkloadReleasesWorkerHandlesAtStop",
+      "label": "공개 헤더 소비 예제",
+      "reviewedSourceSha256": "650cc93d081540c6600fc7cae5aafc7520c8966208311509285b214c80c35193",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "testScope": "연결한 실제 RIO 회귀는 반복 start/stop과 handle 회수를 검사한다. ZIP-only 빌드·실행의 별도 결과는 A05에 기록한다."
+    },
+    {
+      "id": "package.script",
+      "chapter": "C27",
+      "section": "package-source",
+      "source": "tools/package.ps1",
+      "selector": {
+        "start": "param(",
+        "end": "Write-Host \"ZIP SHA256: $zipHash\"",
+        "includeEnd": true
+      },
+      "kind": "contract",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.RepeatedRioWorkloadReleasesWorkerHandlesAtStop",
+      "label": "소스 스냅샷·ZIP consumer",
+      "reviewedSourceSha256": "6aa4245690f0455dbe10e710aa89acdec61c771f4a5b5c59a5fdeda8295f161c",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "testScope": "연결한 RIO 검사는 종료 회귀다. 패키지 스크립트 자체의 ZIP 소비 검사는 별도 실행 기록을 따른다."
+    },
+    {
+      "id": "reference.server",
+      "chapter": "A01",
+      "section": "reference-ownership",
+      "source": "include/rionetlite/server.h",
+      "selector": {
+        "start": "/// @api ServerState",
+        "end": "}  // namespace"
+      },
+      "kind": "contract",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.CloseCannotOvertakeAnUnfinishedConnectCallback",
+      "label": "공개 객체·호출 계약",
+      "reviewedSourceSha256": "84d4942a958f82ef76294832e0f37f0f650e6a9b2af94d8690741314078fab41",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a"
+    },
+    {
+      "id": "reference.errors",
+      "chapter": "A01",
+      "section": "reference-errors",
+      "source": "include/rionetlite/error.h",
+      "selector": {
+        "start": "/// @api ErrorCategory",
+        "end": "}  // namespace"
+      },
+      "kind": "contract",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "PacketDecoderTest.RejectsInvalidAndOversizedLengths",
+      "label": "공개 오류 정의",
+      "reviewedSourceSha256": "3eb794921625614d7e81dc422d2d4386e816791a1c9ec3c4f119b7eb97691125",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    }
+  ]
+}

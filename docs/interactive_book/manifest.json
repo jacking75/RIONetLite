@@ -1,0 +1,3261 @@
+{
+  "schemaVersion": 1,
+  "edition": "rionetlite-book-1",
+  "sourceCommit": "0b605e00766b6ef4cbafa8f578380b23166de43e",
+  "parts": [
+    "첫 서버를 실행한다",
+    "RIO와 메모리의 관계를 이해한다",
+    "연결에서 응답까지 따라간다",
+    "종료와 게임 로직을 연결한다",
+    "상태를 읽고 문제를 찾는다",
+    "측정하고 유지한다",
+    "부록"
+  ],
+  "chapters": [
+    {
+      "id": "C01",
+      "slug": "reading-guide",
+      "title": "책 사용법",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/c01_reading_guide.html",
+      "sections": [
+        {
+          "id": "reading-routes",
+          "title": "이번에 해결할 질문으로 시작한다"
+        },
+        {
+          "id": "reading-prerequisites",
+          "title": "C++과 TCP를 알면 출발할 수 있다"
+        },
+        {
+          "id": "reading-experiments",
+          "title": "그림과 실제 실행은 다른 증거다"
+        },
+        {
+          "id": "reading-tools",
+          "title": "검색하고, 돌아오고, 내 실험을 남긴다"
+        },
+        {
+          "id": "reading-guide-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 1
+    },
+    {
+      "id": "C02",
+      "slug": "build-and-run",
+      "title": "빌드하고 첫 서버를 실행한다",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/c02_build_and_run.html",
+      "sections": [
+        {
+          "id": "build-environment",
+          "title": "같은 도구 체인을 사용한다"
+        },
+        {
+          "id": "build-commands",
+          "title": "저장소 루트에서 실행한다"
+        },
+        {
+          "id": "build-first-echo",
+          "title": "listen 다음에 실제 응답을 확인한다"
+        },
+        {
+          "id": "build-failures",
+          "title": "첫 오류의 계층을 좁힌다"
+        },
+        {
+          "id": "build-next",
+          "title": "실행한 것과 아직 안 한 것을 남긴다"
+        },
+        {
+          "id": "build-and-run-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C03",
+      "slug": "public-api",
+      "title": "공개 API와 객체 수명",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/c03_public_api.html",
+      "sections": [
+        {
+          "id": "api-lifecycle",
+          "title": "Create와 Start의 실패를 분리한다"
+        },
+        {
+          "id": "api-owned-and-borrowed",
+          "title": "Server는 이동만 되고 핸들러는 빌려 쓴다"
+        },
+        {
+          "id": "api-send-contract",
+          "title": "두 Send 오버로드는 내부 복사 계약이다"
+        },
+        {
+          "id": "api-close-contract",
+          "title": "RequestClose는 요청이며 Stop은 소유 스레드의 작업이다"
+        },
+        {
+          "id": "api-metrics-contract",
+          "title": "스냅샷과 로그는 관찰용이다"
+        },
+        {
+          "id": "public-api-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 2
+    },
+    {
+      "id": "C04",
+      "slug": "echo-walkthrough",
+      "title": "Echo 왕복을 따라간다",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/c04_echo_walkthrough.html",
+      "sections": [
+        {
+          "id": "echo-question",
+          "title": "수신 콜백 한 번이면 응답도 한 번인가?"
+        },
+        {
+          "id": "echo-objects",
+          "title": "서버보다 오래 살아야 하는 객체를 먼저 만든다"
+        },
+        {
+          "id": "echo-trace",
+          "title": "요청·완료·콜백을 한 단계씩 연결한다"
+        },
+        {
+          "id": "echo-on-data",
+          "title": "OnData는 처리한 범위의 크기를 반환한다"
+        },
+        {
+          "id": "echo-send-results",
+          "title": "Send의 반환값을 연결 정책으로 바꾼다"
+        },
+        {
+          "id": "echo-run",
+          "title": "실제 프로세스에서 바이트를 왕복시킨다"
+        },
+        {
+          "id": "echo-verification",
+          "title": "테스트가 무엇을 증명하는지 나눈다"
+        },
+        {
+          "id": "echo-extension",
+          "title": "게임 처리로 확장할 때 바뀌는 경계"
+        },
+        {
+          "id": "echo-walkthrough-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 3
+    },
+    {
+      "id": "C05",
+      "slug": "rio-requests",
+      "title": "RIO 요청과 완료",
+      "part": 2,
+      "status": "complete",
+      "file": "chapters/c05_rio_requests.html",
+      "sections": [
+        {
+          "id": "rio-components",
+          "title": "RQ·CQ·등록 ID·컨텍스트가 맡는 일"
+        },
+        {
+          "id": "rio-posting",
+          "title": "게시 성공은 완료 이벤트와 다르다"
+        },
+        {
+          "id": "rio-initialize",
+          "title": "함수 표를 얻지 못하면 시작하지 않는다"
+        },
+        {
+          "id": "rio-capacity",
+          "title": "요청 수가 CQ 예산에 연결된다"
+        },
+        {
+          "id": "rio-verification",
+          "title": "fake와 실제 provider를 둘 다 확인한다"
+        },
+        {
+          "id": "rio-requests-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C06",
+      "slug": "architecture",
+      "title": "전체 호출 구조",
+      "part": 2,
+      "status": "complete",
+      "file": "chapters/c06_architecture.html",
+      "sections": [
+        {
+          "id": "architecture-layers",
+          "title": "공개 객체는 내부 transport의 수명을 묶는다"
+        },
+        {
+          "id": "architecture-threads",
+          "title": "스레드와 클래스의 경계를 겹쳐 그리지 않는다"
+        },
+        {
+          "id": "architecture-echo-chat",
+          "title": "Echo와 Chat은 콜백 이후 경로가 다르다"
+        },
+        {
+          "id": "architecture-test-boundaries",
+          "title": "가짜 API를 넣는 접점도 구조의 일부다"
+        },
+        {
+          "id": "architecture-change",
+          "title": "구조를 바꿀 때 소유권과 종료를 먼저 추적한다"
+        },
+        {
+          "id": "architecture-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C07",
+      "slug": "threads-and-callbacks",
+      "title": "스레드와 콜백",
+      "part": 2,
+      "status": "complete",
+      "file": "chapters/c07_threads_and_callbacks.html",
+      "sections": [
+        {
+          "id": "callback-executors",
+          "title": "어느 스레드가 호출하는가?"
+        },
+        {
+          "id": "callback-order",
+          "title": "두 세션을 교차 실행해 본다"
+        },
+        {
+          "id": "callback-cost",
+          "title": "기다리는 작업을 콜백에 넣지 않는다"
+        },
+        {
+          "id": "callback-exceptions",
+          "title": "예외를 격리해도 잘못된 일을 완료한 것은 아니다"
+        },
+        {
+          "id": "callback-tests",
+          "title": "순서와 재진입을 실제 경로에서 검사한다"
+        },
+        {
+          "id": "threads-and-callbacks-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C08",
+      "slug": "registered-memory",
+      "title": "등록 메모리의 수명",
+      "part": 2,
+      "status": "complete",
+      "file": "chapters/c08_registered_memory.html",
+      "sections": [
+        {
+          "id": "memory-address",
+          "title": "등록된 범위의 주소를 유지한다"
+        },
+        {
+          "id": "memory-lifetime",
+          "title": "송신과 수신 참조를 따로 끝낸다"
+        },
+        {
+          "id": "memory-mapping",
+          "title": "이중 매핑의 중간 실패를 되돌린다"
+        },
+        {
+          "id": "memory-timeout",
+          "title": "의도적 보존은 정상 해제가 아니다"
+        },
+        {
+          "id": "memory-tests",
+          "title": "매핑과 outstanding 조건을 검사한다"
+        },
+        {
+          "id": "registered-memory-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C09",
+      "slug": "ring-buffer",
+      "title": "링 버퍼와 이중 매핑",
+      "part": 2,
+      "status": "complete",
+      "file": "chapters/c09_ring_buffer.html",
+      "sections": [
+        {
+          "id": "ring-counters",
+          "title": "위치 두 개만으로 full과 empty를 구분하지 않는다"
+        },
+        {
+          "id": "ring-wrap",
+          "title": "작은 링을 채우고 경계를 넘겨 본다"
+        },
+        {
+          "id": "ring-two-views",
+          "title": "두 view가 같은 backing을 가리킨다"
+        },
+        {
+          "id": "ring-concurrency",
+          "title": "읽기와 커널 쓰기가 겹치지 않아야 한다"
+        },
+        {
+          "id": "ring-tests",
+          "title": "정확한 경계에서 검증한다"
+        },
+        {
+          "id": "ring-buffer-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C10",
+      "slug": "accept-and-session",
+      "title": "연결 수락과 세션 배정",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c10_accept_and_session.html",
+      "sections": [
+        {
+          "id": "accept-pool",
+          "title": "세션 풀은 기동 시 준비하고 연결 때 빌린다"
+        },
+        {
+          "id": "accept-partitions",
+          "title": "나머지 슬롯도 워커에 포함한다"
+        },
+        {
+          "id": "accept-setup",
+          "title": "소켓을 세션에 옮기기 전에 실패를 처리한다"
+        },
+        {
+          "id": "accept-first-receive",
+          "title": "연결 콜백을 끝내고 첫 수신을 게시한다"
+        },
+        {
+          "id": "accept-reclaim",
+          "title": "반환과 재사용 사이에 격리가 있다"
+        },
+        {
+          "id": "accept-and-session-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C11",
+      "slug": "session-identity",
+      "title": "세션 식별과 재사용",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c11_session_identity.html",
+      "sections": [
+        {
+          "id": "identity-delayed-work",
+          "title": "게임 작업이 돌아왔을 때 연결이 바뀔 수 있다"
+        },
+        {
+          "id": "identity-state",
+          "title": "식별 일치가 Active를 뜻하지 않는다"
+        },
+        {
+          "id": "identity-reuse",
+          "title": "정리한 뒤 재사용하고 옛 작업을 전달한다"
+        },
+        {
+          "id": "identity-overflow",
+          "title": "64비트 값을 Number로 줄이지 않는다"
+        },
+        {
+          "id": "identity-tests",
+          "title": "재사용·오래된 송신·오래된 종료를 나누어 검사한다"
+        },
+        {
+          "id": "session-identity-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 6
+    },
+    {
+      "id": "C12",
+      "slug": "receive-path",
+      "title": "수신 경로",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c12_receive_path.html",
+      "sections": [
+        {
+          "id": "receive-validation",
+          "title": "컨텍스트와 세대부터 확인한다"
+        },
+        {
+          "id": "receive-posting",
+          "title": "빈 구간으로 게시한다"
+        },
+        {
+          "id": "receive-lab",
+          "title": "완료와 소비를 서로 다른 동작으로 실행한다"
+        },
+        {
+          "id": "receive-callback",
+          "title": "선게시 뒤 콜백을 호출하고 소비량을 반영한다"
+        },
+        {
+          "id": "receive-after-close",
+          "title": "닫힘 뒤의 지연 완료는 데이터 콜백을 만들지 않는다"
+        },
+        {
+          "id": "receive-path-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C13",
+      "slug": "packet-framing",
+      "title": "패킷 경계 찾기",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c13_packet_framing.html",
+      "sections": [
+        {
+          "id": "framing-stream",
+          "title": "보낸 횟수는 받은 횟수가 아니다"
+        },
+        {
+          "id": "framing-header",
+          "title": "길이 7은 헤더와 본문을 합친 값이다"
+        },
+        {
+          "id": "framing-fragments",
+          "title": "2+3+2로 들어올 때 소비량을 예측한다"
+        },
+        {
+          "id": "framing-decoder",
+          "title": "반복문은 완전한 패킷만 앞에서부터 처리한다"
+        },
+        {
+          "id": "framing-ownership",
+          "title": "꼬리는 디코더가 아니라 수신 저장소에 남는다"
+        },
+        {
+          "id": "framing-errors",
+          "title": "길이 오류 앞에 정상 패킷이 있을 수도 있다"
+        },
+        {
+          "id": "framing-tests",
+          "title": "정상·경계·오류를 각각 재현한다"
+        },
+        {
+          "id": "packet-framing-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 4
+    },
+    {
+      "id": "C14",
+      "slug": "send-path",
+      "title": "송신 접수와 게시",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c14_send_path.html",
+      "sections": [
+        {
+          "id": "send-overloads",
+          "title": "헤더와 본문을 함께 받지만 자동으로 만들지는 않는다"
+        },
+        {
+          "id": "send-admission",
+          "title": "메시지 전체가 들어갈 공간을 먼저 확인한다"
+        },
+        {
+          "id": "send-coalescing",
+          "title": "진행 중인 요청 뒤에 쌓고 완료 때 병합한다"
+        },
+        {
+          "id": "send-syscall",
+          "title": "상태 잠금과 syscall 수명을 분리한다"
+        },
+        {
+          "id": "send-policy",
+          "title": "거절된 메시지에만 앱 정책을 적용한다"
+        },
+        {
+          "id": "send-path-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C15",
+      "slug": "partial-send",
+      "title": "부분 송신과 나머지 재게시",
+      "part": 3,
+      "status": "complete",
+      "file": "chapters/c15_partial_send.html",
+      "sections": [
+        {
+          "id": "partial-question",
+          "title": "4바이트를 게시했는데 완료는 2바이트다"
+        },
+        {
+          "id": "repost-remainder",
+          "title": "컨텍스트 정리와 링의 진행 위치를 나눈다"
+        },
+        {
+          "id": "partial-one-request",
+          "title": "세션당 요청 하나가 병합의 경계가 된다"
+        },
+        {
+          "id": "partial-invalid",
+          "title": "0바이트와 과대 완료를 성공으로 소비하지 않는다"
+        },
+        {
+          "id": "partial-post-failure",
+          "title": "재게시가 실패해도 완료된 앞부분은 되돌리지 않는다"
+        },
+        {
+          "id": "partial-close",
+          "title": "syscall 실행 수와 미완료 I/O 수는 다르다"
+        },
+        {
+          "id": "partial-metrics",
+          "title": "보낸 양과 접수한 양을 지표에서 구분한다"
+        },
+        {
+          "id": "partial-tests",
+          "title": "구간·참조·실패를 다른 검사로 확인한다"
+        },
+        {
+          "id": "partial-send-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 5
+    },
+    {
+      "id": "C16",
+      "slug": "connection-close",
+      "title": "연결 종료",
+      "part": 4,
+      "status": "complete",
+      "file": "chapters/c16_connection_close.html",
+      "sections": [
+        {
+          "id": "close-reasons",
+          "title": "종료 요청과 네트워크 관찰을 구분한다"
+        },
+        {
+          "id": "close-lab",
+          "title": "종료 통지와 참조 회수를 따로 실행한다"
+        },
+        {
+          "id": "close-peer-drain",
+          "title": "peer FIN 뒤에는 접수한 송신을 기다린다"
+        },
+        {
+          "id": "close-mailbox",
+          "title": "중복을 합치고 FIN보다 명시적 종료를 우선한다"
+        },
+        {
+          "id": "close-idle",
+          "title": "idle과 keepalive는 다른 신호다"
+        },
+        {
+          "id": "close-tests",
+          "title": "half-close·idle·지연 데이터를 검사한다"
+        },
+        {
+          "id": "connection-close-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C17",
+      "slug": "server-shutdown",
+      "title": "서버 종료",
+      "part": 4,
+      "status": "complete",
+      "file": "chapters/c17_server_shutdown.html",
+      "sections": [
+        {
+          "id": "shutdown-owner",
+          "title": "한 호출이 종료를 소유하고 나머지는 결과를 기다린다"
+        },
+        {
+          "id": "shutdown-order",
+          "title": "공유 deadline을 전달하며 순서대로 배출한다"
+        },
+        {
+          "id": "shutdown-lab",
+          "title": "잘못된 해제 순서를 선택해 본다"
+        },
+        {
+          "id": "shutdown-modes",
+          "title": "immediate도 안전한 회수를 생략하지 않는다"
+        },
+        {
+          "id": "shutdown-timeout",
+          "title": "기한 초과 뒤 추가 drain과 자원 보존을 구분한다"
+        },
+        {
+          "id": "shutdown-game",
+          "title": "transport 뒤에 게임 처리도 배출한다"
+        },
+        {
+          "id": "shutdown-tests",
+          "title": "성공·경쟁·손상·timeout을 각각 기록한다"
+        },
+        {
+          "id": "server-shutdown-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 7
+    },
+    {
+      "id": "C18",
+      "slug": "logic-queue",
+      "title": "게임 로직 큐",
+      "part": 4,
+      "status": "complete",
+      "file": "chapters/c18_logic_queue.html",
+      "sections": [
+        {
+          "id": "queue-ownership",
+          "title": "OnData의 span 대신 payload를 복사한다"
+        },
+        {
+          "id": "queue-consumption",
+          "title": "TryPop의 반환값을 모두 처리한다"
+        },
+        {
+          "id": "queue-full",
+          "title": "data를 거절하는 두 정책은 같은 의미가 아니다"
+        },
+        {
+          "id": "parked-close",
+          "title": "full이어도 close를 버리지 않는다"
+        },
+        {
+          "id": "queue-metrics",
+          "title": "예산과 배출 조건을 함께 확인한다"
+        },
+        {
+          "id": "logic-queue-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C19",
+      "slug": "chat-server",
+      "title": "ChatServer",
+      "part": 4,
+      "status": "complete",
+      "file": "chapters/c19_chat_server.html",
+      "sections": [
+        {
+          "id": "chat-start",
+          "title": "서버와 .NET 10 클라이언트를 실행한다"
+        },
+        {
+          "id": "chat-cli",
+          "title": "네트워크 워커와 게임 워커를 따로 지정한다"
+        },
+        {
+          "id": "chat-wire",
+          "title": "8바이트 헤더와 문자열의 바이트 길이를 읽는다"
+        },
+        {
+          "id": "chat-state",
+          "title": "타입과 현재 상태를 함께 검사한다"
+        },
+        {
+          "id": "chat-lab",
+          "title": "세 명을 다른 shard의 같은 룸에 넣는다"
+        },
+        {
+          "id": "chat-shard",
+          "title": "PlayerMap과 stream 입력은 로직 shard가 소유한다"
+        },
+        {
+          "id": "chat-broadcast",
+          "title": "모든 목적지의 공간을 함께 확인한다"
+        },
+        {
+          "id": "chat-fixtures",
+          "title": "서버와 클라이언트의 wire를 같은 자료로 검사한다"
+        },
+        {
+          "id": "chat-stop",
+          "title": "네트워크를 멈춘 뒤 게임 큐를 비운다"
+        },
+        {
+          "id": "chat-server-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C20",
+      "slug": "application-design",
+      "title": "게임 애플리케이션 설계",
+      "part": 4,
+      "status": "complete",
+      "file": "chapters/c20_application_design.html",
+      "sections": [
+        {
+          "id": "application-boundary",
+          "title": "네트워크 이벤트와 게임 명령을 구분한다"
+        },
+        {
+          "id": "application-late",
+          "title": "DB 응답이 돌아오기 전에 세션이 바뀔 수 있다"
+        },
+        {
+          "id": "application-overload",
+          "title": "한 틱에서 먼저 처리하고 새 작업을 받는다"
+        },
+        {
+          "id": "application-queues",
+          "title": "각 큐의 정책과 예산을 별도로 정한다"
+        },
+        {
+          "id": "application-rooms",
+          "title": "현재 예제에서 더 큰 게임으로 넘어간다"
+        },
+        {
+          "id": "application-stop",
+          "title": "업무 큐까지 포함해 종료를 확장한다"
+        },
+        {
+          "id": "application-design-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 8
+    },
+    {
+      "id": "C21",
+      "slug": "configuration",
+      "title": "설정과 메모리 예산",
+      "part": 5,
+      "status": "complete",
+      "file": "chapters/c21_configuration.html",
+      "sections": [
+        {
+          "id": "config-defaults",
+          "title": "기본값과 단위를 먼저 읽는다"
+        },
+        {
+          "id": "config-relationships",
+          "title": "각 범위뿐 아니라 관계도 검사한다"
+        },
+        {
+          "id": "config-lab",
+          "title": "C++ 실행 결과와 대조한 계산을 해 본다"
+        },
+        {
+          "id": "config-memory",
+          "title": "등록·예약·backing commit·control을 분리한다"
+        },
+        {
+          "id": "config-limits",
+          "title": "검증 함수에 없는 업무 규칙도 있다"
+        },
+        {
+          "id": "configuration-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C22",
+      "slug": "logs-and-metrics",
+      "title": "로그와 지표",
+      "part": 5,
+      "status": "complete",
+      "file": "chapters/c22_logs_and_metrics.html",
+      "sections": [
+        {
+          "id": "logs-context",
+          "title": "로그 문맥과 문자열 수명을 보존한다"
+        },
+        {
+          "id": "metrics-counters",
+          "title": "연결·바이트·연산의 단위를 나눈다"
+        },
+        {
+          "id": "metrics-queue",
+          "title": "adapter snapshot은 별도로 읽는다"
+        },
+        {
+          "id": "metrics-timing",
+          "title": "시간 계측과 비활성 옵션을 구분한다"
+        },
+        {
+          "id": "metrics-investigation",
+          "title": "한 번의 항등식보다 추세와 근거를 본다"
+        },
+        {
+          "id": "logs-and-metrics-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C23",
+      "slug": "troubleshooting",
+      "title": "문제 해결",
+      "part": 5,
+      "status": "complete",
+      "file": "chapters/c23_troubleshooting.html",
+      "sections": [
+        {
+          "id": "trouble-evidence",
+          "title": "바꾸기 전에 실패 조건을 남긴다"
+        },
+        {
+          "id": "trouble-table",
+          "title": "증상·추가 확인·재검증을 연결한다"
+        },
+        {
+          "id": "trouble-lab",
+          "title": "위험한 추측 대신 추가 조사를 선택한다"
+        },
+        {
+          "id": "trouble-reproduce",
+          "title": "실패를 짧고 같은 조건으로 재현한다"
+        },
+        {
+          "id": "troubleshooting-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C24",
+      "slug": "testing-and-memory",
+      "title": "테스트와 메모리 검사",
+      "part": 5,
+      "status": "complete",
+      "file": "chapters/c24_testing_and_memory.html",
+      "sections": [
+        {
+          "id": "testing-layers",
+          "title": "순수·fake·Win32·통합을 구분한다"
+        },
+        {
+          "id": "testing-fakes",
+          "title": "N번째 실패와 비정상 완료를 고정한다"
+        },
+        {
+          "id": "testing-rollback",
+          "title": "등록 실패에서 확보한 자원만 정리한다"
+        },
+        {
+          "id": "testing-asan",
+          "title": "AddressSanitizer는 계측 바이너리로 실제 시나리오를 실행한다"
+        },
+        {
+          "id": "testing-verifier",
+          "title": "Verifier와 PageHeap은 대상과 해제를 함께 지정한다"
+        },
+        {
+          "id": "testing-acceptance",
+          "title": "같은 유휴 상태에서 자원을 비교한다"
+        },
+        {
+          "id": "testing-and-memory-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 9
+    },
+    {
+      "id": "C25",
+      "slug": "benchmarking",
+      "title": "성능 측정",
+      "part": 6,
+      "status": "complete",
+      "file": "chapters/c25_benchmarking.html",
+      "sections": [
+        {
+          "id": "benchmark-question",
+          "title": "무엇을 비교할지 한 문장으로 정한다"
+        },
+        {
+          "id": "benchmark-harness",
+          "title": "suite와 matrix는 서로 다른 질문에 쓴다"
+        },
+        {
+          "id": "benchmark-results",
+          "title": "raw JSON과 집계 표의 의미를 분리한다"
+        },
+        {
+          "id": "benchmark-lab",
+          "title": "가상 자료로 제외·중앙값·P99를 연습한다"
+        },
+        {
+          "id": "benchmark-baseline",
+          "title": "승인된 기준선과 비교한다"
+        },
+        {
+          "id": "benchmark-limits",
+          "title": "짧은 측정의 범위를 넘겨 결론내리지 않는다"
+        },
+        {
+          "id": "benchmarking-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C26",
+      "slug": "performance-tuning",
+      "title": "성능 조정",
+      "part": 6,
+      "status": "complete",
+      "file": "chapters/c26_performance_tuning.html",
+      "sections": [
+        {
+          "id": "tuning-wait",
+          "title": "polling·adaptive·notification을 구분한다"
+        },
+        {
+          "id": "tuning-batch",
+          "title": "batch와 링 용량은 서로 다른 상한이다"
+        },
+        {
+          "id": "tuning-affinity",
+          "title": "토폴로지를 확인한 뒤 affinity를 선택한다"
+        },
+        {
+          "id": "tuning-allocator",
+          "title": "mimalloc과 RIO 등록 메모리를 구분한다"
+        },
+        {
+          "id": "tuning-registration",
+          "title": "등록 전략과 준비 비용은 미시 측정으로 비교한다"
+        },
+        {
+          "id": "tuning-history",
+          "title": "과거 장비의 표를 현재 승인으로 바꾸지 않는다"
+        },
+        {
+          "id": "performance-tuning-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C27",
+      "slug": "packaging-and-release",
+      "title": "패키징과 릴리스",
+      "part": 6,
+      "status": "complete",
+      "file": "chapters/c27_packaging_and_release.html",
+      "sections": [
+        {
+          "id": "package-contract",
+          "title": "x64·구성·CRT·도구 체인을 맞춘다"
+        },
+        {
+          "id": "package-source",
+          "title": "현재 source snapshot을 고정한다"
+        },
+        {
+          "id": "package-build",
+          "title": "staging 소스로 새 라이브러리를 만든다"
+        },
+        {
+          "id": "package-commands",
+          "title": "버전 검사와 후보 생성을 재현한다"
+        },
+        {
+          "id": "package-release",
+          "title": "정식 release는 별도의 깨끗한 tag 조건을 요구한다"
+        },
+        {
+          "id": "packaging-and-release-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "C28",
+      "slug": "safe-changes",
+      "title": "안전하게 변경한다",
+      "part": 6,
+      "status": "complete",
+      "file": "chapters/c28_safe_changes.html",
+      "sections": [
+        {
+          "id": "change-before",
+          "title": "수정 전에 네 가지 질문에 답한다"
+        },
+        {
+          "id": "change-map",
+          "title": "바꾼 경계에 맞춰 회귀를 고른다"
+        },
+        {
+          "id": "change-failure",
+          "title": "정상 입력 밖의 경로를 같은 비중으로 본다"
+        },
+        {
+          "id": "change-book",
+          "title": "책의 원고·출처·모델을 같은 변경으로 갱신한다"
+        },
+        {
+          "id": "change-review",
+          "title": "리뷰에서 변경 결과와 남은 위험을 설명한다"
+        },
+        {
+          "id": "safe-changes-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "A01",
+      "slug": "api-reference",
+      "title": "공개 API 레퍼런스",
+      "part": 7,
+      "status": "complete",
+      "file": "chapters/a01_api_reference.html",
+      "sections": [
+        {
+          "id": "reference-ownership",
+          "title": "namespace와 소유권을 먼저 정한다"
+        },
+        {
+          "id": "reference-functions",
+          "title": "함수와 콜백의 계약을 대조한다"
+        },
+        {
+          "id": "reference-errors",
+          "title": "오류 계층과 종료 원인을 구분한다"
+        },
+        {
+          "id": "reference-decoder",
+          "title": "디코더는 미완성 꼬리를 소유하지 않는다"
+        },
+        {
+          "id": "reference-generated",
+          "title": "공개 헤더의 심볼 목록을 확인한다"
+        },
+        {
+          "id": "api-reference-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "A02",
+      "slug": "glossary",
+      "title": "용어",
+      "part": 7,
+      "status": "complete",
+      "file": "chapters/a02_glossary.html",
+      "sections": [
+        {
+          "id": "glossary-terms",
+          "title": "용어·별칭·읽을 장을 함께 찾는다"
+        },
+        {
+          "id": "glossary-units",
+          "title": "단위와 포함 범위를 적는다"
+        },
+        {
+          "id": "glossary-prior-notes",
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "A03",
+      "slug": "design-decisions",
+      "title": "설계 결정",
+      "part": 7,
+      "status": "complete",
+      "file": "chapters/a03_design_decisions.html",
+      "sections": [
+        {
+          "id": "decisions-current",
+          "title": "현재 설계에서 지키는 선택을 읽는다"
+        },
+        {
+          "id": "decisions-archive",
+          "title": "다섯 설계 결정의 원문을 대조한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "A04",
+      "slug": "historical-records",
+      "title": "과거 기록",
+      "part": 7,
+      "status": "complete",
+      "file": "chapters/a04_historical_records.html",
+      "sections": [
+        {
+          "id": "history-reading",
+          "title": "날짜·버전·환경이 같은지 먼저 본다"
+        },
+        {
+          "id": "history-measurements",
+          "title": "측정 기록의 적용 범위를 보존한다"
+        },
+        {
+          "id": "history-originals",
+          "title": "이전 안내의 고유한 내용과 표를 보존한다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true
+    },
+    {
+      "id": "A05",
+      "slug": "book-maintenance",
+      "title": "책 유지관리",
+      "part": 7,
+      "status": "complete",
+      "file": "chapters/a05_book_maintenance.html",
+      "sections": [
+        {
+          "id": "maintenance-reader",
+          "title": "독자에게는 독립 HTML 하나를 전달한다"
+        },
+        {
+          "id": "maintenance-build",
+          "title": "저작 환경과 재현 명령을 맞춘다"
+        },
+        {
+          "id": "maintenance-review",
+          "title": "코드 변경은 해시만 바꾸고 끝내지 않는다"
+        },
+        {
+          "id": "maintenance-migration",
+          "title": "기존 문서의 내용 단위를 추적한다"
+        },
+        {
+          "id": "maintenance-acceptance",
+          "title": "이번 판에서 실행한 범위를 확인한다"
+        },
+        {
+          "id": "maintenance-delivery",
+          "title": "집필 단계를 완료한 결과를 남긴다"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "legacyPage": 10
+    }
+  ],
+  "labs": [
+    {
+      "id": "L01",
+      "chapter": "C04",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "echoRoundtrip",
+      "title": "Echo 왕복을 한 단계씩 실행한다",
+      "purpose": "수신 게시와 완료, 디코딩, Send 접수, 송신 게시와 완료를 구분한다.",
+      "defaultConfig": {
+        "nextReceive": true
+      },
+      "configFields": [],
+      "actions": [
+        {
+          "label": "다음 단계",
+          "action": {
+            "type": "next"
+          },
+          "primary": true
+        }
+      ],
+      "stepSequence": [
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        }
+      ],
+      "omissions": "다른 세션의 동시 실행, 스케줄링 시간과 실패 분기를 생략한다. 이미 연결된 세션을 가정한다.",
+      "printSummary": "수신 게시 직전이다. 마지막 송신 완료 뒤에도 다음 수신 요청은 1개 남을 수 있다.",
+      "evidenceIds": [
+        "echo.on_data",
+        "worker.dispatch",
+        "send.prepare_post",
+        "send.partial_completion"
+      ],
+      "evidenceByStep": [
+        "echo.main",
+        "worker.dispatch",
+        "worker.dispatch",
+        "framing.decode",
+        "echo.on_data",
+        "send.prepare_post",
+        "send.partial_completion"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L02",
+      "chapter": "C05",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "rioRequests",
+      "title": "게시 성공·실패·완료 지연",
+      "purpose": "성공 반환과 완료, 게시 실패의 참조 롤백을 구분한다.",
+      "defaultConfig": {},
+      "configFields": [],
+      "actions": [
+        {
+          "label": "요청 게시",
+          "action": {
+            "type": "post"
+          },
+          "fields": []
+        },
+        {
+          "label": "이번 게시를 실패시키기",
+          "action": {
+            "type": "post",
+            "succeeds": false
+          },
+          "fields": []
+        },
+        {
+          "label": "완료 전달",
+          "action": {
+            "type": "complete"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "post"
+        },
+        {
+          "type": "complete"
+        }
+      ],
+      "omissions": "실제 syscall·스케줄링·등록 실패는 생략한다. 실패한 게시에는 완료가 발생하지 않는다.",
+      "printSummary": "게시 전 outstanding 0이다. 성공 게시 뒤 1, 완료 뒤 0이며 실패한 게시 뒤에도 0이다.",
+      "evidenceIds": [
+        "rio.post_rollback"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L03",
+      "chapter": "C07",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "callbackOrder",
+      "title": "두 세션의 콜백을 교차 실행한다",
+      "purpose": "같은 세션의 연결·수신·닫힘 순서와 세션 간 동시 실행 가능성을 구분한다.",
+      "defaultConfig": {},
+      "configFields": [],
+      "actions": [
+        {
+          "label": "접속 콜백 실행",
+          "action": {
+            "type": "connect"
+          },
+          "fields": [
+            {
+              "key": "session",
+              "label": "세션 (0=A, 1=B)",
+              "default": 0,
+              "min": 0,
+              "max": 1,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "데이터 콜백 실행",
+          "action": {
+            "type": "data"
+          },
+          "fields": [
+            {
+              "key": "session",
+              "label": "데이터 세션",
+              "default": 0,
+              "min": 0,
+              "max": 1,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "닫힘 콜백 실행",
+          "action": {
+            "type": "close"
+          },
+          "fields": [
+            {
+              "key": "session",
+              "label": "닫을 세션",
+              "default": 0,
+              "min": 0,
+              "max": 1,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "connect",
+          "session": 0
+        },
+        {
+          "type": "connect",
+          "session": 1
+        },
+        {
+          "type": "data",
+          "session": 1
+        },
+        {
+          "type": "data",
+          "session": 0
+        },
+        {
+          "type": "close",
+          "session": 0
+        }
+      ],
+      "omissions": "콜백 내부의 실제 시간과 스레드 스케줄링은 생략한다. 한 동작을 콜백의 시작과 반환으로 묶는다.",
+      "printSummary": "A와 B 모두 연결 전이다. 접속 전 수신과 닫힘 뒤 수신을 차단한다.",
+      "evidenceIds": [
+        "callbacks.accept_order",
+        "callbacks.bridge"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L04",
+      "chapter": "C08",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "registeredMemory",
+      "title": "완료 전 메모리 이동과 해제를 시도한다",
+      "purpose": "송신 0만으로 전체 등록 메모리의 안전한 해제를 판정할 수 없음을 확인한다.",
+      "defaultConfig": {},
+      "configFields": [],
+      "actions": [
+        {
+          "label": "새 게시 차단",
+          "action": {
+            "type": "block"
+          },
+          "fields": []
+        },
+        {
+          "label": "송신 완료",
+          "action": {
+            "type": "complete-send"
+          },
+          "fields": []
+        },
+        {
+          "label": "수신 완료",
+          "action": {
+            "type": "complete-receive"
+          },
+          "fields": []
+        },
+        {
+          "label": "등록 해제 시도",
+          "action": {
+            "type": "unregister"
+          },
+          "fields": []
+        },
+        {
+          "label": "메모리 이동 시도",
+          "action": {
+            "type": "move"
+          },
+          "fields": []
+        },
+        {
+          "label": "저장소 해제 시도",
+          "action": {
+            "type": "free"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "block"
+        },
+        {
+          "type": "complete-send"
+        },
+        {
+          "type": "complete-receive"
+        },
+        {
+          "type": "unregister"
+        },
+        {
+          "type": "free"
+        }
+      ],
+      "omissions": "CQ·RQ와 전체 서버 종료는 L13에서 별도로 검사한다. 실제 주소 재배치나 메모리 파괴는 하지 않는다.",
+      "printSummary": "송신 1·수신 1이 등록 메모리를 참조한다. 신규 게시 차단과 두 참조 종료 전 해제는 금지한다.",
+      "evidenceIds": [
+        "memory.registration",
+        "memory.mapping"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L05",
+      "chapter": "C09",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "ringBuffer",
+      "title": "작은 링에서 wrap과 full을 만든다",
+      "purpose": "미소비 크기, 두 가상 view와 실제 backing 용량을 비교한다.",
+      "defaultConfig": {
+        "capacity": 8
+      },
+      "configFields": [
+        {
+          "key": "capacity",
+          "label": "실제 링 용량 (설명용 바이트)",
+          "min": 2,
+          "max": 32
+        }
+      ],
+      "actions": [
+        {
+          "label": "바이트 쓰기",
+          "action": {
+            "type": "write"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "쓸 바이트",
+              "default": 6,
+              "min": 1,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "미소비 바이트 읽기",
+          "action": {
+            "type": "consume"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "소비할 바이트",
+              "default": 5,
+              "min": 1,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "읽기 구간 게시",
+          "action": {
+            "type": "post"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "게시할 바이트",
+              "default": 2,
+              "min": 1,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "게시 구간 완료",
+          "action": {
+            "type": "complete"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "완료 바이트",
+              "default": 2,
+              "min": 1,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "write",
+          "bytes": 6
+        },
+        {
+          "type": "consume",
+          "bytes": 5
+        },
+        {
+          "type": "write",
+          "bytes": 6
+        },
+        {
+          "type": "post",
+          "bytes": 7
+        },
+        {
+          "type": "complete",
+          "bytes": 7
+        }
+      ],
+      "omissions": "실제 Windows page 정렬과 주소 매핑 호출을 생략한다. 부분 완료의 컨텍스트 retire는 L11에서 다룬다.",
+      "printSummary": "8바이트 링의 read/write/used가 0이다. 두 view의 주소 범위 16바이트와 실제 용량 8바이트를 구분한다.",
+      "evidenceIds": [
+        "ring.operations",
+        "memory.mapping"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L06",
+      "chapter": "C10",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "acceptSession",
+      "title": "슬롯을 워커에 배정하고 실패를 회수한다",
+      "purpose": "나머지 있는 파티션, 워커 교차 초기 배정, 슬롯 고갈과 RQ 실패를 관찰한다.",
+      "defaultConfig": {
+        "slots": 6,
+        "workers": 2
+      },
+      "configFields": [
+        {
+          "key": "slots",
+          "label": "슬롯 수",
+          "min": 1,
+          "max": 16
+        },
+        {
+          "key": "workers",
+          "label": "I/O 워커 수",
+          "min": 1,
+          "max": 16
+        }
+      ],
+      "actions": [
+        {
+          "label": "새 연결 수락",
+          "action": {
+            "type": "accept"
+          },
+          "fields": []
+        },
+        {
+          "label": "RQ 생성 실패",
+          "action": {
+            "type": "accept",
+            "rqSucceeds": false
+          },
+          "fields": []
+        },
+        {
+          "label": "정리한 연결 반환",
+          "action": {
+            "type": "close"
+          },
+          "fields": [
+            {
+              "key": "index",
+              "label": "반환할 슬롯",
+              "default": 0,
+              "min": 0,
+              "max": 15,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        },
+        {
+          "type": "accept"
+        }
+      ],
+      "omissions": "소켓 setup·keepalive·실제 accept backoff를 생략한다. 반환 버튼은 I/O와 종료 통지까지 정리된 연결을 가정한다.",
+      "printSummary": "6슬롯·2워커의 초기 배정 순서는 0,3,1,4,2,5다. 일곱 번째 연결은 거절된다.",
+      "evidenceIds": [
+        "accept.allocation",
+        "accept.setup"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L07",
+      "chapter": "C11",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "sessionIdentity",
+      "title": "슬롯 재사용 뒤 지연 작업을 전달한다",
+      "purpose": "세대 일치와 활성 상태를 나누고 uint64 세대 wrap에서 0을 건너뛴다.",
+      "defaultConfig": {
+        "generation": "41"
+      },
+      "configFields": [
+        {
+          "key": "generation",
+          "label": "초기 세대 (10진 문자열)",
+          "type": "text"
+        }
+      ],
+      "actions": [
+        {
+          "label": "이전 연결 종료 시작",
+          "action": {
+            "type": "close"
+          },
+          "fields": []
+        },
+        {
+          "label": "남은 I/O 완료",
+          "action": {
+            "type": "complete"
+          },
+          "fields": []
+        },
+        {
+          "label": "남은 이벤트 소비",
+          "action": {
+            "type": "consume-event"
+          },
+          "fields": []
+        },
+        {
+          "label": "닫힘 통지",
+          "action": {
+            "type": "notify"
+          },
+          "fields": []
+        },
+        {
+          "label": "격리 단계로 이동",
+          "action": {
+            "type": "quarantine"
+          },
+          "fields": []
+        },
+        {
+          "label": "슬롯 반환 시도",
+          "action": {
+            "type": "recycle"
+          },
+          "fields": []
+        },
+        {
+          "label": "새 연결로 재사용",
+          "action": {
+            "type": "reuse"
+          },
+          "fields": []
+        },
+        {
+          "label": "세대까지 검사해 옛 작업 전달",
+          "action": {
+            "type": "deliver"
+          },
+          "fields": []
+        },
+        {
+          "label": "인덱스만 검사해 위험 비교",
+          "action": {
+            "type": "deliver",
+            "checkGeneration": false
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "close"
+        },
+        {
+          "type": "complete"
+        },
+        {
+          "type": "consume-event"
+        },
+        {
+          "type": "notify"
+        },
+        {
+          "type": "quarantine"
+        },
+        {
+          "type": "recycle"
+        },
+        {
+          "type": "reuse"
+        },
+        {
+          "type": "deliver"
+        }
+      ],
+      "omissions": "실제 Closing 전이는 격리 버튼의 내부 단계에 포함한다. 완료 포인터 검증과 게임 큐 정책은 별도다.",
+      "printSummary": "7:41 연결에 I/O와 이벤트가 하나씩 남아 있다. 모두 정리한 뒤 재사용하면 7:42가 되고 옛 7:41은 거절된다.",
+      "evidenceIds": [
+        "session.lifecycle",
+        "session.generation"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L08",
+      "chapter": "C12",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "receivePath",
+      "title": "완료 길이·소비 길이·선게시를 바꾼다",
+      "purpose": "콜백 읽기와 커널 쓰기 범위를 분리하고 닫힘 뒤 지연 완료를 검사한다.",
+      "defaultConfig": {
+        "capacity": 8,
+        "chunk": 4
+      },
+      "configFields": [
+        {
+          "key": "capacity",
+          "label": "링 용량 (설명용)",
+          "min": 4,
+          "max": 32
+        },
+        {
+          "key": "chunk",
+          "label": "수신 요청 길이",
+          "min": 1,
+          "max": 32
+        }
+      ],
+      "actions": [
+        {
+          "label": "수신 완료 전달",
+          "action": {
+            "type": "complete"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "완료 바이트",
+              "default": 3,
+              "min": 0,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "콜백 소비량 반환",
+          "action": {
+            "type": "consume"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "소비 바이트",
+              "default": 2,
+              "min": 0,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "연결 닫힘 통지",
+          "action": {
+            "type": "close"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "complete",
+          "bytes": 3
+        },
+        {
+          "type": "consume",
+          "bytes": 2
+        },
+        {
+          "type": "complete",
+          "bytes": 4
+        },
+        {
+          "type": "consume",
+          "bytes": 5
+        }
+      ],
+      "omissions": "같은 워커의 콜백 실행을 원자적 단계로 본다. 실제 버퍼 주소와 세대 검증은 생략한다.",
+      "printSummary": "8바이트 링에 길이 4의 수신이 게시되어 있다. 완료 3 뒤 다음 수신 4와 콜백 읽기 3은 겹치지 않는다.",
+      "evidenceIds": [
+        "receive.post",
+        "receive.callback",
+        "worker.dispatch"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L09",
+      "chapter": "C13",
+      "status": "complete",
+      "model": "models/packet_framing.js",
+      "modelKey": "packetFraming",
+      "title": "수신 조각에서 패킷 경계를 찾는다",
+      "purpose": "TCP 수신 횟수와 패킷 수를 비교하고 이번 Decode의 소비량을 확인한다.",
+      "defaultConfig": {
+        "mode": "split",
+        "maxPacketBytes": 16
+      },
+      "configFields": [
+        {
+          "key": "mode",
+          "label": "수신 조건",
+          "options": [
+            [
+              "split",
+              "2+3+2 분할"
+            ],
+            [
+              "coalesced",
+              "두 패킷 병합"
+            ],
+            [
+              "invalid",
+              "길이 3"
+            ],
+            [
+              "large",
+              "길이 17"
+            ],
+            [
+              "empty",
+              "길이 4 빈 본문"
+            ]
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "label": "다음 수신 전달",
+          "action": {
+            "type": "receive"
+          },
+          "primary": true
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "receive"
+        },
+        {
+          "type": "receive"
+        },
+        {
+          "type": "receive"
+        }
+      ],
+      "omissions": "실제 TCP 스케줄링, 등록 버퍼의 주소와 다른 세션 실행을 생략한다.",
+      "printSummary": "허용 길이 16, 7바이트 패킷을 2+3+2로 받기 전이다. 세 번의 소비량은 0, 0, 7바이트다.",
+      "evidenceIds": [
+        "framing.decode"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L10",
+      "chapter": "C14",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "sendPath",
+      "title": "송신 중 새 메시지를 추가한다",
+      "purpose": "진행 요청 1개, 링 대기·병합과 전체 메시지의 공간 부족 거절을 확인한다.",
+      "defaultConfig": {
+        "capacity": 8,
+        "maxMessage": 4
+      },
+      "configFields": [
+        {
+          "key": "capacity",
+          "label": "송신 링 용량 (설명용)",
+          "min": 2,
+          "max": 32
+        },
+        {
+          "key": "maxMessage",
+          "label": "단일 메시지 한도",
+          "min": 1,
+          "max": 32
+        }
+      ],
+      "actions": [
+        {
+          "label": "메시지 접수",
+          "action": {
+            "type": "enqueue"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "메시지 바이트",
+              "default": 2,
+              "min": 0,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "송신 완료 전달",
+          "action": {
+            "type": "complete"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "완료 바이트",
+              "default": 2,
+              "min": 0,
+              "max": 64,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "같은 세션에 중복 게시 시도",
+          "action": {
+            "type": "force-post"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "enqueue",
+          "bytes": 2
+        },
+        {
+          "type": "enqueue",
+          "bytes": 3
+        },
+        {
+          "type": "complete",
+          "bytes": 2
+        },
+        {
+          "type": "enqueue",
+          "bytes": 4
+        },
+        {
+          "type": "enqueue",
+          "bytes": 2
+        },
+        {
+          "type": "complete",
+          "bytes": 3
+        },
+        {
+          "type": "complete",
+          "bytes": 4
+        }
+      ],
+      "omissions": "주소 wrap·실제 syscall·송신 실패의 강제 종료는 생략한다. L11에서 실패 참조를 따로 확인한다.",
+      "printSummary": "8바이트 링이 비어 있다. 여러 Send가 링에 쌓여도 동시에 진행하는 RIO 송신은 하나다.",
+      "evidenceIds": [
+        "send.enqueue",
+        "send.prepare_post"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L11",
+      "chapter": "C15",
+      "status": "complete",
+      "model": "models/partial_send.js",
+      "modelKey": "partialSend",
+      "title": "부분 완료와 재게시를 비교한다",
+      "purpose": "요청 하나의 완료와 전체 메시지의 완료를 구분한다. 비정상 완료는 성공으로 소비하지 않는다.",
+      "defaultConfig": {
+        "messageBytes": 4,
+        "generation": "41"
+      },
+      "configFields": [
+        {
+          "key": "generation",
+          "label": "세션 세대",
+          "type": "text"
+        }
+      ],
+      "actions": [
+        {
+          "label": "2바이트 완료",
+          "action": {
+            "type": "complete",
+            "bytes": 2
+          },
+          "primary": true
+        },
+        {
+          "label": "완료 크기 지정",
+          "action": {
+            "type": "complete"
+          },
+          "fields": [
+            {
+              "key": "bytes",
+              "label": "완료 바이트",
+              "default": 4,
+              "min": 0,
+              "max": 257
+            }
+          ]
+        },
+        {
+          "label": "부분 완료 뒤 재게시 실패",
+          "action": {
+            "type": "complete",
+            "bytes": 2,
+            "repostSucceeds": false
+          }
+        },
+        {
+          "label": "지금 송신 버퍼 해제 시도",
+          "action": {
+            "type": "free"
+          }
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "complete",
+          "bytes": 2
+        },
+        {
+          "type": "complete",
+          "bytes": 2
+        }
+      ],
+      "omissions": "수신 I/O, 다른 송신 메시지의 추가, 신규 API 진입 차단과 CQ·워커 해제 조건은 별도다.",
+      "printSummary": "rio! 4바이트를 게시한 직후다. 2바이트 완료 뒤 offset 2, length 2, outstanding 1이며 나머지 완료 후 0이다.",
+      "evidenceIds": [
+        "send.partial_completion",
+        "send.invalid_completion",
+        "send.post_rollback"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L12",
+      "chapter": "C16",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "connectionClose",
+      "title": "FIN·요청·오류·idle 종료를 비교한다",
+      "purpose": "종료 통지 한 번, 보류 FIN보다 명시적·오류 종료의 우선순위, 미완료 송신과 peer drain 기한을 구분한다.",
+      "defaultConfig": {
+        "timeoutMs": 5000
+      },
+      "configFields": [
+        {
+          "key": "timeoutMs",
+          "label": "peer drain 상한 ms",
+          "min": 1,
+          "max": 60000
+        }
+      ],
+      "actions": [
+        {
+          "label": "애플리케이션 종료 요청",
+          "action": {
+            "type": "request",
+            "reason": "application"
+          },
+          "fields": []
+        },
+        {
+          "label": "원격 FIN 도착",
+          "action": {
+            "type": "request",
+            "reason": "peer-fin"
+          },
+          "fields": []
+        },
+        {
+          "label": "I/O 오류 관찰",
+          "action": {
+            "type": "request",
+            "reason": "io-error"
+          },
+          "fields": []
+        },
+        {
+          "label": "idle 기한 관찰",
+          "action": {
+            "type": "request",
+            "reason": "idle"
+          },
+          "fields": []
+        },
+        {
+          "label": "송신 참조 완료",
+          "action": {
+            "type": "complete-send"
+          },
+          "fields": []
+        },
+        {
+          "label": "수신 취소 완료",
+          "action": {
+            "type": "complete-receive"
+          },
+          "fields": []
+        },
+        {
+          "label": "시간 경과",
+          "action": {
+            "type": "tick"
+          },
+          "fields": [
+            {
+              "key": "ms",
+              "label": "경과 ms",
+              "default": 5000,
+              "min": 1,
+              "max": 60000,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "닫힘 통지 시도",
+          "action": {
+            "type": "notify"
+          },
+          "fields": []
+        },
+        {
+          "label": "슬롯 반환 시도",
+          "action": {
+            "type": "recycle"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "request",
+          "reason": "peer-fin"
+        },
+        {
+          "type": "complete-send"
+        },
+        {
+          "type": "notify"
+        },
+        {
+          "type": "recycle"
+        }
+      ],
+      "omissions": "개념 단계와 실제 SessionState enum을 구분한다. 실제 connect callback pending·게임 이벤트 gate는 생략한다.",
+      "printSummary": "수신·송신 요청이 각각 하나다. FIN은 새 송신을 막고 접수한 송신을 기다리며 기한 초과 시 abortive close로 바뀐다.",
+      "evidenceIds": [
+        "close.session",
+        "close.peer_wait"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L13",
+      "chapter": "C17",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "serverShutdown",
+      "title": "종료 의존 순서를 직접 선택한다",
+      "purpose": "완료 처리 주체를 남기고 자원을 해제하며, 타임아웃의 의도적 보존을 실패로 인식한다.",
+      "defaultConfig": {
+        "mode": "graceful"
+      },
+      "configFields": [
+        {
+          "key": "mode",
+          "label": "종료 정책",
+          "options": [
+            [
+              "graceful",
+              "graceful"
+            ],
+            [
+              "immediate",
+              "immediate"
+            ]
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "label": "accept 중지",
+          "action": {
+            "type": "stop-accept"
+          },
+          "fields": []
+        },
+        {
+          "label": "새 애플리케이션 진입 차단",
+          "action": {
+            "type": "block-posts"
+          },
+          "fields": []
+        },
+        {
+          "label": "송신 완료 처리",
+          "action": {
+            "type": "complete-send"
+          },
+          "fields": []
+        },
+        {
+          "label": "소켓 닫기",
+          "action": {
+            "type": "close-sockets"
+          },
+          "fields": []
+        },
+        {
+          "label": "수신 취소 완료 처리",
+          "action": {
+            "type": "complete-receive"
+          },
+          "fields": []
+        },
+        {
+          "label": "I/O 워커 join 시도",
+          "action": {
+            "type": "join-workers"
+          },
+          "fields": []
+        },
+        {
+          "label": "등록 버퍼 해제 시도",
+          "action": {
+            "type": "free-buffers"
+          },
+          "fields": []
+        },
+        {
+          "label": "CQ 해제 시도",
+          "action": {
+            "type": "free-cq"
+          },
+          "fields": []
+        },
+        {
+          "label": "종료 기한 초과",
+          "action": {
+            "type": "timeout"
+          },
+          "fields": []
+        },
+        {
+          "label": "추가 drain 성공",
+          "action": {
+            "type": "force-drain",
+            "completionsArrive": true
+          },
+          "fields": []
+        },
+        {
+          "label": "추가 drain에도 참조 남음",
+          "action": {
+            "type": "force-drain",
+            "completionsArrive": false
+          },
+          "fields": []
+        },
+        {
+          "label": "콜백에서 Stop 시도",
+          "action": {
+            "type": "callback-stop"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "stop-accept"
+        },
+        {
+          "type": "block-posts"
+        },
+        {
+          "type": "complete-send"
+        },
+        {
+          "type": "close-sockets"
+        },
+        {
+          "type": "complete-receive"
+        },
+        {
+          "type": "join-workers"
+        },
+        {
+          "type": "free-buffers"
+        },
+        {
+          "type": "free-cq"
+        }
+      ],
+      "omissions": "accept/API 진입 배출·notification·Winsock은 묶은 단계로 본다. C++ join이 사용자 콜백을 강제 중단할 수 있다는 가정을 하지 않는다.",
+      "printSummary": "accept·게시·워커·CQ·버퍼가 모두 살아 있다. 완료 참조가 끝나기 전에 워커나 버퍼를 없애는 순서는 차단된다.",
+      "evidenceIds": [
+        "shutdown.end",
+        "shutdown.force",
+        "api.stop"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L14",
+      "chapter": "C18",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "logicQueue",
+      "title": "full 큐에서 close와 새 세대를 처리한다",
+      "purpose": "일반 data 거절과 parked close 보존의 차이 및 이벤트 소비 순서를 확인한다.",
+      "defaultConfig": {
+        "capacity": 2
+      },
+      "configFields": [
+        {
+          "key": "capacity",
+          "label": "링 이벤트 용량",
+          "min": 2,
+          "max": 8
+        }
+      ],
+      "actions": [
+        {
+          "label": "data chunk 추가",
+          "action": {
+            "type": "data"
+          },
+          "fields": []
+        },
+        {
+          "label": "이전 세대 close 추가",
+          "action": {
+            "type": "close"
+          },
+          "fields": []
+        },
+        {
+          "label": "새 세대 connect 추가",
+          "action": {
+            "type": "new-connect"
+          },
+          "fields": []
+        },
+        {
+          "label": "TryPop 한 번",
+          "action": {
+            "type": "pop"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "close"
+        },
+        {
+          "type": "new-connect"
+        },
+        {
+          "type": "pop"
+        },
+        {
+          "type": "pop"
+        },
+        {
+          "type": "pop"
+        },
+        {
+          "type": "new-connect"
+        }
+      ],
+      "omissions": "단일 shard·단일 index의 gate로 축소한다. 여러 세션의 parked close 우선 탐색과 실제 대기 시간은 생략한다.",
+      "printSummary": "41세대 connected/data가 2칸을 채운 상태다. close는 별도 보류되어 depth 3이며 소비 후 42세대 connect를 받는다.",
+      "evidenceIds": [
+        "queue.push",
+        "queue.pop"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L15",
+      "chapter": "C19",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "chatServer",
+      "title": "실제 v1 헤더와 룸 방송을 실행한다",
+      "purpose": "로그인→로비→룸 상태, UTF-8 바이트 길이와 모든 shard의 같은 room 방송을 확인한다.",
+      "defaultConfig": {
+        "shards": 2,
+        "capacity": 2
+      },
+      "configFields": [
+        {
+          "key": "shards",
+          "label": "로직 shard 수",
+          "min": 1,
+          "max": 4
+        },
+        {
+          "key": "capacity",
+          "label": "shard별 방송 inbox 용량",
+          "min": 1,
+          "max": 8
+        }
+      ],
+      "actions": [
+        {
+          "label": "로그인 패킷 전송",
+          "action": {
+            "type": "login"
+          },
+          "fields": [
+            {
+              "key": "player",
+              "label": "로그인할 플레이어",
+              "default": 0,
+              "min": 0,
+              "max": 2,
+              "type": "number"
+            },
+            {
+              "key": "text",
+              "label": "UTF-8 이름",
+              "default": "가",
+              "min": 0,
+              "max": 64,
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "label": "룸 입장 패킷 전송",
+          "action": {
+            "type": "enter"
+          },
+          "fields": [
+            {
+              "key": "player",
+              "label": "입장할 플레이어",
+              "default": 0,
+              "min": 0,
+              "max": 2,
+              "type": "number"
+            },
+            {
+              "key": "room",
+              "label": "룸 번호",
+              "default": 1,
+              "min": 0,
+              "max": 4294967295,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "채팅 패킷 전송",
+          "action": {
+            "type": "chat"
+          },
+          "fields": [
+            {
+              "key": "player",
+              "label": "보낼 플레이어",
+              "default": 0,
+              "min": 0,
+              "max": 2,
+              "type": "number"
+            },
+            {
+              "key": "text",
+              "label": "채팅 문자열",
+              "default": "안녕",
+              "min": 0,
+              "max": 64,
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "label": "각 shard의 방송 처리",
+          "action": {
+            "type": "drain"
+          },
+          "fields": []
+        },
+        {
+          "label": "wire 바이트 직접 전달",
+          "action": {
+            "type": "wire"
+          },
+          "fields": [
+            {
+              "key": "player",
+              "label": "wire 대상",
+              "default": 0,
+              "min": 0,
+              "max": 2,
+              "type": "number"
+            },
+            {
+              "key": "hex",
+              "label": "16진 wire",
+              "default": "0000000800020004",
+              "min": 0,
+              "max": 64,
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "label": "연결 종료 처리",
+          "action": {
+            "type": "disconnect"
+          },
+          "fields": [
+            {
+              "key": "player",
+              "label": "닫을 플레이어",
+              "default": 0,
+              "min": 0,
+              "max": 2,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "login",
+          "player": 0,
+          "text": "A"
+        },
+        {
+          "type": "enter",
+          "player": 0,
+          "room": 1
+        },
+        {
+          "type": "login",
+          "player": 1,
+          "text": "B"
+        },
+        {
+          "type": "enter",
+          "player": 1,
+          "room": 1
+        },
+        {
+          "type": "login",
+          "player": 2,
+          "text": "C"
+        },
+        {
+          "type": "enter",
+          "player": 2,
+          "room": 1
+        },
+        {
+          "type": "chat",
+          "player": 0,
+          "text": "안녕"
+        },
+        {
+          "type": "drain"
+        }
+      ],
+      "omissions": "네트워크 지연·실제 mutex·idle scan을 생략하며 종료 요청과 Player 제거를 합친다. 입력 안전 상한 2048은 모델 보호용이며 서버의 ConsumeInput 꼬리 조건은 본문에서 별도 설명한다.",
+      "printSummary": "플레이어 3명이 Login 상태다. 1번 룸에 들어간 세 명은 shard가 달라도 발신자를 포함해 같은 채팅을 받는다.",
+      "evidenceIds": [
+        "chat.protocol",
+        "chat.process",
+        "chat.broadcast"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L16",
+      "chapter": "C20",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "applicationQueue",
+      "title": "유입·처리·용량·포화 정책을 바꾼다",
+      "purpose": "기존 작업 처리 후 새 작업을 받는 한 틱의 순서와 지속 과부하를 관찰한다.",
+      "defaultConfig": {
+        "capacity": 8,
+        "incoming": 3,
+        "outgoing": 1,
+        "policy": "reject"
+      },
+      "configFields": [
+        {
+          "key": "capacity",
+          "label": "작업 큐 용량",
+          "min": 1,
+          "max": 64
+        },
+        {
+          "key": "policy",
+          "label": "포화 정책",
+          "options": [
+            [
+              "reject",
+              "새 작업 거절"
+            ],
+            [
+              "disconnect",
+              "거절 작업의 종료 정책"
+            ]
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "label": "한 틱 실행",
+          "action": {
+            "type": "tick"
+          },
+          "fields": [
+            {
+              "key": "incoming",
+              "label": "이번 틱 유입",
+              "default": 3,
+              "min": 0,
+              "max": 100,
+              "type": "number"
+            },
+            {
+              "key": "outgoing",
+              "label": "이번 틱 처리 상한",
+              "default": 1,
+              "min": 0,
+              "max": 100,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "tick"
+        },
+        {
+          "type": "tick"
+        },
+        {
+          "type": "tick"
+        },
+        {
+          "type": "tick"
+        },
+        {
+          "type": "tick"
+        }
+      ],
+      "omissions": "작업 개수 모델이며 raw TCP 손실 정책이 아니다. 실제 처리 시간·작업별 비용·네트워크 이벤트 gate는 생략한다.",
+      "printSummary": "8칸 큐가 비어 있고 매 틱 기존 1개 처리 뒤 3개를 받는다. 5틱 뒤 대기 8, 거절 3, 처리 4다.",
+      "evidenceIds": [
+        "queue.push",
+        "application.shard"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L17",
+      "chapter": "C21",
+      "status": "complete",
+      "model": "models/configuration.js",
+      "modelKey": "configuration",
+      "title": "설정 범위와 자원 예산을 계산한다",
+      "purpose": "C++ ValidateServerConfig 실행 fixture와 대조한 계산에서 등록·예약·commit·control을 나눈다.",
+      "defaultConfig": {
+        "port": 32452,
+        "io_worker_count": 4,
+        "max_sessions": 257,
+        "receive_buffer_bytes": 65536,
+        "send_buffer_bytes": 131072
+      },
+      "configFields": [
+        {
+          "key": "port",
+          "label": "포트",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "key": "io_worker_count",
+          "label": "워커",
+          "min": 0,
+          "max": 257
+        },
+        {
+          "key": "max_sessions",
+          "label": "세션",
+          "min": 0,
+          "max": 2147483647
+        },
+        {
+          "key": "receive_buffer_bytes",
+          "label": "수신 링 bytes",
+          "min": 0,
+          "max": 1073741824
+        },
+        {
+          "key": "send_buffer_bytes",
+          "label": "송신 링 bytes",
+          "min": 0,
+          "max": 1073741824
+        },
+        {
+          "key": "max_message_bytes",
+          "label": "메시지 bytes",
+          "min": 0,
+          "max": 1073741824
+        },
+        {
+          "key": "completion_batch_size",
+          "label": "완료 batch",
+          "min": 0,
+          "max": 4097
+        },
+        {
+          "key": "idle_timeout_ms",
+          "label": "idle ms",
+          "min": 0,
+          "max": 4294967295
+        },
+        {
+          "key": "keepalive_time_ms",
+          "label": "keepalive 시작 ms",
+          "min": 0,
+          "max": 4294967295
+        },
+        {
+          "key": "keepalive_interval_ms",
+          "label": "keepalive 간격 ms",
+          "min": 0,
+          "max": 4294967295
+        }
+      ],
+      "actions": [
+        {
+          "label": "현재 설정 검증·계산",
+          "action": {
+            "type": "calculate"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "calculate"
+        }
+      ],
+      "omissions": "실제 주소 매핑·메모리 할당·커널 잠금 비용을 생략한다. pageSize=4096은 fixture 실행 환경의 값이며 대상 PC에서 다시 확인한다.",
+      "printSummary": "257세션·4워커·수신64KiB·송신128KiB다. 최대 담당 세션65, CQ130이며 등록/예약은 backing commit의 두 배다.",
+      "evidenceIds": [
+        "config.validation"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L18",
+      "chapter": "C23",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "diagnostics",
+      "title": "로그와 지표로 다음 조사를 고른다",
+      "purpose": "증상 하나를 원인 하나로 단정하지 않고 추가 확인과 위험한 조치를 구분한다.",
+      "defaultConfig": {
+        "case": "bind"
+      },
+      "configFields": [
+        {
+          "key": "case",
+          "label": "진단 사례",
+          "options": [
+            [
+              "bind",
+              "bind / native 10048"
+            ],
+            [
+              "pressure",
+              "송신 배압"
+            ],
+            [
+              "stale",
+              "오래된 세션"
+            ],
+            [
+              "shutdown",
+              "종료 timeout"
+            ]
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "label": "추가 근거 확인",
+          "action": {
+            "type": "inspect"
+          },
+          "fields": []
+        },
+        {
+          "label": "선택한 조치 판단",
+          "action": {
+            "type": "choose"
+          },
+          "fields": [
+            {
+              "key": "choice",
+              "label": "조치 ID",
+              "default": "inspect-port",
+              "min": 0,
+              "max": 64,
+              "type": "text"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "inspect"
+        },
+        {
+          "type": "choose",
+          "choice": "inspect-port"
+        }
+      ],
+      "omissions": "로그·지표는 설명용 고정 사례다. 실제 프로세스를 종료하거나 설정을 변경하지 않는다. 조치 ID는 본문 표와 대응한다.",
+      "printSummary": "bind_failed/native10048을 관찰했지만 포트 소유 PID는 아직 확인하지 않았다. 먼저 inspect-port를 선택한다.",
+      "evidenceIds": [
+        "diagnostics.errors",
+        "logs.emit"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L19",
+      "chapter": "C24",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "failureRollback",
+      "title": "N번째 등록 호출을 실패시킨다",
+      "purpose": "성공한 자원만 역순으로 정리하고 미확보 자원 해제를 만들지 않는다.",
+      "defaultConfig": {
+        "failAt": 3
+      },
+      "configFields": [
+        {
+          "key": "failAt",
+          "label": "실패시킬 등록 순서 (0=없음)",
+          "min": 0,
+          "max": 4
+        }
+      ],
+      "actions": [
+        {
+          "label": "다음 등록 호출",
+          "action": {
+            "type": "next"
+          },
+          "fields": []
+        },
+        {
+          "label": "확보 자원 정리",
+          "action": {
+            "type": "dispose"
+          },
+          "fields": []
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        },
+        {
+          "type": "next"
+        }
+      ],
+      "omissions": "두 세션의 recv/send 등록 네 건에 한정한다. 소켓·CQ·주소 placeholder 실패는 별도 C++ fake/자원 테스트를 따른다.",
+      "printSummary": "세 번째 등록이 실패하도록 설정했다. 앞서 확보한 session0.send와 recv를 역순으로 정리한다.",
+      "evidenceIds": [
+        "failure.register",
+        "memory.registration"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    },
+    {
+      "id": "L20",
+      "chapter": "C25",
+      "status": "complete",
+      "model": "models/network_models.js",
+      "modelKey": "benchmarking",
+      "title": "오류·환경·단위를 구분해 측정 자료를 고른다",
+      "purpose": "오류 있는 실행 제외, 반복 중앙값과 nearest-rank P99의 해석을 연습한다.",
+      "defaultConfig": {
+        "unit": "ms"
+      },
+      "configFields": [
+        {
+          "key": "unit",
+          "label": "지연 표시 단위",
+          "options": [
+            [
+              "ms",
+              "밀리초 ms"
+            ],
+            [
+              "us",
+              "마이크로초 us"
+            ]
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "label": "집계에 실행 추가",
+          "action": {
+            "type": "include"
+          },
+          "fields": [
+            {
+              "key": "run",
+              "label": "실행 번호 (0~4)",
+              "default": 0,
+              "min": 0,
+              "max": 4,
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "label": "다른 실행과 비교 판단",
+          "action": {
+            "type": "compare"
+          },
+          "fields": [
+            {
+              "key": "run",
+              "label": "비교할 실행",
+              "default": 4,
+              "min": 0,
+              "max": 4,
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "defaultActions": [
+        {
+          "type": "include",
+          "run": 0
+        },
+        {
+          "type": "include",
+          "run": 2
+        },
+        {
+          "type": "include",
+          "run": 3
+        },
+        {
+          "type": "include",
+          "run": 1
+        },
+        {
+          "type": "include",
+          "run": 4
+        }
+      ],
+      "omissions": "모든 수치는 가상 자료이며 실측 성능이 아니다. 환경A/B를 섞지 않고 10개짜리 작은 표본의 꼬리 해석 한계를 표시한다.",
+      "printSummary": "아직 선택한 실행이 없다. 같은 환경의 오류0 실행 0·2·3만 집계하고 오류 실행1과 다른 환경4를 제외한다.",
+      "evidenceIds": [
+        "benchmark.script"
+      ],
+      "inputLimits": "최대 128동작·32,768자 JSON. 각 입력의 타입·정수 범위와 허용 상태를 모델에서 검사한다."
+    }
+  ],
+  "sourceFiles": [
+    "samples/echo_server/main.cpp",
+    "include/rionetlite/packet_decoder.h",
+    "include/rionetlite/event_handler.h",
+    "include/rionetlite/server.h",
+    "src/detail/session_lifecycle.h",
+    "RIONetLite/impl/server_net_io_worker.h",
+    "RIONetLite/impl/send_immediately.h",
+    "RIONetLite/impl/server_net.h",
+    "tests/unit/rio_request_test.cpp",
+    "tests/unit/correctness_primitives_test.cpp",
+    "tests/integration/smoke_test.cpp",
+    "include/rionetlite/queued_event_adapter.h",
+    "RIONetLite/impl/rio_context.h",
+    "tests/unit/public_helpers_test.cpp",
+    "tools/build.ps1",
+    "src/server.cpp",
+    "src/detail/rio_api.h",
+    "src/rio_api.cpp",
+    "RIONetLite/impl/server_net_accepter.h",
+    "src/win32_resources.cpp",
+    "RIONetLite/impl/ring_buffer.h",
+    "samples/chat_server/main.cpp",
+    "RIONetLite/impl/session_manager.h",
+    "src/detail/session_partition.h",
+    "RIONetLite/impl/tcp_session.h",
+    "RIONetLite/impl/server_net_lazyed_dis_conn_manager.h",
+    "src/detail/shutdown_coordinator.h",
+    "src/queued_event_adapter.cpp",
+    "samples/chat_server/chat_protocol.h",
+    "docs/protocol/chat-fixtures.tsv",
+    "include/rionetlite/config.h",
+    "src/config.cpp",
+    "src/error.cpp",
+    "tests/unit/worker_control_test.cpp",
+    "tools/run-memory-safety.ps1",
+    "tools/book/config_fixture.cpp",
+    "tools/book/update_config_fixture.ps1",
+    "tools/run-benchmark.ps1",
+    "src/detail/processor_topology.h",
+    "samples/package_consumer/main.cpp",
+    "tools/package.ps1",
+    "include/rionetlite/error.h",
+    "include/rionetlite/metrics.h",
+    "src/legacy_server_net.cpp",
+    "src/detail/socket_api.h",
+    "src/detail/win32_resources.h",
+    "RIONetLite/impl/server_net_init.h",
+    "RIONetLite/impl/fast_spin_lock.h",
+    "samples/chat_client/chat_protocol.cs",
+    "samples/chat_client/chat_connection.cs",
+    "samples/chat_client/mainForm.cs",
+    "samples/chat_client/chat_checks.cs",
+    "tools/test-chat.ps1",
+    "tools/run-stress.ps1",
+    "tests/unit/chat_protocol_test.cpp",
+    "include/rionetlite/version.h",
+    "samples/package_consumer/PackageConsumer.vcxproj"
+  ],
+  "readingRoutes": [
+    {
+      "title": "서버를 먼저 실행해 보기",
+      "chapters": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C13",
+        "C18",
+        "C19",
+        "C20"
+      ]
+    },
+    {
+      "title": "내부 동작 이해하기",
+      "chapters": [
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15",
+        "C16",
+        "C17"
+      ]
+    },
+    {
+      "title": "문제를 찾고 수정하기",
+      "chapters": [
+        "C21",
+        "C22",
+        "C23",
+        "C24",
+        "C25",
+        "C26",
+        "C27",
+        "C28"
+      ]
+    }
+  ],
+  "modelFiles": [
+    "models/core.js",
+    "models/packet_framing.js",
+    "models/partial_send.js",
+    "models/configuration.js",
+    "models/network_models.js"
+  ],
+  "aliases": {
+    "p1": "C01",
+    "p2": "C03",
+    "p3": "C04",
+    "p6": "C11",
+    "p4": "C13",
+    "p5": "C15",
+    "p7": "C17",
+    "p8": "C20",
+    "p9": "C24",
+    "p10": "A05"
+  }
+}
