@@ -1,1 +1,301 @@
-{"schemaVersion": 1, "figures": []}
+{
+  "schemaVersion": 1,
+  "figures": [
+    {
+      "id": "F-P03-1",
+      "kind": "sequence",
+      "title": "Echo 패킷 하나의 왕복",
+      "lanes": [
+        {
+          "id": "client",
+          "label": "클라이언트",
+          "role": "원격"
+        },
+        {
+          "id": "kernel",
+          "label": "Windows RIO",
+          "role": "운영체제"
+        },
+        {
+          "id": "worker",
+          "label": "I/O 워커",
+          "role": "스레드"
+        },
+        {
+          "id": "app",
+          "label": "EchoHandler",
+          "role": "애플리케이션"
+        }
+      ],
+      "steps": [
+        {
+          "title": "빈 수신 구간을 맡긴다",
+          "text": "세션을 만든 뒤 수신 링의 빈 구간으로 RIOReceive를 게시한다. 게시 시점에는 아직 읽을 데이터가 없다.",
+          "evidence": "receive.post",
+          "messages": [
+            {
+              "to": "kernel",
+              "label": "RIOReceive(빈 칸)",
+              "kind": "call",
+              "from": "worker"
+            }
+          ]
+        },
+        {
+          "title": "바이트가 도착한다",
+          "text": "클라이언트가 길이 헤더 4바이트와 본문 rio 3바이트를 보낸다. TCP는 이 7바이트를 여러 조각으로 나눌 수도 있다.",
+          "evidence": "framing.decode",
+          "messages": [
+            {
+              "to": "kernel",
+              "label": "00 00 00 07 72 69 6F",
+              "kind": "data",
+              "from": "client"
+            }
+          ]
+        },
+        {
+          "title": "완료를 꺼내 링에 반영한다",
+          "text": "워커가 CQ에서 실제 완료 길이를 꺼낸다. 게시한 크기가 아니라 실제 받은 길이만 읽기 가능한 구간에 더한다.",
+          "evidence": "worker.dispatch",
+          "messages": [
+            {
+              "to": "worker",
+              "label": "수신 완료(7)",
+              "kind": "completion",
+              "from": "kernel"
+            }
+          ]
+        },
+        {
+          "title": "다음 수신을 게시하고 콜백을 부른다",
+          "text": "빈 공간으로 다음 수신을 맡기고 OnData에 현재 읽기 범위를 빌려 준다. 콜백이 돌아오면 이 span을 계속 보관할 수 없다.",
+          "evidence": "receive.callback",
+          "messages": [
+            {
+              "to": "app",
+              "label": "OnData(span)",
+              "kind": "callback",
+              "from": "worker"
+            }
+          ]
+        },
+        {
+          "title": "프레임을 자르고 송신을 접수한다",
+          "text": "Decode는 완성된 7바이트를 확인한다. Send는 데이터를 내부 링으로 복사하고 접수 결과를 돌려준다.",
+          "evidence": "echo.on_data",
+          "messages": [
+            {
+              "to": "worker",
+              "label": "Decode → Send",
+              "kind": "call",
+              "from": "app"
+            }
+          ]
+        },
+        {
+          "title": "송신 요청과 완료로 링을 회수한다",
+          "text": "워커가 RIOSend를 게시하고 완료된 바이트만 송신 링에서 회수한다. 송신 완료는 상대 게임 로직의 처리 완료와 다른 사건이다.",
+          "evidence": "send.partial_completion",
+          "messages": [
+            {
+              "to": "kernel",
+              "label": "RIOSend → 완료",
+              "kind": "completion",
+              "from": "worker"
+            }
+          ]
+        }
+      ],
+      "caption": "단계 간격은 실제 시간이 아니다. 한 프레임이 한 번에 도착한 정상 예이며 분할 도착은 C13에서 다룬다."
+    },
+    {
+      "id": "F-C03-1",
+      "kind": "state",
+      "title": "ServerState와 소유 스레드의 종료",
+      "states": [
+        {
+          "id": "kCreated",
+          "label": "kCreated"
+        },
+        {
+          "id": "kInitialized",
+          "label": "kInitialized"
+        },
+        {
+          "id": "kRunning",
+          "label": "kRunning"
+        },
+        {
+          "id": "kStopping",
+          "label": "kStopping"
+        },
+        {
+          "id": "kStopped",
+          "label": "kStopped"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "kInitialized",
+          "label": "Create 초기화 성공",
+          "step": 2,
+          "from": "kCreated"
+        },
+        {
+          "to": "kRunning",
+          "label": "Start 성공",
+          "step": 3,
+          "from": "kInitialized"
+        },
+        {
+          "to": "kStopping",
+          "label": "Stop 소유자 결정",
+          "step": 4,
+          "from": "kRunning"
+        },
+        {
+          "to": "kStopped",
+          "label": "워커 종료와 정리 완료",
+          "step": 5,
+          "from": "kStopping"
+        }
+      ],
+      "steps": [
+        {
+          "title": "구현 객체 준비",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "api.server_contract",
+          "active": "kCreated"
+        },
+        {
+          "title": "Create 초기화 성공",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "api.server_contract",
+          "active": "kInitialized"
+        },
+        {
+          "title": "Start 성공",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "api.server_contract",
+          "active": "kRunning"
+        },
+        {
+          "title": "Stop 소유자 결정",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "api.server_contract",
+          "active": "kStopping"
+        },
+        {
+          "title": "워커 종료와 정리 완료",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "api.server_contract",
+          "active": "kStopped"
+        }
+      ],
+      "caption": "정상 경로를 읽는 지도다. 실패·재시작·quarantine에서 free로의 반환은 관련 본문과 실제 코드에서 확인한다."
+    },
+    {
+      "id": "F-C16-1",
+      "kind": "state",
+      "title": "세션 수명과 재사용 조건",
+      "states": [
+        {
+          "id": "kFree",
+          "label": "kFree"
+        },
+        {
+          "id": "kAccepting",
+          "label": "kAccepting"
+        },
+        {
+          "id": "kActive",
+          "label": "kActive"
+        },
+        {
+          "id": "kDraining",
+          "label": "kDraining"
+        },
+        {
+          "id": "kClosing",
+          "label": "kClosing"
+        },
+        {
+          "id": "kQuarantined",
+          "label": "kQuarantined"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "kAccepting",
+          "label": "accept가 슬롯 예약",
+          "step": 2,
+          "from": "kFree"
+        },
+        {
+          "to": "kActive",
+          "label": "연결 콜백 보호",
+          "step": 3,
+          "from": "kAccepting"
+        },
+        {
+          "to": "kDraining",
+          "label": "FIN 뒤 송신 배출",
+          "step": 4,
+          "from": "kActive"
+        },
+        {
+          "to": "kClosing",
+          "label": "종료 승자 결정",
+          "step": 5,
+          "from": "kDraining"
+        },
+        {
+          "to": "kQuarantined",
+          "label": "미완료 참조 격리",
+          "step": 6,
+          "from": "kClosing"
+        }
+      ],
+      "steps": [
+        {
+          "title": "빈 슬롯",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kFree"
+        },
+        {
+          "title": "accept가 슬롯 예약",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kAccepting"
+        },
+        {
+          "title": "연결 콜백 보호",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kActive"
+        },
+        {
+          "title": "FIN 뒤 송신 배출",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kDraining"
+        },
+        {
+          "title": "종료 승자 결정",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kClosing"
+        },
+        {
+          "title": "미완료 참조 격리",
+          "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
+          "evidence": "session.lifecycle",
+          "active": "kQuarantined"
+        }
+      ],
+      "caption": "정상 경로를 읽는 지도다. 실패·재시작·quarantine에서 free로의 반환은 관련 본문과 실제 코드에서 확인한다."
+    }
+  ]
+}

@@ -37,6 +37,11 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await go('server-basics');const term=page.locator('#server-basics dfn[data-term]').first();
   await term.focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#termPopover').isVisible(),true);
   await page.keyboard.press('Escape');assert.equal(await term.evaluate(n=>n===document.activeElement),true);
+  await go('echo-overview');const figure=page.locator('[data-figure="F-P03-1"]');
+  const figureStepMs=await figure.getByRole('button',{name:'다음',exact:true}).evaluate(b=>{const start=performance.now();b.click();b.click();b.click();return (performance.now()-start)/3;});
+  assert.ok(figureStepMs<50);assert.match(await figure.locator('[role="status"]').innerText(),/다음 수신을 게시하고 콜백을 부른다/);
+  await figure.getByRole('button',{name:'재생',exact:true}).click();assert.equal(await figure.getByRole('button',{name:'정지',exact:true}).count(),1);
+  await go('reading-guide');assert.equal(await page.evaluate(()=>playbackSessions.size),0);
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
@@ -119,6 +124,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   assert.ok(fs.statSync(path.join(output,'book.pdf')).size>10000);
   const printBytes=fs.statSync(path.join(output,'book.pdf')).size;
   assert.equal(await page.locator('#printBook [data-archive]').count(),0);
+  assert.ok(await page.locator('#printBook [data-figure] ol li').count()>0);
   await page.emulateMedia({media:'screen'});
   await page.click('#archiveToggle');await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));await page.emulateMedia({media:'print'});
   await page.pdf({path:path.join(output,'book-with-archives.pdf'),preferCSSPageSize:true,printBackground:true});
@@ -128,6 +134,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   assert.deepEqual(errors,[]);assert.equal(requests.filter(u=>!u.startsWith('file:')).length,0);
   const receipt={scope:manifest.chapters.every(c=>c.status==='complete')?'complete book browser acceptance':'reader acceptance; manuscript acceptance pending',browser:browser.version(),offline:true,chapters:rendered.length,labs:labReceipts,viewports:[1440,1920,390],firstRenderMs:firstRender,searchMs,errors,externalRequests:requests.filter(u=>!u.startsWith('file:')),checks:['canonical/legacy URL','back/forward','search and aliases','source scopes, history and focus','all 20 models: JSON replay, undo/redo, play/stop','bounded scenario JSON','persistence','storage blocked','keyboard menu','reduced motion','all-chapter print visibility and PDF','representative screenshots']};
   receipt.printBytes=printBytes;receipt.archivePrintBytes=archivePrintBytes;receipt.checks.push('archive toggle, search, persistence and smaller default PDF');
+  receipt.figureStepMs=figureStepMs;receipt.checks.push('term keyboard focus return','figure step, playback cleanup and print steps');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

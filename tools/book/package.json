@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test:content": "python content_checks.py",
-    "test:models": "node --test model_tests.cjs network_tests.cjs scenario_tests.cjs",
+    "test:models": "node --test model_tests.cjs network_tests.cjs scenario_tests.cjs figure_tests.cjs",
     "test:browser": "node verify_reader.cjs"
   },
   "devDependencies": {

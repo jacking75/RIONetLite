@@ -41,12 +41,49 @@ $('theme').onclick=()=>{persisted.theme=document.documentElement.dataset.theme==
 function stopPlayback(){for(const session of [...labSessions.values(),...figureSessions.values()])if(session.timer){clearInterval(session.timer);session.timer=null;session.playButton.textContent=session.definition?'단계별 재생':'재생';}playbackSessions.clear();}
 function initComponents(article){for(const [kind,init]of Object.entries(components))for(const host of all(`[data-${kind}]`,article))if(!host.dataset.initialized){init(host);host.dataset.initialized='true';}}
 function componentStub(host){host.replaceChildren();const p=document.createElement('p');p.className='small';p.textContent='집필 중인 학습 컴포넌트다.';host.append(p);}
-function initFigure(host){componentStub(host);}
+function initFigure(host){
+  const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');host.replaceChildren();
+  const title=document.createElement('h3');title.textContent=spec.title;
+  const diagram=document.createElement('div');diagram.className='diagram-scroll';
+  const controls=document.createElement('div');controls.className='figure-controls';
+  const explanation=document.createElement('p');explanation.setAttribute('role','status');
+  const links=document.createElement('div');links.className='controls';
+  const caption=document.createElement('figcaption');caption.textContent=spec.caption??spec.note??'설명용 단계이며 실제 시간이 아니다.';
+  const session={host,spec,step:0,timer:null,interval:matchMedia('(prefers-reduced-motion: reduce)').matches?1400:900};
+  const count=BookFigures.stepCount(spec.kind,spec);
+  session.setStep=(value,announce=true)=>{
+    session.step=Math.max(0,Math.min(count-1,value));const frame=spec.steps?.[session.step];
+    diagram.innerHTML=BookFigures.render(spec.kind,spec,session.step).svg;
+    explanation.setAttribute('aria-live',announce?'polite':'off');explanation.textContent=frame?`${session.step+1}/${count} · ${frame.title} — ${frame.text}`:spec.title;
+    for(const button of all('[data-figure-step]',controls))button.setAttribute('aria-pressed',String(Number(button.dataset.figureStep)===session.step));
+    links.replaceChildren();
+    if(frame?.evidence)links.append(makeButton('실제 코드',()=>openEvidence(frame.evidence)));
+    if(frame?.walkthrough)links.append(makeButton('코드 따라가기에서 보기',()=>openWalkthrough(frame.walkthrough.id,frame.walkthrough.step)));
+    for(const node of all('[data-step]',diagram)){const choose=()=>session.setStep(Number(node.dataset.step));node.onclick=choose;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose();}};}
+  };
+  session.playButton=makeButton('재생',()=>{
+    if(session.timer){stopPlayback();return;}stopPlayback();if(session.step===count-1)session.setStep(0);
+    session.playButton.textContent='정지';session.timer=setInterval(()=>{session.setStep(session.step+1,false);if(session.step===count-1)stopPlayback();},session.interval);playbackSessions.add(session);
+  });
+  controls.append(makeButton('처음',()=>{stopPlayback();session.setStep(0);}),makeButton('이전',()=>{stopPlayback();session.setStep(session.step-1);}),session.playButton,makeButton('다음',()=>{stopPlayback();session.setStep(session.step+1);}));
+  for(let i=0;i<count;i++){const b=makeButton(String(i+1),()=>{stopPlayback();session.setStep(i);});b.dataset.figureStep=i;b.setAttribute('aria-label',`${i+1}단계 · ${spec.steps?.[i]?.title??spec.title}`);controls.append(b);}
+  controls.append(makeButton('확대',()=>{figureOpener=document.activeElement;$('figureTitle').textContent=spec.title;$('figureContent').innerHTML=BookFigures.render(spec.kind,spec,session.step).svg;$('figureDialog').showModal();}));
+  host.onkeydown=event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();stopPlayback();session.setStep(session.step+(event.key==='ArrowRight'?1:-1));}};
+  host.append(title,diagram,controls,explanation,links,caption);figureSessions.set(spec.id,session);session.setStep(0);
+}
+
 function initWalkthrough(host){componentStub(host);}
 function initCompare(host){componentStub(host);}
 function initQuiz(host){componentStub(host);}
 function initMap(host){componentStub(host);}
-function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){host.replaceChildren();host.textContent='인쇄판에서는 생략한다.';}}
+function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){
+  host.replaceChildren();
+  if(kind==='figure'){
+    const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');
+    const title=document.createElement('h3');title.textContent=spec.title;const diagram=document.createElement('div');diagram.className='diagram-scroll';diagram.innerHTML=BookFigures.render(spec.kind,spec,BookFigures.stepCount(spec.kind,spec)-1).svg;
+    const steps=document.createElement('ol');for(const step of spec.steps??[]){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;steps.append(li);}host.append(title,diagram,steps);
+  }else host.textContent='인쇄판에서는 생략한다.';
+}}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}
 function makeToc(){
   $('navigation').replaceChildren();
