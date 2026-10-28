@@ -1173,6 +1173,121 @@
       },
       "why": "지연 처리용 데이터는 독립 저장소로 복사한다. OnData가 반환한 뒤 원래 링의 수명이 앱 작업에 맞춰 연장되지는 않는다.",
       "evidence": "queue.copy_payload"
+    },
+    {
+      "id": "X-C19-1",
+      "title": "핸들러 생성: EchoHandler에서 복사 큐 어댑터로",
+      "mode": "evolution",
+      "left": {
+        "label": "실제 Echo 코드",
+        "evidence": "echo.main",
+        "focus": {
+          "start": "  EchoHandler handler(config.max_message_bytes, observability_enabled);",
+          "end": "  EchoHandler handler(config.max_message_bytes, observability_enabled);"
+        }
+      },
+      "right": {
+        "label": "실제 Chat 코드",
+        "evidence": "chat.construct",
+        "focus": {
+          "start": "      : adapter_(logic_workers, events_per_worker, kMaxPacketBytes,",
+          "end": "  rionetlite::EventHandler& handler() noexcept { return adapter_; }"
+        }
+      },
+      "why": "Chat은 EventHandler 구현으로 QueuedEventAdapter를 내보낸다. 로직 워커 수와 큐 포화 종료 정책을 앱 생성 시 정한다.",
+      "evidence": "chat.construct"
+    },
+    {
+      "id": "X-C19-2",
+      "title": "수신: 즉시 Decode에서 payload 복사로",
+      "mode": "evolution",
+      "left": {
+        "label": "실제 Echo 코드",
+        "evidence": "echo.on_data",
+        "focus": {
+          "start": "    const rionetlite::DecodeResult decoded =",
+          "end": "          const auto result = server_->Send(session, packet);"
+        }
+      },
+      "right": {
+        "label": "실제 Chat 코드",
+        "evidence": "queue.copy_payload",
+        "focus": {
+          "start": "    slot.header = header;",
+          "end": "      std::memcpy(slot.payload.data(), payload.data(), payload.size());"
+        }
+      },
+      "why": "Echo는 콜백 안에서 짧게 응답한다. Chat은 입력을 자체 슬롯에 복사하고 샤드의 Player.input에서 재조립한다.",
+      "evidence": "queue.copy_payload"
+    },
+    {
+      "id": "X-C19-3",
+      "title": "상태: 즉시 응답에서 Player의 로그인·룸 상태로",
+      "mode": "evolution",
+      "left": {
+        "label": "실제 Echo 코드",
+        "evidence": "echo.on_data",
+        "focus": {
+          "start": "    const rionetlite::DecodeResult decoded =",
+          "end": "    return decoded.consumed_bytes;"
+        }
+      },
+      "right": {
+        "label": "실제 Chat 코드",
+        "evidence": "chat.player_state",
+        "focus": {
+          "start": "  enum class Phase : std::uint8_t",
+          "end": "  using PlayerMap = std::unordered_map<std::uint32_t, Player>;"
+        }
+      },
+      "why": "Echo의 응답은 받은 완성 프레임 자체다. Chat의 Player는 전체 ID·phase·room·입력 꼬리를 보관하며 RunShard가 소유한다.",
+      "evidence": "chat.player_state"
+    },
+    {
+      "id": "X-C19-4",
+      "title": "응답: 단일 Send에서 룸 필터 방송으로",
+      "mode": "evolution",
+      "left": {
+        "label": "실제 Echo 코드",
+        "evidence": "echo.on_data",
+        "focus": {
+          "start": "          const auto result = server_->Send(session, packet);",
+          "end": "          const auto result = server_->Send(session, packet);"
+        }
+      },
+      "right": {
+        "label": "실제 Chat 코드",
+        "evidence": "application.shard",
+        "focus": {
+          "start": "      if (PopBroadcast(shard, message)) {",
+          "end": "                     std::span(message.payload).first(message.payload_bytes)));"
+        }
+      },
+      "why": "각 샤드가 자신의 PlayerMap에서 같은 룸만 선택한다. Send helper는 kWouldBlock·kUnavailable을 overload 종료 정책으로 바꾼다.",
+      "evidence": "application.shard"
+    },
+    {
+      "id": "X-C19-5",
+      "title": "종료: transport 정리 뒤 앱 작업도 배출한다",
+      "mode": "evolution",
+      "left": {
+        "label": "실제 Echo 코드",
+        "evidence": "echo.main",
+        "focus": {
+          "start": "  if (auto stopped = server->Stop(rionetlite::StopMode::kGraceful); !stopped) {",
+          "end": "    return 5;"
+        }
+      },
+      "right": {
+        "label": "실제 Chat 코드",
+        "evidence": "chat.main_shutdown",
+        "focus": {
+          "start": "  const auto stopped = server->Stop(rionetlite::StopMode::kGraceful);",
+          "end": "  return stopped && logic_drained ? 0 : 5;"
+        }
+      },
+      "why": "실제 Chat 순서는 Server::Stop 다음 StopAfterDrain이다. transport가 더 이상 이벤트를 생산하지 않은 뒤 이벤트·실행 중 작업·broadcast를 비우고 로직 워커를 join한다.",
+      "evidence": "chat.main_shutdown"
     }
   ]
 }

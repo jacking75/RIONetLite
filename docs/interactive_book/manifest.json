@@ -1121,6 +1121,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "chat-server-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "chat-server-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1169,6 +1173,10 @@
         {
           "id": "application-design-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "application-design-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "application-design-prior-notes",

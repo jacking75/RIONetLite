@@ -1324,6 +1324,61 @@
       "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
       "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559",
       "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "chat.construct",
+      "chapter": "C19",
+      "section": "chat-start",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  ChatApplication(const std::uint32_t logic_workers,",
+        "end": "  void Attach("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "Chat 기동과 종료",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "GTest는 공통 wire 규약을 검사한다. 생성·broadcast·StopAfterDrain 순서는 정적 소스 검토이며 실제 프로세스 검증 명령은 tools/test-chat.ps1이다. 이번 집필에서는 다시 실행하지 않았다.",
+      "reviewNote": "2026-10-28 KST · Chat 실제 생성·Send 결과·종료 순서를 원문과 대조했다. fixture GTest와 실제 프로세스 테스트는 별도 범위다."
+    },
+    {
+      "id": "chat.send_helper",
+      "chapter": "C19",
+      "section": "chat-broadcast",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool Send(const rionetlite::SessionId session,",
+        "end": "  bool ProcessPacket("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "패킷 상태·UTF-8 검사",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "GTest는 공통 wire 규약을 검사한다. 생성·broadcast·StopAfterDrain 순서는 정적 소스 검토이며 실제 프로세스 검증 명령은 tools/test-chat.ps1이다. 이번 집필에서는 다시 실행하지 않았다.",
+      "reviewNote": "2026-10-28 KST · Chat 실제 생성·Send 결과·종료 순서를 원문과 대조했다. fixture GTest와 실제 프로세스 테스트는 별도 범위다."
+    },
+    {
+      "id": "chat.main_shutdown",
+      "chapter": "C19",
+      "section": "chat-stop",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  const auto stopped = server->Stop(rionetlite::StopMode::kGraceful);",
+        "end": "  return stopped && logic_drained ? 0 : 5;\n",
+        "includeEnd": true
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "Chat 기동과 종료",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "GTest는 공통 wire 규약을 검사한다. 생성·broadcast·StopAfterDrain 순서는 정적 소스 검토이며 실제 프로세스 검증 명령은 tools/test-chat.ps1이다. 이번 집필에서는 다시 실행하지 않았다.",
+      "reviewNote": "2026-10-28 KST · Chat 실제 생성·Send 결과·종료 순서를 원문과 대조했다. fixture GTest와 실제 프로세스 테스트는 별도 범위다."
     }
   ]
 }
