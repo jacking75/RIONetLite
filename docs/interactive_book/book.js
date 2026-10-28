@@ -90,6 +90,7 @@ function renderRoute(){
   const article=$(chapter.slug);
   all('[data-lab]',article).forEach(initLab);
   initComponents(article);
+  initTerms(article);
   applyArchives();
   if(params.has('lab')){
     const session=labSessions.get(params.get('lab'));
@@ -220,6 +221,26 @@ $('figureDialog').addEventListener('close',()=>figureOpener?.focus());
 let termOpener=null;
 function closeTerm(){if($('termPopover').hidden)return;$('termPopover').hidden=true;termOpener?.focus();}
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeTerm();});
+document.addEventListener('click',event=>{if(!event.target.closest('#termPopover,dfn[data-term]'))closeTerm();});
+function initTerms(article){
+  for(const node of all('dfn[data-term]',article)){
+    node.classList.add('term');node.tabIndex=0;node.setAttribute('role','button');node.setAttribute('aria-haspopup','dialog');node.setAttribute('aria-controls','termPopover');
+    const open=()=>{
+      const term=BOOK.glossary.find(t=>t.id===node.dataset.term);if(!term)return;
+      termOpener=node;const panel=$('termPopover');panel.replaceChildren();panel.hidden=false;
+      const title=document.createElement('h3');title.textContent=term.term;
+      const definition=document.createElement('p');definition.textContent=term.definition;
+      const links=document.createElement('p');links.append('자세히: ');
+      for(const id of term.chapters){const chapter=chapters.find(c=>c.id===id);const a=document.createElement('a');a.href=chapterUrl(chapter);a.textContent=id+' '+chapter.title;a.onclick=()=>closeTerm();links.append(a,' · ');}
+      const close=makeButton('용어 설명 닫기',closeTerm);panel.append(title,definition,links,close);
+      const rect=node.getBoundingClientRect();const height=panel.getBoundingClientRect().height;
+      panel.style.left=Math.max(16,Math.min(innerWidth-panel.offsetWidth-16,rect.left))+'px';
+      panel.style.top=(rect.bottom+height+12<innerHeight?rect.bottom+8:Math.max(16,rect.top-height-8))+'px';
+      close.focus({preventScroll:true});
+    };
+    node.onclick=open;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}};
+  }
+}
 function getModel(definition){return BookModels[definition.modelKey];}
 function labAction(session,action){
   try{

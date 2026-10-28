@@ -1,9 +1,9 @@
 <article class="chapter" id="echo-overview" data-title="EchoServer 한눈에 보기"><div class="eyebrow">0부 · P03</div><h1>EchoServer 전체를 먼저 읽는다</h1>
 <p class="lead">EchoServer는 받은 메시지를 그대로 돌려보내는 가장 작은 예제다. 코드 전체의 모양, 실행 순서, 패킷 하나가 서버를 지나가는 길을 먼저 보고 나서 세부 장으로 들어간다.</p>
-<aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>EchoServer의 <code>main</code>과 <code>EchoHandler</code>가 각각 무슨 일을 하는지 설명하고, 클라이언트가 보낸 7바이트가 응답으로 돌아가기까지 거치는 단계를 순서대로 말할 수 있다. 같은 흐름을 한 단계씩 실행하는 실험은 <a href="#chapter=echo-walkthrough">C04</a>에 있다.</p></aside>
+<aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>EchoServer의 <code>main</code>과 <code>EchoHandler</code>가 각각 무슨 일을 하는지 설명하고, 클라이언트가 보낸 7바이트가 응답으로 돌아가기까지 거치는 단계를 순서대로 말할 수 있다. 같은 흐름을 한 단계씩 실행하는 실험은 <a href="#chapter=echo-walkthrough">C04</a>에 있다.</p><p>이 예제의 <dfn data-term="ownership">소유권</dfn>은 main이 관리한다. <dfn data-term="config">서버 설정</dfn>을 채우고 <dfn data-term="port">포트</dfn>를 연 뒤, <dfn data-term="callback">콜백</dfn>에서 <dfn data-term="frame">프레임</dfn>을 해석하며 <dfn data-term="session">세션</dfn>을 통해 답을 보낸다.</p></aside>
 <section id="echo-ov-goal"><h2>받은 패킷을 그대로 돌려준다</h2>
 <p>EchoServer는 네트워크 라이브러리의 “Hello, World”다. 게임 규칙은 없고, 클라이언트가 보낸 메시지를 같은 모양 그대로 돌려준다. 소스는 <code>samples/echo_server/main.cpp</code> 한 파일이며 공개 헤더만 사용한다.</p>
-<p>메시지 형식은 <a href="#chapter=server-basics&amp;section=basics-tcp-stream">P01</a>에서 본 길이 헤더 방식이다. 앞의 4바이트는 헤더를 포함한 전체 길이이고, 큰 자리부터 적는다(big-endian). 길이는 최소 4(본문 없음)이고 최대는 <code>max_message_bytes</code>(기본 16KiB)다. 이 범위를 벗어난 길이가 오면 서버는 그 연결을 닫는다.</p>
+<p>메시지 형식은 <a href="#chapter=server-basics&amp;section=basics-tcp-stream">P01</a>에서 본 <dfn data-term="length-prefix">길이 헤더</dfn> 방식이다. 앞의 4바이트는 헤더를 포함한 전체 길이이고, 큰 자리부터 적는다(big-endian). 길이는 최소 4(본문 없음)이고 최대는 <code>max_message_bytes</code>(기본 16KiB)다. 이 범위를 벗어난 길이가 오면 서버는 그 연결을 닫는다.</p>
 <div class="bytes" role="img" aria-label="요청과 응답이 같은 7바이트 00 00 00 07 72 69 6F"><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">07<small>길이</small></span><span class="byte">72<small>r</small></span><span class="byte">69<small>i</small></span><span class="byte">6F<small>o</small></span></div>
 <p class="small">클라이언트가 보낸 바이트와 서버가 돌려주는 바이트가 똑같다. 헤더까지 그대로 돌려주므로 클라이언트는 같은 규칙으로 응답을 읽을 수 있다.</p>
 </section>
@@ -62,16 +62,16 @@ int main() {
 <tr><td>②</td><td><code>OnData</code></td><td>이 세션으로 받은 바이트 중 아직 처리하지 않은 부분 전체가 <code>data</code>로 들어온다. 앞에서 남겨 둔 조각과 새로 받은 바이트가 이어진 상태다.</td></tr>
 <tr><td>③</td><td><code>decoder_.Decode</code></td><td>공개 헤더 <code>packet_decoder.h</code>의 길이 헤더 디코더다. <code>data</code>를 앞에서부터 읽어 완성된 패킷을 찾을 때마다 람다를 부른다. 두 패킷이 붙어 왔으면 두 번 부른다.</td></tr>
 <tr><td>④</td><td><code>Send</code></td><td>패킷을 그대로 돌려보낸다. <code>Send</code>는 바이트를 라이브러리 내부 송신 버퍼에 복사한 뒤 바로 돌아온다. 버퍼가 가득 차서 거절되면 Echo는 연결을 닫는 정책을 쓴다.</td></tr>
-<tr><td>⑤</td><td>오류 처리</td><td>길이가 4보다 작거나 최대값보다 크면 프로토콜 오류다. 연결 종료를 요청하고, 닫을 연결이므로 받은 바이트를 모두 소비한 것으로 돌려준다.</td></tr>
-<tr><td>⑥</td><td>소비량 반환</td><td>“앞에서부터 이만큼은 처리했다”는 바이트 수다. 패킷이 아직 덜 왔으면 0이다. 남은 바이트는 라이브러리의 수신 링에 그대로 남아 다음 수신 때 새 데이터와 함께 다시 온다.</td></tr>
+<tr><td>⑤</td><td>오류 처리</td><td>길이가 4보다 작거나 최대값보다 크면 <dfn data-term="protocol">프로토콜</dfn> 오류다. 연결 종료를 요청하고, 닫을 연결이므로 받은 바이트를 모두 소비한 것으로 돌려준다.</td></tr>
+<tr><td>⑥</td><td><dfn data-term="consume">소비량</dfn> 반환</td><td>“앞에서부터 이만큼은 처리했다”는 바이트 수다. 패킷이 아직 덜 왔으면 0이다. 남은 바이트는 라이브러리의 수신 링에 그대로 남아 다음 수신 때 새 데이터와 함께 다시 온다.</td></tr>
 <tr><td>⑦</td><td><code>Attach</code></td><td>라이브러리 API가 아니라 예제의 도우미 함수다. 핸들러가 응답할 때 쓸 서버 주소를 기억한다. 콜백이 시작되는 <code>Start</code>보다 먼저 부른다.</td></tr>
-<tr><td>⑧</td><td><code>ServerConfig</code></td><td>포트만 바꾸고 나머지는 기본값을 쓴다. 실제 코드는 명령행으로 워커 수, 최대 세션 수 등을 바꿀 수 있다.</td></tr>
-<tr><td>⑨</td><td><code>Server::Create</code></td><td>설정을 검사하고 세션 풀과 버퍼를 준비한다. 실패하면 오류를 담은 <code>std::expected</code>가 온다. 핸들러는 서버보다 먼저 만들어 서버보다 오래 살아 있어야 한다.</td></tr>
-<tr><td>⑩</td><td><code>Start</code></td><td>accept 스레드와 I/O 워커를 띄운다. 이때부터 콜백이 다른 스레드에서 불린다.</td></tr>
+<tr><td>⑧</td><td><code>ServerConfig</code></td><td>포트만 바꾸고 나머지는 기본값을 쓴다. 실제 코드는 명령행으로 <dfn data-term="worker">워커</dfn> 수, 최대 세션 수 등을 바꿀 수 있다.</td></tr>
+<tr><td>⑨</td><td><code>Server::Create</code></td><td>설정을 검사하고 <dfn data-term="pool">세션 풀</dfn>과 버퍼를 준비한다. 실패하면 오류를 담은 <code>std::expected</code>가 온다. 핸들러는 서버보다 먼저 만들어 서버보다 오래 살아 있어야 한다.</td></tr>
+<tr><td>⑩</td><td><code>Start</code></td><td>accept <dfn data-term="thread">스레드</dfn>와 I/O 워커를 띄운다. 이때부터 콜백이 다른 스레드에서 불린다.</td></tr>
 <tr><td>⑪</td><td>대기 반복</td><td>주 스레드는 종료 조건만 확인하며 기다린다. 네트워크 처리는 모두 라이브러리 스레드에서 일어난다.</td></tr>
 <tr><td>⑫</td><td><code>Stop</code></td><td>새 연결을 막고, 이미 맡은 송신을 끝낼 기회를 준 뒤 서버를 멈춘다. 콜백 안이 아니라 서버를 소유한 주 스레드에서 부른다.</td></tr>
 </tbody></table></div>
-<p>코드에 소켓, 스레드 생성, RIO 함수가 하나도 없다는 점에 주목한다. 그 일은 모두 라이브러리 안에서 일어난다. 실제 원문은 아래 버튼으로 확인한다.</p>
+<p>코드에 <dfn data-term="socket">소켓</dfn>, 스레드 생성, RIO 함수가 하나도 없다는 점에 주목한다. 그 일은 모두 라이브러리 안에서 일어난다. 실제 원문은 아래 버튼으로 확인한다.</p>
 <button class="source" data-evidence="echo.main">실제 코드 · main의 생성·시작·정지 순서</button><button class="source" data-evidence="echo.on_data">실제 코드 · EchoHandler::OnData</button>
 </section>
 <section id="echo-ov-flow"><h2>패킷 하나가 왕복하는 길</h2>
@@ -100,7 +100,7 @@ int main() {
 <ol start="0">
 <li><strong>미리 게시한 수신 요청</strong> — 연결이 생길 때 라이브러리가 “이 세션의 수신 링 빈 칸에 데이터를 받아 달라”는 요청을 이미 맡겨 두었다.</li>
 <li><strong>전송</strong> — 클라이언트가 <code>00 00 00 07 72 69 6F</code>를 보낸다.</li>
-<li><strong>커널이 수신 링에 쓴다</strong> — 등록 버퍼로 만든 수신 링에 바이트를 직접 쓰고, 이 세션 담당 워커의 CQ에 “7바이트 받음” 완료를 남긴다.</li>
+<li><strong>커널이 수신 링에 쓴다</strong> — <dfn data-term="registered-buffer">등록 버퍼</dfn>로 만든 수신 링에 바이트를 직접 쓰고, 이 세션 담당 워커의 CQ에 “7바이트 받음” 완료를 남긴다.</li>
 <li><strong>워커가 완료를 꺼낸다</strong> — 완료가 정말 이 세션의 현재 연결 것인지 확인하고, 받은 7바이트를 링에 반영한다. 링에 빈 칸이 있으면 다음 수신 요청을 콜백보다 먼저 게시해 둔다.</li>
 <li><strong><code>OnData</code> 호출</strong> — 워커가 아직 처리하지 않은 바이트 전체(여기서는 7바이트)를 넘긴다.</li>
 <li><strong>Decode</strong> — 디코더가 헤더의 7을 읽고, 7바이트가 다 있으므로 패킷 하나를 람다에 넘긴다.</li>

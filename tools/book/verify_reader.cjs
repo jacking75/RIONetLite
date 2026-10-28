@@ -34,6 +34,9 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await page.click('#archiveToggle');await page.fill('#search','');
   await page.locator('#receive-path .archive-toggle').click();assert.equal(await page.locator('#receive-path [data-archive]').isVisible(),true);
   await page.locator('#receive-path .archive-toggle').click();
+  await go('server-basics');const term=page.locator('#server-basics dfn[data-term]').first();
+  await term.focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#termPopover').isVisible(),true);
+  await page.keyboard.press('Escape');assert.equal(await term.evaluate(n=>n===document.activeElement),true);
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}

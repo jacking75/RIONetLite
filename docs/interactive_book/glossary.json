@@ -15,7 +15,8 @@
         "P01",
         "C05",
         "C14"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "completion",
@@ -31,7 +32,8 @@
         "C05",
         "C12",
         "C15"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "outstanding",
@@ -46,7 +48,8 @@
         "C08",
         "C15",
         "C17"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "generation",
@@ -61,7 +64,8 @@
       "chapters": [
         "P01",
         "C11"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "backpressure",
@@ -76,7 +80,8 @@
         "P01",
         "C14",
         "C20"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "drain",
@@ -89,7 +94,8 @@
       "chapters": [
         "C16",
         "C17"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "coalescing",
@@ -102,7 +108,8 @@
       "chapters": [
         "C14",
         "C15"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "observability",
@@ -115,7 +122,8 @@
       ],
       "chapters": [
         "C22"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "bounded_queue",
@@ -128,7 +136,8 @@
       "chapters": [
         "C18",
         "C20"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "double_mapping",
@@ -141,7 +150,8 @@
       ],
       "chapters": [
         "C09"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "span",
@@ -158,7 +168,8 @@
         "C03",
         "C12",
         "C18"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "rq",
@@ -173,7 +184,8 @@
         "P01",
         "C05",
         "C10"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "borrowed",
@@ -189,7 +201,8 @@
         "C03",
         "C07",
         "A01"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "half-close",
@@ -202,7 +215,8 @@
       ],
       "chapters": [
         "C16"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "parked-close",
@@ -216,7 +230,8 @@
       "chapters": [
         "C18",
         "C17"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "quarantine",
@@ -230,7 +245,8 @@
       "chapters": [
         "C11",
         "C16"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "consume",
@@ -245,7 +261,8 @@
         "P01",
         "C12",
         "C13"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "partial",
@@ -259,7 +276,8 @@
       ],
       "chapters": [
         "C15"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "double-map",
@@ -274,7 +292,8 @@
         "C08",
         "C09",
         "C21"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "deadline",
@@ -287,7 +306,8 @@
       ],
       "chapters": [
         "C17"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "p99",
@@ -300,7 +320,8 @@
       ],
       "chapters": [
         "C25"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "counter",
@@ -314,7 +335,8 @@
       ],
       "chapters": [
         "C22"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "abi",
@@ -328,7 +350,8 @@
       ],
       "chapters": [
         "C27"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "fixture",
@@ -343,7 +366,8 @@
       "chapters": [
         "C19",
         "C24"
-      ]
+      ],
+      "level": "중급"
     },
     {
       "id": "baseline",
@@ -357,7 +381,501 @@
       "chapters": [
         "C25",
         "A04"
-      ]
+      ],
+      "level": "중급"
+    },
+    {
+      "id": "socket",
+      "term": "소켓",
+      "aliases": [
+        "socket",
+        "SOCKET"
+      ],
+      "definition": "프로그램이 네트워크 통신에 사용하는 통로다. 이 책에서는 연결을 받아 만든 Windows 소켓 핸들을 세션이 관리한다.",
+      "chapters": [
+        "P01",
+        "C10"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "port",
+      "term": "포트",
+      "aliases": [
+        "port",
+        "포트 번호"
+      ],
+      "definition": "같은 컴퓨터의 통신 서비스를 구별하는 번호다. 예제의 listen 포트와 클라이언트의 접속 대상 포트를 맞춘다.",
+      "chapters": [
+        "P01",
+        "C02"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "listen",
+      "term": "접속 대기",
+      "aliases": [
+        "listen",
+        "리스닝"
+      ],
+      "definition": "클라이언트가 들어올 수 있도록 문을 열고 기다리는 동작이다. Start 뒤 accept 스레드가 이 소켓에서 연결을 받는다.",
+      "chapters": [
+        "P01",
+        "C10"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "accept",
+      "term": "연결 수락",
+      "aliases": [
+        "accept",
+        "수락"
+      ],
+      "definition": "대기 중인 접속을 개별 통신 소켓으로 받는 동작이다. 성공 후 세션 슬롯과 워커를 연결하고 첫 수신을 게시한다.",
+      "chapters": [
+        "P01",
+        "C10"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "byte-stream",
+      "term": "바이트 스트림",
+      "aliases": [
+        "byte stream",
+        "TCP",
+        "바이트 흐름"
+      ],
+      "definition": "순서는 있지만 메시지 경계는 없는 바이트의 흐름이다. OnData가 받은 구간과 애플리케이션 패킷 한 개의 크기는 다를 수 있다.",
+      "chapters": [
+        "P01",
+        "C13"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "length-prefix",
+      "term": "길이 접두 헤더",
+      "aliases": [
+        "length prefix",
+        "길이 헤더"
+      ],
+      "definition": "메시지 앞에 전체 길이를 기록한 표식이다. Echo는 헤더 자신을 포함한 길이를 4바이트에 기록한다.",
+      "chapters": [
+        "P01",
+        "C13"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "big-endian",
+      "term": "빅 엔디언",
+      "aliases": [
+        "big endian",
+        "network byte order"
+      ],
+      "definition": "여러 바이트의 숫자에서 큰 자릿수를 먼저 놓는 순서다. Echo의 00 00 00 07은 전체 길이 7을 뜻한다.",
+      "chapters": [
+        "P01",
+        "C13"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "callback",
+      "term": "콜백",
+      "aliases": [
+        "callback",
+        "EventHandler"
+      ],
+      "definition": "작업 결과를 알리려고 라이브러리가 부르는 애플리케이션 함수다. 같은 세션의 연결·데이터·종료 순서는 유지하지만 다른 세션과는 병행될 수 있다.",
+      "chapters": [
+        "P02",
+        "C07"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "thread",
+      "term": "스레드",
+      "aliases": [
+        "thread",
+        "실행 흐름"
+      ],
+      "definition": "CPU에서 명령을 차례로 실행하는 흐름이다. 세션마다 하나씩 만들지 않고 여러 세션의 완료를 적은 워커가 처리한다.",
+      "chapters": [
+        "P01",
+        "C07"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "worker",
+      "term": "워커",
+      "aliases": [
+        "worker",
+        "I/O worker"
+      ],
+      "definition": "큐에서 일을 꺼내 반복 처리하는 실행 담당자다. I/O 워커는 RIO 완료를 처리하고 게임 로직 워커는 복사된 이벤트를 처리한다.",
+      "chapters": [
+        "P02",
+        "C07"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "lock",
+      "term": "잠금",
+      "aliases": [
+        "lock",
+        "mutex",
+        "락"
+      ],
+      "definition": "공유 상태를 동시에 바꾸지 못하게 하는 장치다. 송신 링의 상태는 잠금 안에서 정하되 운영체제 호출은 정해진 경계 밖에서 수행한다.",
+      "chapters": [
+        "C14"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "atomic",
+      "term": "원자 변수",
+      "aliases": [
+        "atomic",
+        "std::atomic"
+      ],
+      "definition": "하나의 읽기·쓰기·교환을 쪼개지 않고 관찰하게 하는 변수다. 원자 변수 하나가 여러 필드 전체의 정합성까지 보장하지는 않는다.",
+      "chapters": [
+        "C11",
+        "C17"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "slot",
+      "term": "슬롯",
+      "aliases": [
+        "slot",
+        "index"
+      ],
+      "definition": "미리 마련한 저장 공간의 한 자리다. 세션 슬롯 번호는 재사용되므로 세대와 함께 비교한다.",
+      "chapters": [
+        "P02",
+        "C10",
+        "C11"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "pool",
+      "term": "풀",
+      "aliases": [
+        "pool",
+        "세션 풀"
+      ],
+      "definition": "필요한 객체나 공간을 미리 모아 둔 저장소다. 연결마다 세션을 새로 할당하지 않고 비어 있는 슬롯을 빌린다.",
+      "chapters": [
+        "P02",
+        "C10"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "ring",
+      "term": "링 버퍼",
+      "aliases": [
+        "ring buffer",
+        "read",
+        "write"
+      ],
+      "definition": "끝에 도달하면 처음으로 돌아가 사용하는 원형 저장소다. 읽기·쓰기 위치가 같아도 used 값으로 비어 있음과 가득 참을 구별한다.",
+      "chapters": [
+        "C09",
+        "C12",
+        "C14"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "registered-buffer",
+      "term": "등록 버퍼",
+      "aliases": [
+        "registered buffer",
+        "RIORegisterBuffer"
+      ],
+      "definition": "운영체제에 주소와 크기를 미리 알려 둔 메모리다. RIO 요청이 참조하는 동안 이동하거나 등록 해제하지 않는다.",
+      "chapters": [
+        "P01",
+        "C08"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "cq",
+      "term": "완료 큐",
+      "aliases": [
+        "completion queue",
+        "CQ",
+        "RIODequeueCompletion"
+      ],
+      "definition": "끝난 비동기 요청의 결과를 모아 놓은 큐다. 이 라이브러리는 담당 워커가 자신의 CQ에서 결과를 꺼내 세대와 상태를 검사한다.",
+      "chapters": [
+        "P01",
+        "C05",
+        "C12"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "completion-batch",
+      "term": "완료 배치",
+      "aliases": [
+        "batch",
+        "completion_batch_size"
+      ],
+      "definition": "한 번에 여러 완료 결과를 꺼내 처리하는 묶음이다. 배치 크기는 처리량과 다른 세션이 기다리는 시간을 함께 고려하는 설정이다.",
+      "chapters": [
+        "C21",
+        "C22"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "fin",
+      "term": "FIN",
+      "aliases": [
+        "FIN",
+        "원격 송신 종료"
+      ],
+      "definition": "상대가 더 이상 바이트를 보내지 않겠다는 TCP 신호다. 수신 0바이트 완료를 보고 새 송신 접수를 막은 뒤 기존 송신의 배출을 기다린다.",
+      "chapters": [
+        "C16"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "keepalive",
+      "term": "Keepalive",
+      "aliases": [
+        "keepalive",
+        "TCP keep alive"
+      ],
+      "definition": "아무 데이터가 오가지 않을 때 TCP가 연결 생존 여부를 확인하는 기능이다. 게임의 로그인·틱·응답 제한 시간을 대신하지 않는다.",
+      "chapters": [
+        "C21"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "idle-timeout",
+      "term": "유휴 제한 시간",
+      "aliases": [
+        "idle_timeout_ms",
+        "idle timeout"
+      ],
+      "definition": "활동 없이 허용하는 최대 대기 시간이다. 게임 프로토콜의 ping 응답 검증과는 별도로 서버가 오래 조용한 세션을 정리하는 기준이다.",
+      "chapters": [
+        "C16",
+        "C21"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "graceful",
+      "term": "우아한 종료",
+      "aliases": [
+        "graceful",
+        "배출 종료"
+      ],
+      "definition": "이미 접수한 작업이 끝날 기회를 준 뒤 닫는 방식이다. 기한이 있으므로 무한히 기다리거나 상대의 게임 처리까지 보장하지 않는다.",
+      "chapters": [
+        "C17"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "immediate",
+      "term": "즉시 종료",
+      "aliases": [
+        "immediate",
+        "강제 종료"
+      ],
+      "definition": "기다리는 시간을 줄이기 위해 연결을 바로 닫는 방식이다. 소켓을 닫은 뒤에도 취소 완료와 워커 종료까지 버퍼 수명을 유지한다.",
+      "chapters": [
+        "C17"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "shard",
+      "term": "샤드",
+      "aliases": [
+        "shard",
+        "분할"
+      ],
+      "definition": "많은 일을 소유 규칙에 따라 나눈 처리 단위다. Chat은 세션을 한 로직 샤드에 배정해 Player 상태의 동시 수정을 줄인다.",
+      "chapters": [
+        "C18",
+        "C19"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "tick",
+      "term": "틱",
+      "aliases": [
+        "tick",
+        "게임 갱신"
+      ],
+      "definition": "일정한 순서로 게임 상태를 갱신하는 한 차례다. 네트워크 콜백 대신 로직 워커가 입력과 방송을 제한된 양씩 처리하도록 설계한다.",
+      "chapters": [
+        "C19",
+        "C20"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "broadcast",
+      "term": "방송",
+      "aliases": [
+        "broadcast",
+        "브로드캐스트"
+      ],
+      "definition": "같은 이벤트를 여러 수신자에게 보내는 동작이다. Chat에서는 룸 소속을 확인하고 각 Send의 접수 결과를 처리한다.",
+      "chapters": [
+        "C19"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "expected",
+      "term": "expected",
+      "aliases": [
+        "std::expected",
+        "오류 값"
+      ],
+      "definition": "성공 값 또는 오류 값을 함께 표현하는 C++ 타입이다. Create의 실패 원인을 값으로 받고 성공한 경우에만 Server를 사용한다.",
+      "chapters": [
+        "C03"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "config",
+      "term": "서버 설정",
+      "aliases": [
+        "ServerConfig",
+        "config",
+        "설정"
+      ],
+      "definition": "프로그램 동작에 필요한 숫자와 정책을 모은 값이다. 포트뿐 아니라 세션 수·워커 수·버퍼 크기의 관계를 시작 전에 검사한다.",
+      "chapters": [
+        "C02",
+        "C03",
+        "C21"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "frame",
+      "term": "프레임",
+      "aliases": [
+        "frame",
+        "프레이밍"
+      ],
+      "definition": "바이트 흐름에서 애플리케이션이 구별하는 메시지 하나다. 이 책의 Echo 프레임은 길이 4바이트와 본문으로 구성한다.",
+      "chapters": [
+        "P01",
+        "C13"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "protocol",
+      "term": "프로토콜",
+      "aliases": [
+        "protocol",
+        "통신 규약"
+      ],
+      "definition": "보낸 바이트를 어떻게 해석할지 합의한 규칙이다. Chat은 길이·버전·타입을 검사한 뒤 로그인과 룸 작업으로 연결한다.",
+      "chapters": [
+        "C13",
+        "C19"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "timeout",
+      "term": "제한 시간",
+      "aliases": [
+        "timeout",
+        "타임아웃"
+      ],
+      "definition": "작업을 기다리다가 포기하기로 정한 시간이다. 서버 종료 기한을 넘기더라도 아직 커널이 참조하는 자원을 먼저 해제하지 않는다.",
+      "chapters": [
+        "C16",
+        "C17"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "ownership",
+      "term": "소유권",
+      "aliases": [
+        "ownership",
+        "수명 책임"
+      ],
+      "definition": "누가 자원을 유지하고 마지막에 정리할지 정한 책임이다. Server가 빌려 쓰는 핸들러·로거는 Server보다 오래 살아야 한다.",
+      "chapters": [
+        "P02",
+        "C03",
+        "C04"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "session",
+      "term": "세션",
+      "aliases": [
+        "session",
+        "SessionId"
+      ],
+      "definition": "연결 하나의 상태와 식별값을 모은 단위다. SessionId는 슬롯 인덱스와 세대를 함께 전달해 이전 연결의 작업을 구분한다.",
+      "chapters": [
+        "P01",
+        "C11"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "blocking",
+      "term": "블로킹",
+      "aliases": [
+        "blocking",
+        "동기 대기"
+      ],
+      "definition": "결과가 나올 때까지 호출한 스레드가 기다리는 방식이다. 콜백에서 DB를 동기로 기다리면 같은 I/O 워커가 맡은 다른 세션도 늦어진다.",
+      "chapters": [
+        "P01",
+        "C07"
+      ],
+      "level": "입문"
+    },
+    {
+      "id": "async",
+      "term": "비동기",
+      "aliases": [
+        "asynchronous",
+        "async"
+      ],
+      "definition": "요청을 맡긴 뒤 결과를 나중에 확인하는 방식이다. 게시 성공과 완료는 다른 순간이며 그 사이 버퍼 수명이 이어져야 한다.",
+      "chapters": [
+        "P01",
+        "C05"
+      ],
+      "level": "입문"
     }
   ]
 }
