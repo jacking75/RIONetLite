@@ -27,7 +27,7 @@ auto started = server-&gt;Start();</code></pre>
 <p>수신 완료에서 선게시한 다음 요청이 <dfn data-term="registered-buffer">등록 버퍼</dfn>를 계속 참조할 수 있다. 마지막 단계에서 응답 송신의 outstanding이 0이 되어도 수신 outstanding은 1로 남는다. 송신 종료와 서버 전체의 메모리 해제를 한 상태로 합치지 않는 이유다.</p>
 <button class="source" data-evidence="worker.dispatch">실제 코드 · 수신 완료 검사와 선게시</button>
 </section>
-<section id="echo-on-data"><h2>OnData는 처리한 범위의 크기를 반환한다</h2>
+<section id="echo-on-data"><h2>OnData는 처리한 범위의 크기를 반환한다</h2><p>위 그림의 장면을 실제 코드로 내려가 읽는다. 줄 번호 옆 작은 숫자는 해당 단계가 시작하는 곳이다.</p><div data-walkthrough="W02"><p class="no-script">코드 따라가기의 단계는 아래 설명과 실제 코드 버튼으로도 확인할 수 있다.</p></div><div data-compare="X-C04-1"><p class="no-script">수명과 복사 규칙은 이어지는 본문을 따른다.</p></div><div data-compare="X-C04-2"><p class="no-script">수명과 복사 규칙은 이어지는 본문을 따른다.</p></div>
 <p><code>EchoHandler::OnData</code>는 받은 span을 <code>LengthPrefixedDecoder::Decode</code>에 넘긴다. 디코더는 완전한 패킷을 찾을 때마다 람다를 호출한다. 람다가 받는 <code>packet</code>에는 헤더와 본문이 모두 들어 있다. 예제는 이 범위 전체를 다시 보내므로 클라이언트가 같은 <dfn data-term="frame">프레이밍</dfn> 규칙으로 응답을 읽을 수 있다.</p>
 <p>정상 경로의 반환값은 <code>decoded.consumed_bytes</code>다. 아직 패킷이 완성되지 않았다면 0을 반환할 수 있다. 그렇다고 다음 데이터를 기다리는 내부 무한 루프를 돌지 않는다. 이번 콜백이 끝나면 미소비 바이트가 수신 링에 남고, 다음 수신 완료 때 더 긴 범위로 다시 전달된다. 디코더 객체 자체에는 수신 조각을 축적하는 컨테이너가 없다.</p>
 <p>콜백 span을 나중에 쓰려고 주소만 저장하면 안 된다. 반환 뒤에는 링의 읽기 위치가 이동하고 다른 데이터가 그 저장소를 사용할 수 있다. 현재 Echo처럼 콜백 안에서 바로 <code>Send</code>를 부르는 경우에는 송신 함수가 반환 전에 내부로 복사한다. 반면 DB나 게임 처리에 넘길 데이터는 <a href="#chapter=logic-queue">C18의 소유하는 이벤트 큐</a>로 옮겨야 한다.</p>

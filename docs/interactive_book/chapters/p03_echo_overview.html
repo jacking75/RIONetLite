@@ -7,7 +7,7 @@
 <div class="bytes" role="img" aria-label="요청과 응답이 같은 7바이트 00 00 00 07 72 69 6F"><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">07<small>길이</small></span><span class="byte">72<small>r</small></span><span class="byte">69<small>i</small></span><span class="byte">6F<small>o</small></span></div>
 <p class="small">클라이언트가 보낸 바이트와 서버가 돌려주는 바이트가 똑같다. 헤더까지 그대로 돌려주므로 클라이언트는 같은 규칙으로 응답을 읽을 수 있다.</p>
 </section>
-<section id="echo-ov-code"><h2>전체 코드는 두 덩어리다</h2>
+<section id="echo-ov-code"><h2>전체 코드는 두 덩어리다</h2><p>위 그림의 장면을 실제 코드로 내려가 읽는다. 줄 번호 옆 작은 숫자는 해당 단계가 시작하는 곳이다.</p><div data-walkthrough="W01"><p class="no-script">코드 따라가기의 단계는 아래 설명과 실제 코드 버튼으로도 확인할 수 있다.</p></div>
 <p><code>main.cpp</code>는 약 220줄이지만 절반 가까이는 명령행 옵션 처리다. 뼈대는 두 덩어리뿐이다. 네트워크 알림을 받아 응답하는 <code>EchoHandler</code> 클래스와, 서버를 만들고 돌리고 멈추는 <code>main</code> 함수다. 아래는 실제 코드에서 옵션 처리, 로그 출력, Ctrl+C 처리를 뺀 축약본이다. 번호는 바로 아래 표의 설명과 짝을 이룬다.</p>
 <pre><code>// samples/echo_server/main.cpp의 축약본이다. 옵션 처리와 로그 출력은 뺐다.
 class EchoHandler final : public rionetlite::EventHandler {

@@ -18,3 +18,4 @@
 .book-figure{display:block;width:100%;min-width:640px;height:auto}.book-figure text{fill:var(--ink);font:14px 'Segoe UI','Malgun Gothic',sans-serif}.book-figure .figure-sub{fill:var(--muted);font-size:12px}.figure-node[role="button"]{cursor:pointer}.figure-node:focus rect{stroke:var(--gold)!important;stroke-width:3!important}.figure>h3{margin-top:0}#figureContent .book-figure{min-width:900px}@media print{#printBook .book-figure{min-width:0;width:100%}#printBook .figure{break-inside:auto}}
 
 .budget-bars p{font:13px Consolas,monospace}.budget-bars span{display:block;min-height:10px;background:var(--accent)}
+.walkthrough-grid>*,.compare-grid>*,.map-grid>*{min-width:0}.walkthrough button,.compare button{max-width:100%;overflow-wrap:anywhere}.walkthrough-steps{padding-left:24px}.walkthrough pre em{width:auto;min-width:65px}.walkthrough pre{position:relative}

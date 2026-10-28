@@ -72,8 +72,68 @@ function initFigure(host){
   host.append(title,diagram,controls,explanation,links,caption);figureSessions.set(spec.id,session);session.setStep(0);
 }
 
-function initWalkthrough(host){componentStub(host);}
-function initCompare(host){componentStub(host);}
+
+
+const walkthroughSessions=new Map();
+const walkthroughHistory=[];
+function openWalkthrough(id,step=0,push=false){
+  const host=all('[data-walkthrough]').find(n=>n.dataset.walkthrough===id);if(!host)return;
+  if(push){const active=[...walkthroughSessions.values()].find(s=>s.host.contains(document.activeElement));if(active)walkthroughHistory.push({id:active.spec.id,step:active.step});}
+  const chapter=chapters.find(c=>c.slug===host.closest('.chapter').id);navigate(chapter);initComponents($(chapter.slug));
+  const session=walkthroughSessions.get(id);session.setStep(step);requestAnimationFrame(()=>{host.scrollIntoView({block:'start'});session.status.tabIndex=-1;session.status.focus({preventScroll:true});});
+}
+function backWalkthrough(){const frame=walkthroughHistory.pop();if(frame)openWalkthrough(frame.id,frame.step);}
+function codeMarkup(evidenceId,start,end,steps=[]){
+  const e=BOOK.evidence.find(e=>e.id===evidenceId);const source=SOURCES[e.source];const lines=source.text.split('\n');
+  return lines.slice(e.startLine-1,e.endLine).map((line,i)=>{const number=e.startLine+i;const marks=steps.map((s,j)=>({s,j})).filter(({s})=>(s.evidence??evidenceId)===evidenceId&&number===s.startLine).map(({j})=>j+1).join(',');return `<span data-line="${number}"${number>=start&&number<=end?' class="focusline"':''}><em>${number}${marks?' · '+marks:''}</em>${escapeHtml(line)}</span>`;}).join('');
+}
+function initWalkthrough(host,printing=false){
+  const spec=BOOK.walkthroughs.find(w=>w.id===host.dataset.walkthrough);host.classList.add('walkthrough');host.replaceChildren();
+  const title=document.createElement('h3');title.textContent=spec.id+' · '+spec.title;
+  const intro=document.createElement('p');intro.textContent=spec.intro;
+  const meta=document.createElement('p');meta.className='small walkthrough-meta';
+  const grid=document.createElement('div');grid.className='walkthrough-grid';const code=document.createElement('pre');code.tabIndex=0;
+  const panel=document.createElement('div');const list=document.createElement('ol');list.className='walkthrough-steps';
+  const status=document.createElement('p');status.setAttribute('role','status');const explanation=document.createElement('p');const links=document.createElement('div');links.className='controls';
+  const session={host,spec,step:0,status};
+  session.setStep=value=>{
+    session.step=Math.max(0,Math.min(spec.steps.length-1,value));const step=spec.steps[session.step],eid=step.evidence??spec.evidence,e=BOOK.evidence.find(e=>e.id===eid),source=SOURCES[e.source];
+    code.innerHTML=codeMarkup(eid,step.startLine,step.endLine,spec.steps);meta.textContent=`실제 코드 · ${e.source} · 검토 ${e.commit.slice(0,12)} · SHA-256 ${source.sha256}`;
+    status.textContent=`${session.step+1}/${spec.steps.length} · ${step.title}`;explanation.textContent=step.text;
+    for(const button of all('button',list))button.setAttribute('aria-current',Number(button.dataset.walkStep)===session.step?'step':'false');
+    links.replaceChildren();links.append(makeButton('이전',()=>session.setStep(session.step-1)),makeButton('다음',()=>session.setStep(session.step+1)),makeButton('실제 코드 전체 열기',()=>openEvidence(eid)));
+    if(walkthroughHistory.length)links.append(makeButton('돌아가기',backWalkthrough));
+    if(step.figure)links.append(makeButton('그림에서 보기',()=>{
+      const target=all('[data-figure]').find(n=>n.dataset.figure===step.figure.id);const c=chapters.find(c=>c.slug===target.closest('.chapter').id);navigate(c);initComponents($(c.slug));figureSessions.get(step.figure.id).setStep(step.figure.step);requestAnimationFrame(()=>target.scrollIntoView({block:'center'}));
+    }));
+    if(step.calls)links.append(makeButton('들어가 보기',()=>openWalkthrough(step.calls,0,true)));
+    if(step.mistake)links.append(makeButton('자주 하는 실수 보기',()=>all('[data-compare]').find(n=>n.dataset.compare===step.mistake)?.scrollIntoView({block:'center'})));
+    if(step.term){const term=BOOK.glossary.find(t=>t.id===step.term);const p=document.createElement('p');p.className='small';p.textContent=term.term+' — '+term.definition;links.append(p);}
+    const line=code.querySelector('.focusline');code.scrollTop=line?line.offsetTop-code.offsetTop-50:0;
+  };
+  if(printing){
+    const ids=[...new Set(spec.steps.map(s=>s.evidence??spec.evidence))];grid.className='';
+    for(const eid of ids){const block=document.createElement('pre');block.innerHTML=codeMarkup(eid,-1,-1,spec.steps);grid.append(block);}
+    for(const step of spec.steps){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;list.append(li);}host.append(title,intro,grid,list);return;
+  }
+  for(const [i,step]of spec.steps.entries()){const li=document.createElement('li');const b=makeButton(step.title,()=>session.setStep(i));b.dataset.walkStep=i;li.append(b);list.append(li);}
+  panel.append(list,status,explanation,links);grid.append(code,panel);host.append(title,intro,meta,grid);
+  host.onkeydown=event=>{if(['ArrowRight','ArrowLeft'].includes(event.key)){event.preventDefault();session.setStep(session.step+(event.key==='ArrowRight'?1:-1));}if(event.key==='Escape'&&!$('sourceDialog').open)backWalkthrough();};
+  walkthroughSessions.set(spec.id,session);session.setStep(0);
+}
+function initCompare(host){
+  const spec=BOOK.compares.find(c=>c.id===host.dataset.compare);host.classList.add('compare');host.replaceChildren();
+  const title=document.createElement('h3');title.textContent=spec.title;const grid=document.createElement('div');grid.className='compare-grid';
+  for(const side of spec.mode==='evolution'?['left','right']:['wrong','right']){
+    const part=spec[side],column=document.createElement('div'),label=document.createElement('p'),code=document.createElement('pre');label.textContent=part.label;
+    if(side==='wrong')column.className='mistake';
+    if(part.evidence){const e=BOOK.evidence.find(e=>e.id===part.evidence);code.textContent=SOURCES[e.source].text.split('\n').slice((part.startLine??e.startLine)-1,part.endLine??e.endLine).join('\n');}
+    else code.textContent=part.code;
+    column.append(label,code);if(part.evidence)column.append(makeButton('실제 코드',()=>openEvidence(part.evidence)));grid.append(column);
+  }
+  const why=document.createElement('p');why.textContent=spec.why;host.append(title,grid,why,makeButton('근거 코드',()=>openEvidence(spec.evidence)));
+}
+
 function initQuiz(host){componentStub(host);}
 function initMap(host){componentStub(host);}
 function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){
@@ -82,7 +142,9 @@ function printComponents(clone){for(const kind of Object.keys(components))for(co
     const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');
     const title=document.createElement('h3');title.textContent=spec.title;const diagram=document.createElement('div');diagram.className='diagram-scroll';diagram.innerHTML=BookFigures.render(spec.kind,spec,BookFigures.stepCount(spec.kind,spec)-1).svg;
     const steps=document.createElement('ol');for(const step of spec.steps??[]){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;steps.append(li);}host.append(title,diagram,steps);
-  }else host.textContent='인쇄판에서는 생략한다.';
+  }else if(kind==='walkthrough')initWalkthrough(host,true);
+  else if(kind==='compare')initCompare(host);
+  else host.textContent='인쇄판에서는 생략한다.';
 }}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}
 function makeToc(){

@@ -42,6 +42,13 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   assert.ok(figureStepMs<50);assert.match(await figure.locator('[role="status"]').innerText(),/다음 수신을 게시하고 콜백을 부른다/);
   await figure.getByRole('button',{name:'재생',exact:true}).click();assert.equal(await figure.getByRole('button',{name:'정지',exact:true}).count(),1);
   await go('reading-guide');assert.equal(await page.evaluate(()=>playbackSessions.size),0);
+  await go('echo-walkthrough');const walk=page.locator('[data-walkthrough="W02"]');
+  await walk.getByRole('button',{name:'다음',exact:true}).click();await walk.getByRole('button',{name:'다음',exact:true}).click();
+  assert.equal(await walk.locator('.focusline').first().getAttribute('data-line'),String(await page.evaluate(()=>BOOK.walkthroughs.find(w=>w.id==='W02').steps[2].startLine)));
+  await go('echo-overview');const caller=page.locator('[data-walkthrough="W01"]');
+  await caller.getByRole('button',{name:'Start 뒤 콜백으로 넘어간다',exact:true}).click();await caller.getByRole('button',{name:'들어가 보기',exact:true}).click();
+  await page.waitForSelector('#echo-walkthrough.active');await walk.getByRole('button',{name:'돌아가기',exact:true}).click();await page.waitForSelector('#echo-overview.active');
+  assert.match(await caller.locator('[role="status"]').innerText(),/5\/7/);
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
