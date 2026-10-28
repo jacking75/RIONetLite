@@ -8,6 +8,7 @@ const available = chapters.filter(c => $(c.slug));
 const labSessions = new Map();
 const figureSessions = new Map();
 const playbackSessions = new Set();
+const expandedArchives = new Set();
 const components = {figure:initFigure,walkthrough:initWalkthrough,compare:initCompare,quiz:initQuiz,map:initMap};
 const scrollPositions = new Map();
 const storageKey = 'rionetlite.book.reader.v2';
@@ -58,7 +59,7 @@ function makeToc(){
       if($(c.slug)){a.href=chapterUrl(c);a.dataset.chapterLink=c.slug;}else{a.className='unwritten';a.textContent+=' · 집필 예정';}
       group.append(a);
       if(c.slug===current.slug){const sections=document.createElement('div');sections.className='sections';
-        c.sections.forEach(s=>{const link=document.createElement('a');link.href=chapterUrl(c,s.id);link.textContent=s.title;sections.append(link);});group.append(sections);}
+        c.sections.filter(s=>!s.archive||persisted.showArchive||expandedArchives.has(c.slug)).forEach(s=>{const link=document.createElement('a');link.href=chapterUrl(c,s.id);link.textContent=s.title;sections.append(link);});group.append(sections);}
     });$('navigation').append(group);
   });
   all('[data-chapter-link]').forEach(a=>{if(a.dataset.chapterLink===current.slug)a.setAttribute('aria-current','page');});
@@ -82,12 +83,14 @@ function renderRoute(){
     chapter=requested?available[0]:(savedChapter??available[0]);
   }
   let section=params.get('section')??'';
-  if(section && !chapter.sections.some(s=>s.id===section)){notice('주소의 절을 찾을 수 없어 장의 처음으로 이동했다.');section='';}
+  if(section && (!$(section)||!$(chapter.slug).contains($(section)))){notice('주소의 절을 찾을 수 없어 장의 처음으로 이동했다.');section='';}
+  if(section&&$(section).closest('[data-archive]')){expandedArchives.add(chapter.slug);for(let n=$(section);n;n=n.parentElement)if(n.tagName==='DETAILS')n.open=true;}
   current=chapter;currentSection=section;
   articles.forEach(a=>{a.classList.toggle('active',a.id===chapter.slug);a.setAttribute('aria-hidden',String(a.id!==chapter.slug));});
   const article=$(chapter.slug);
   all('[data-lab]',article).forEach(initLab);
   initComponents(article);
+  applyArchives();
   if(params.has('lab')){
     const session=labSessions.get(params.get('lab'));
     if(!session || session.definition.chapter!==chapter.id)notice('이 장에서 사용할 수 없는 실험 주소다. 기본 실험 상태를 유지한다.');
@@ -109,6 +112,17 @@ $('previous').onclick=()=>navigate(available[Math.max(0,available.indexOf(curren
 $('next').onclick=()=>navigate(available[Math.min(available.length-1,available.indexOf(current)+1)]);
 $('resume').onclick=()=>{const c=available.find(c=>c.slug===persisted.position?.chapter)??available[0];navigate(c,persisted.position?.section??'');};
 $('menu').onclick=()=>{const open=$('sidebar').classList.toggle('open');$('menu').setAttribute('aria-expanded',String(open));};
+function applyArchives(){
+  for(const chapter of available){
+    const article=$(chapter.slug);const visible=persisted.showArchive||expandedArchives.has(chapter.slug);
+    for(const node of all('[data-archive]',article))node.hidden=!visible;
+    let button=article.querySelector('.archive-toggle');
+    if(chapter.archiveCount&&!button){button=makeButton('',()=>{if(expandedArchives.has(chapter.slug))expandedArchives.delete(chapter.slug);else expandedArchives.add(chapter.slug);applyArchives();makeToc();},'archive-toggle');article.append(button);}
+    if(button){button.hidden=persisted.showArchive;button.textContent=visible?'이 장의 보관 자료 숨기기':`이전 문서 보관 자료 ${chapter.archiveCount}건 보기`;button.setAttribute('aria-expanded',String(visible));}
+  }
+  $('archiveToggle').textContent=persisted.showArchive?'보관 자료 숨김':'보관 자료 표시';$('archiveToggle').setAttribute('aria-pressed',String(persisted.showArchive));
+}
+$('archiveToggle').onclick=()=>{persisted.showArchive=!persisted.showArchive;expandedArchives.clear();save();applyArchives();makeToc();search();};
 document.addEventListener('click',event=>{
   const source=event.target.closest('[data-evidence]');if(source){event.preventDefault();openEvidence(source.dataset.evidence);return;}
   const direct=event.target.closest('[data-file]');if(direct){event.preventDefault();openSource(direct.dataset.file,direct.dataset.find??'');}
@@ -135,7 +149,8 @@ for(const chapter of available){
     if(node.closest('.lab'))continue;
     const text=node.textContent.trim();if(text.length<3)continue;
     const section=chapter.sections.find(s=>$(s.id)?.contains(node) || $(s.id)===node || node.closest('section')?.id===s.id);
-    searchIndex.push({type:'본문',title:chapter.title,text,chapter,section:section?.id??'',node});
+    const archive=!!node.closest('[data-archive]');
+    searchIndex.push({type:archive?'보관':'본문',archive,title:chapter.title,text,chapter,section:section?.id??'',node});
   }
 }
 for(const term of BOOK.glossary){
@@ -150,7 +165,7 @@ function search(){
   const query=$('search').value.trim().toLocaleLowerCase();const results=$('searchResults');results.replaceChildren();results.hidden=!query;if(!query)return;
   const terms=new Set([query]);
   for(const term of BOOK.glossary)if([term.term,...term.aliases].some(a=>a.toLocaleLowerCase()===query))for(const alias of [term.term,...term.aliases])terms.add(alias.toLocaleLowerCase());
-  const matches=searchIndex.filter(item=>[...terms].some(t=>(item.title+' '+item.text).toLocaleLowerCase().includes(t)));
+  const matches=searchIndex.filter(item=>(!item.archive||persisted.showArchive)&&[...terms].some(t=>(item.title+' '+item.text).toLocaleLowerCase().includes(t)));
   const count=document.createElement('p');count.className='small';count.textContent=`검색 결과 ${matches.length}개${matches.length>60?' · 앞의 60개 표시':''}`;results.append(count);
   for(const item of matches.slice(0,60)){
     const button=makeButton('',()=>{
@@ -305,6 +320,8 @@ $('scenarioCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('s
 function preparePrint(){
   stopPlayback();const output=$('printBook');output.replaceChildren();
   for(const chapter of available){const clone=$(chapter.slug).cloneNode(true);clone.className='print-chapter';clone.removeAttribute('aria-hidden');
+    for(const node of all('[data-archive]',clone)){if(!persisted.showArchive)node.remove();else node.hidden=false;}
+    for(const node of all('.archive-toggle',clone))node.remove();
     printComponents(clone);
     for(const host of all('[data-lab]',clone)){
       const definition=BOOK.manifest.labs.find(l=>l.id===host.dataset.lab);const model=definition&&getModel(definition);host.replaceChildren();if(!model)continue;

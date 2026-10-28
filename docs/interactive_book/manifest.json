@@ -39,7 +39,8 @@
         },
         {
           "id": "reading-guide-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -180,7 +181,8 @@
         },
         {
           "id": "build-and-run-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -217,7 +219,8 @@
         },
         {
           "id": "public-api-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -267,7 +270,8 @@
         },
         {
           "id": "echo-walkthrough-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -305,7 +309,8 @@
         },
         {
           "id": "rio-requests-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -342,7 +347,8 @@
         },
         {
           "id": "architecture-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -379,7 +385,8 @@
         },
         {
           "id": "threads-and-callbacks-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -416,7 +423,8 @@
         },
         {
           "id": "registered-memory-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -453,7 +461,8 @@
         },
         {
           "id": "ring-buffer-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -490,7 +499,8 @@
         },
         {
           "id": "accept-and-session-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -527,7 +537,8 @@
         },
         {
           "id": "session-identity-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -565,7 +576,8 @@
         },
         {
           "id": "receive-path-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -610,7 +622,8 @@
         },
         {
           "id": "packet-framing-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -648,7 +661,8 @@
         },
         {
           "id": "send-path-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -697,7 +711,8 @@
         },
         {
           "id": "partial-send-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -739,7 +754,8 @@
         },
         {
           "id": "connection-close-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -784,7 +800,8 @@
         },
         {
           "id": "server-shutdown-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -822,7 +839,8 @@
         },
         {
           "id": "logic-queue-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -875,7 +893,8 @@
         },
         {
           "id": "chat-server-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -916,7 +935,8 @@
         },
         {
           "id": "application-design-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -954,7 +974,8 @@
         },
         {
           "id": "configuration-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -991,7 +1012,8 @@
         },
         {
           "id": "logs-and-metrics-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1024,7 +1046,8 @@
         },
         {
           "id": "troubleshooting-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1065,7 +1088,8 @@
         },
         {
           "id": "testing-and-memory-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1107,7 +1131,8 @@
         },
         {
           "id": "benchmarking-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1148,7 +1173,8 @@
         },
         {
           "id": "performance-tuning-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1185,7 +1211,8 @@
         },
         {
           "id": "packaging-and-release-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1222,7 +1249,8 @@
         },
         {
           "id": "safe-changes-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1259,7 +1287,8 @@
         },
         {
           "id": "api-reference-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1284,7 +1313,8 @@
         },
         {
           "id": "glossary-prior-notes",
-          "title": "이전 안내의 설명과 독해 포인트를 대조한다"
+          "title": "이전 안내의 설명과 독해 포인트를 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1305,7 +1335,8 @@
         },
         {
           "id": "decisions-archive",
-          "title": "다섯 설계 결정의 원문을 대조한다"
+          "title": "다섯 설계 결정의 원문을 대조한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,
@@ -1330,7 +1361,8 @@
         },
         {
           "id": "history-originals",
-          "title": "이전 안내의 고유한 내용과 표를 보존한다"
+          "title": "이전 안내의 고유한 내용과 표를 보존한다",
+          "archive": true
         }
       ],
       "technicalReviewed": true,

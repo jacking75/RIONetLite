@@ -25,6 +25,15 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   const firstRender=await page.evaluate(()=>performance.now());
   assert.ok(firstRender<2000,`first render ${firstRender} ms exceeds 2 s target`);
   assert.equal(await page.locator('html').getAttribute('data-reader-ready'),'true');
+  await go('receive-path');
+  assert.equal(await page.locator('#navigation a[href*="prior-notes"]').count(),0);
+  assert.equal(await page.locator('#receive-path [data-archive]').isVisible(),false);
+  await page.fill('#search','원문 SHA-256');assert.equal(await page.locator('#searchResults button').count(),0);
+  await page.click('#archiveToggle');assert.ok(await page.locator('#searchResults button').count()>0);
+  await page.reload();assert.equal(await page.locator('#archiveToggle').getAttribute('aria-pressed'),'true');
+  await page.click('#archiveToggle');await page.fill('#search','');
+  await page.locator('#receive-path .archive-toggle').click();assert.equal(await page.locator('#receive-path [data-archive]').isVisible(),true);
+  await page.locator('#receive-path .archive-toggle').click();
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
@@ -105,10 +114,17 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   assert.equal(await page.locator('#printBook').evaluate(root=>[...root.querySelectorAll('[aria-labelledby]')].every(n=>n.getAttribute('aria-labelledby').split(' ').every(id=>document.getElementById(id)))),true,'print SVG labels remain linked');
   await page.pdf({path:path.join(output,'book.pdf'),preferCSSPageSize:true,printBackground:true});
   assert.ok(fs.statSync(path.join(output,'book.pdf')).size>10000);
+  const printBytes=fs.statSync(path.join(output,'book.pdf')).size;
+  assert.equal(await page.locator('#printBook [data-archive]').count(),0);
   await page.emulateMedia({media:'screen'});
+  await page.click('#archiveToggle');await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));await page.emulateMedia({media:'print'});
+  await page.pdf({path:path.join(output,'book-with-archives.pdf'),preferCSSPageSize:true,printBackground:true});
+  const archivePrintBytes=fs.statSync(path.join(output,'book-with-archives.pdf')).size;assert.ok(archivePrintBytes>printBytes);
+  await page.emulateMedia({media:'screen'});await page.click('#archiveToggle');
   const noStorage=await browser.newContext({offline:true});await noStorage.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked');}}));const blocked=await noStorage.newPage();blocked.on('pageerror',e=>errors.push(String(e)));await blocked.goto(base+'#chapter=packet-framing');assert.match(await blocked.locator('#storageStatus').innerText(),/저장할 수 없다/);await blocked.locator('[data-lab="L09"]').getByRole('button',{name:'다음 수신 전달',exact:true}).click();await noStorage.close();
   assert.deepEqual(errors,[]);assert.equal(requests.filter(u=>!u.startsWith('file:')).length,0);
   const receipt={scope:manifest.chapters.every(c=>c.status==='complete')?'complete book browser acceptance':'reader acceptance; manuscript acceptance pending',browser:browser.version(),offline:true,chapters:rendered.length,labs:labReceipts,viewports:[1440,1920,390],firstRenderMs:firstRender,searchMs,errors,externalRequests:requests.filter(u=>!u.startsWith('file:')),checks:['canonical/legacy URL','back/forward','search and aliases','source scopes, history and focus','all 20 models: JSON replay, undo/redo, play/stop','bounded scenario JSON','persistence','storage blocked','keyboard menu','reduced motion','all-chapter print visibility and PDF','representative screenshots']};
+  receipt.printBytes=printBytes;receipt.archivePrintBytes=archivePrintBytes;receipt.checks.push('archive toggle, search, persistence and smaller default PDF');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

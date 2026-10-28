@@ -75,6 +75,39 @@ class Fragment(HTMLParser):
             self.in_prose = max(0, self.in_prose - 1)
 
 
+class ArchiveAudit(HTMLParser):
+    def __init__(self, text, sections):
+        super().__init__()
+        self.stack = []
+        self.archive_depth = None
+        self.marked = set()
+        self.count = 0
+        self.feed(text)
+        if self.marked != {s['id'] for s in sections if s.get('archive')}:
+            raise ValueError('Archive manifest and data-archive sections differ')
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if self.archive_depth is not None and len(self.stack) == self.archive_depth + 1:
+            if tag not in ('h2', 'p', 'details') or (tag == 'details' and attrs.get('class') != 'archive'):
+                raise ValueError('Archive section only permits h2, p and details.archive children')
+        if 'data-archive' in attrs:
+            if tag != 'section' or self.archive_depth is not None:
+                raise ValueError('Invalid archive section')
+            self.archive_depth = len(self.stack)
+            self.marked.add(attrs.get('id'))
+        if self.archive_depth is not None and tag == 'details' and attrs.get('class') == 'archive':
+            self.count += 1
+        if tag not in ('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'):
+            self.stack.append(tag)
+
+    def handle_endtag(self, tag):
+        if self.stack and self.stack[-1] == tag:
+            self.stack.pop()
+            if self.archive_depth == len(self.stack):
+                self.archive_depth = None
+
+
 def check_test(item):
     test_raw = contained(ROOT, item["testSource"]).read_bytes()
     if sha256(test_raw).hexdigest() != item["reviewedTestSha256"]:
@@ -338,6 +371,7 @@ def build(complete=False):
         chapter_links.extend(parsed.links)
         if not "".join(parsed.prose).strip():
             raise ValueError(f"{chapter['id']}: empty manuscript")
+        chapter['archiveCount'] = ArchiveAudit(text, chapter['sections']).count
         if re.search(r"\bTODO\b|\bTBD\b|자리표시자", "".join(parsed.text), re.I):
             raise ValueError(f"{chapter['id']}: unfinished marker in manuscript")
         for section in chapter["sections"]:

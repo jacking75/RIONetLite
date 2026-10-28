@@ -41,7 +41,7 @@ bin\tests\x64\Release\RIONetLite.IntegrationTests.exe --gtest_filter=Integration
 <p>단위 테스트의 한도가 32 또는 8이고 실험 한도가 16인 것은 서로 다른 작은 입력으로 같은 규칙을 확인하기 위해서다. 실제 서버 기본 한도인 16KiB와도 구분한다. 테스트 이름이 존재한다는 출처 검사만으로 이번 실행이 통과했다고 기록하지 않는다.</p>
 <label class="check"><input type="checkbox" data-check="C13-understood"><span>헤더 포함 길이, 소비량 0/0/7, 꼬리의 소유자, 앞 패킷 처리 뒤 오류의 의미를 설명할 수 있다.</span></label>
 <p>다음은 <a href="#chapter=send-path">C14 송신 접수</a>와 <a href="#chapter=partial-send">C15 부분 완료</a>다. 반대 방향에서도 요청 하나와 메시지 하나를 구분해야 한다.</p>
-</section><section id="packet-framing-prior-notes"><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d27-i3"><summary>통합한 기존 안내 · docs/getting-started.md · 패킷 프레이밍</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-71-93</p><div class="archive-body"><h3>패킷 프레이밍</h3>
+</section><section id="packet-framing-prior-notes" data-archive><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d27-i3"><summary>통합한 기존 안내 · docs/getting-started.md · 패킷 프레이밍</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-71-93</p><div class="archive-body"><h3>패킷 프레이밍</h3>
 <p>Echo의 LengthPrefixedDecoder는 big-endian u32 **header를 포함한 전체 길이**를 읽는다. ping 4바이트의 전체 길이는 8이다.</p>
 <pre><code>00 00 00 08 | 70 69 6E 67
 전체 길이 8 | p  i  n  g</code></pre>
