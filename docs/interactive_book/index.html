@@ -3767,7 +3767,7 @@ function initFigure(host){
   });
   controls.append(makeButton('처음',()=>{stopPlayback();session.setStep(0);}),makeButton('이전',()=>{stopPlayback();session.setStep(session.step-1);}),session.playButton,makeButton('다음',()=>{stopPlayback();session.setStep(session.step+1);}));
   for(let i=0;i<count;i++){const b=makeButton(String(i+1),()=>{stopPlayback();session.setStep(i);});b.dataset.figureStep=i;b.setAttribute('aria-label',`${i+1}단계 · ${spec.steps?.[i]?.title??spec.title}`);controls.append(b);}
-  controls.append(makeButton('확대',()=>{figureOpener=document.activeElement;$('figureTitle').textContent=spec.title;$('figureContent').innerHTML=BookFigures.render(spec.kind,spec,session.step).svg;$('figureDialog').showModal();}));
+  controls.append(makeButton('확대',()=>showDiagram(spec.title,BookFigures.render(spec.kind,spec,session.step))));
   host.onkeydown=event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();stopPlayback();session.setStep(session.step+(event.key==='ArrowRight'?1:-1));}};
   host.append(title,diagram,controls,explanation,links,caption);figureSessions.set(spec.id,session);session.setStep(0);
 }
@@ -3859,6 +3859,12 @@ function initQuiz(host,printing=false){
 }
 
 function navigateLab(id){const definition=BOOK.manifest.labs.find(l=>l.id===id);const chapter=chapters.find(c=>c.id===definition.chapter);navigate(chapter);requestAnimationFrame(()=>document.querySelector(`[data-lab="${id}"]`)?.scrollIntoView({block:'start'}));}
+function showDiagram(title,frame){
+  figureOpener=document.activeElement;$('figureTitle').textContent=title;$('figureContent').innerHTML=frame.svg;
+  $('figureContent').firstElementChild.style.minWidth=frame.width+'px';
+  for(const node of all('[role="button"],[tabindex]',$('figureContent'))){node.removeAttribute('role');node.removeAttribute('tabindex');}
+  $('figureDialog').showModal();
+}
 function initMap(host,printing=false){
   const system=BOOK.map,mini=host.hasAttribute('data-mini');host.classList.add('map',...(mini?['map-mini']:[]));host.replaceChildren();
   const focus=(host.dataset.focus??'').split(',').filter(Boolean),nodes=system.layers.flatMap(l=>l.nodes);
@@ -3872,7 +3878,8 @@ function initMap(host,printing=false){
   const grid=document.createElement('div');grid.className='map-grid';const diagram=document.createElement('div');diagram.className='diagram-scroll';const panel=document.createElement('div');panel.className='map-panel';
   const controls=document.createElement('div');controls.className='controls';
   const render=()=>{
-    const highlighted=scene?.nodes??[selected];diagram.innerHTML=BookFigures.render('layers',{...system,links:system.links.filter(l=>!l.mode||l.mode===mode),focus:highlighted}).svg;
+    const highlighted=scene?.nodes??[selected];const frame=BookFigures.render('layers',{...system,links:system.links.filter(l=>!l.mode||l.mode===mode),focus:highlighted});diagram.innerHTML=frame.svg;diagram.firstElementChild.style.minWidth=frame.width+'px';
+    const activeShape=all('[data-map-node]',diagram).find(node=>node.dataset.mapNode===selected);if(activeShape){const rect=activeShape.querySelector('rect');diagram.scrollLeft=Math.max(0,Number(rect.getAttribute('x'))-diagram.clientWidth/2+80);}
     panel.replaceChildren();const node=nodes.find(n=>n.id===selected);const heading=document.createElement('h3');heading.textContent=node.label;
     const roles=document.createElement('p');roles.textContent='스레드: '+node.thread;const does=document.createElement('p');does.textContent='하는 일: '+node.does.join(' · ');const owns=document.createElement('p');owns.textContent='소유: '+node.owns.join(' · ');
     const chapterLinks=document.createElement('p');chapterLinks.append('관련 장: ');for(const id of node.chapters){const a=document.createElement('a');a.href=chapterUrl(chapters.find(c=>c.id===id));a.textContent=id;chapterLinks.append(a,' · ');}
@@ -3889,7 +3896,9 @@ function initMap(host,printing=false){
   }
   for(const item of system.scenes){const b=makeButton(item.label,()=>{scene=item;selected=item.nodes[0];render();});b.dataset.scene=item.id;controls.append(b);}
   for(const value of ['echo','chat']){const b=makeButton(value==='echo'?'Echo 경로':'Chat 경로',()=>{mode=value;render();});b.dataset.mode=value;controls.append(b);}
-  grid.append(diagram,panel);host.append(controls,grid);host.mapSelect=id=>{if(nodes.some(n=>n.id===id)){selected=id;scene=null;render();}};render();
+  controls.append(makeButton('지도 확대',()=>showDiagram('시스템 지도 · '+(mode==='echo'?'Echo':'Chat')+' 경로',BookFigures.render('layers',{...system,links:system.links.filter(link=>!link.mode||link.mode===mode),focus:scene?.nodes??[selected]}))));
+  const hint=document.createElement('p');hint.className='small';hint.textContent='부품을 누르거나 Tab으로 고른다. 가로 스크롤 또는 지도 확대로 전체 구조를 확인한다.';
+  grid.append(diagram,panel);host.append(controls,hint,grid);host.mapSelect=id=>{if(nodes.some(n=>n.id===id)){selected=id;scene=null;render();}};render();
 }
 
 function printComponents(clone){for(const host of all('[data-budget]',clone))initBudget(host);for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){

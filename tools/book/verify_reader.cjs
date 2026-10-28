@@ -55,6 +55,8 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await go('library-overview','overview-inside');const systemMap=page.locator('#library-overview [data-map]:not([data-mini])');
   await systemMap.locator('[data-map-node="io-worker"]').focus();await page.keyboard.press('Enter');
   assert.ok(await systemMap.locator('.map-panel a').filter({hasText:'C12'}).count()>0);
+  assert.ok(await systemMap.locator('svg').evaluate(svg=>svg.getBoundingClientRect().width>=1300),'map labels retain their designed size');
+  await systemMap.getByRole('button',{name:'지도 확대',exact:true}).click();assert.equal(await page.locator('#figureDialog').evaluate(d=>d.open),true);await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.getElementById('figureDialog').open&&document.activeElement.textContent==='지도 확대');
   await go('receive-path');await page.locator('#receive-path [data-mini] button').click();await page.waitForSelector('#library-overview.active');
   assert.match(await systemMap.locator('.map-panel h3').innerText(),/I\/O 워커/);
   await go('reading-guide');await page.locator('[data-route="first"]').click();await page.reload();assert.equal(await page.locator('#routeSelect').inputValue(),'first');
