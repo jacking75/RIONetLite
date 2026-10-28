@@ -1392,6 +1392,669 @@
         }
       ],
       "caption": "실험 L09의 기본 시나리오와 같은 길이다. 호출 간격은 실제 시간이 아니다."
+    },
+    {
+      "id": "F-C03-2",
+      "kind": "layers",
+      "title": "소유 객체와 빌린 객체의 수명",
+      "layers": [
+        {
+          "id": "app",
+          "label": "앱이 소유한다",
+          "nodes": [
+            {
+              "id": "handler",
+              "label": "EventHandler",
+              "sub": "Server보다 오래 산다"
+            },
+            {
+              "id": "logger",
+              "label": "Logger",
+              "sub": "Server보다 오래 산다"
+            }
+          ]
+        },
+        {
+          "id": "server",
+          "label": "Server가 소유한다",
+          "nodes": [
+            {
+              "id": "impl",
+              "label": "Server::Impl",
+              "sub": "설정·브리지·transport"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "from": "impl",
+          "to": "handler",
+          "label": "빌린 참조",
+          "kind": "callback"
+        },
+        {
+          "from": "impl",
+          "to": "logger",
+          "label": "빌린 참조",
+          "kind": "callback"
+        }
+      ],
+      "steps": [
+        {
+          "title": "빌린 객체를 먼저 만든다",
+          "text": "Server는 handler와 logger를 빌려 쓰고 Impl과 내부 transport를 소유한다. 지역 객체의 역순 파괴를 W01에서 확인한다.",
+          "evidence": "api.server_contract"
+        }
+      ],
+      "caption": "상자는 스레드가 아니라 수명 책임을 나타낸다. 내부 포인터를 앱이 직접 해제하지 않는다."
+    },
+    {
+      "id": "F-C06-1",
+      "kind": "sequence",
+      "title": "Echo 콜백과 Chat 복사 큐의 갈림길",
+      "lanes": [
+        {
+          "id": "io",
+          "label": "I/O 워커"
+        },
+        {
+          "id": "handler",
+          "label": "핸들러"
+        },
+        {
+          "id": "queue",
+          "label": "앱 복사 큐"
+        },
+        {
+          "id": "logic",
+          "label": "로직 워커"
+        }
+      ],
+      "steps": [
+        {
+          "title": "공통: 수신 콜백을 부른다",
+          "text": "검증한 읽기 범위가 이벤트 핸들러로 올라온다. 그 범위는 콜백 반환까지만 빌려 쓴다.",
+          "evidence": "api.callback_contract",
+          "messages": [
+            {
+              "from": "io",
+              "to": "handler",
+              "label": "OnData(span)",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "Echo: 즉시 프레임을 처리한다",
+          "text": "짧은 Decode와 Send로 응답한다. 게임 상태와 DB 대기를 여기에 늘리지 않는다.",
+          "evidence": "echo.on_data",
+          "messages": [
+            {
+              "from": "handler",
+              "to": "io",
+              "label": "Decode → Send",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "Chat: 바이트를 큐로 복사한다",
+          "text": "QueuedEventAdapter가 자체 슬롯에 입력을 복사한다. 콜백이 끝나도 데이터가 남는다.",
+          "evidence": "queue.push",
+          "messages": [
+            {
+              "from": "handler",
+              "to": "queue",
+              "label": "payload 복사",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "title": "Chat: 샤드가 이벤트를 가져간다",
+          "text": "별도 로직 스레드가 TryPop으로 자기 샤드의 이벤트를 소비한다.",
+          "evidence": "queue.pop",
+          "messages": [
+            {
+              "from": "queue",
+              "to": "logic",
+              "label": "TryPop",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "title": "Chat: Player와 룸을 갱신한다",
+          "text": "RunShard가 게임 상태를 갱신하고 방송·Send를 수행한다. 앱의 상태는 로직 워커가 소유한다.",
+          "evidence": "application.shard",
+          "messages": [
+            {
+              "from": "logic",
+              "to": "io",
+              "label": "룸 응답 Send",
+              "kind": "call"
+            }
+          ]
+        }
+      ],
+      "caption": "Echo와 Chat은 서로 다른 대안이다. 한 입력이 두 경로를 모두 실행하는 순서도가 아니다."
+    },
+    {
+      "id": "F-C07-1",
+      "kind": "sequence",
+      "title": "세션별 순서와 두 워커의 교차",
+      "lanes": [
+        {
+          "id": "wa",
+          "label": "워커 A"
+        },
+        {
+          "id": "sa",
+          "label": "세션 A"
+        },
+        {
+          "id": "wb",
+          "label": "워커 B"
+        },
+        {
+          "id": "sb",
+          "label": "세션 B"
+        }
+      ],
+      "steps": [
+        {
+          "title": "A의 연결을 통지한다",
+          "text": "같은 세션의 데이터보다 연결 이벤트가 먼저다.",
+          "evidence": "api.callback_contract",
+          "messages": [
+            {
+              "from": "wa",
+              "to": "sa",
+              "label": "OnConnected",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "B의 연결이 교차한다",
+          "text": "다른 세션은 다른 워커에서 진행할 수 있다. 전체 서버의 전역 순서가 하나인 것은 아니다.",
+          "evidence": "api.callback_contract",
+          "messages": [
+            {
+              "from": "wb",
+              "to": "sb",
+              "label": "OnConnected",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "A의 콜백이 DB를 기다린다",
+          "text": "이 워커가 맡은 다른 세션 완료도 그만큼 늦어진다. DB 대기는 복사 큐 뒤의 앱 작업으로 옮긴다.",
+          "evidence": "queue.push",
+          "messages": [
+            {
+              "from": "wa",
+              "to": "sa",
+              "label": "긴 DB 대기",
+              "kind": "blocked"
+            }
+          ]
+        },
+        {
+          "title": "B는 자기 워커에서 진행한다",
+          "text": "다른 워커가 있다고 A의 담당 세션 지연이 자동으로 해결되는 것은 아니다.",
+          "evidence": "worker.loop",
+          "messages": [
+            {
+              "from": "wb",
+              "to": "sb",
+              "label": "OnData",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "A의 닫힘은 앞선 데이터 뒤다",
+          "text": "같은 세션의 종료 뒤에 새 OnData를 전달하지 않는다.",
+          "evidence": "worker.dispatch",
+          "messages": [
+            {
+              "from": "wa",
+              "to": "sa",
+              "label": "OnClosed",
+              "kind": "callback"
+            }
+          ]
+        }
+      ],
+      "caption": "콜백 하나를 시작·반환 단위로 묶었다. 실제 병렬 시각과 워커 안의 다른 세션은 생략했다."
+    },
+    {
+      "id": "F-C10-1",
+      "kind": "sequence",
+      "title": "accept부터 첫 수신까지의 보호 구간",
+      "lanes": [
+        {
+          "id": "client",
+          "label": "클라이언트"
+        },
+        {
+          "id": "accept",
+          "label": "accept 스레드"
+        },
+        {
+          "id": "pool",
+          "label": "세션·CQ"
+        },
+        {
+          "id": "handler",
+          "label": "핸들러"
+        }
+      ],
+      "steps": [
+        {
+          "title": "접속을 받는다",
+          "text": "listen 소켓의 accept 결과를 RAII 소켓으로 받는다.",
+          "evidence": "accept.run",
+          "messages": [
+            {
+              "from": "client",
+              "to": "accept",
+              "label": "접속",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "title": "빈 슬롯을 빌린다",
+          "text": "슬롯이 없으면 받은 소켓을 닫고 거절한다.",
+          "evidence": "accept.allocation",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "pool",
+              "label": "AllocClientSession",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "담당 CQ를 고른다",
+          "text": "슬롯 소유 워커의 CQ를 사용한다.",
+          "evidence": "accept.partition",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "pool",
+              "label": "owner → CQ",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "RQ와 세션을 준비한다",
+          "text": "실패 시 확보한 소켓과 슬롯을 정리한다.",
+          "evidence": "accept.setup",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "pool",
+              "label": "NewSession",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "연결 콜백을 먼저 부른다",
+          "text": "앱이 이 연결의 상태를 준비할 기회를 가진다.",
+          "evidence": "callbacks.accept_order",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "handler",
+              "label": "OnConnected",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "여전히 연결돼 있으면 수신을 맡긴다",
+          "text": "콜백에서 종료를 요청했을 수도 있어 상태를 다시 확인한다.",
+          "evidence": "receive.post",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "pool",
+              "label": "PostRecv",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "슬롯 보호를 마지막에 푼다",
+          "text": "accept가 세션에 더 접근하지 않을 때 연결 콜백 보호를 해제한다.",
+          "evidence": "accept.run",
+          "messages": [
+            {
+              "from": "accept",
+              "to": "pool",
+              "label": "CompleteConnectCallback",
+              "kind": "call"
+            }
+          ]
+        }
+      ],
+      "caption": "실제 워커의 완료 처리는 별도 스레드에서 이어진다. 이 그림의 세션·CQ 레인은 저장소 경계다."
+    },
+    {
+      "id": "F-C12-1",
+      "kind": "sequence",
+      "title": "수신 완료 뒤 선게시와 콜백의 순서",
+      "lanes": [
+        {
+          "id": "rio",
+          "label": "Windows RIO"
+        },
+        {
+          "id": "worker",
+          "label": "I/O 워커"
+        },
+        {
+          "id": "ring",
+          "label": "수신 링"
+        },
+        {
+          "id": "handler",
+          "label": "EventHandler"
+        }
+      ],
+      "steps": [
+        {
+          "title": "완료를 꺼내 소유권을 확인한다",
+          "text": "컨텍스트·소유 워커·세대·status를 순서대로 검사한다.",
+          "evidence": "worker.dispatch",
+          "messages": [
+            {
+              "from": "rio",
+              "to": "worker",
+              "label": "CQ 결과",
+              "kind": "completion"
+            }
+          ]
+        },
+        {
+          "title": "실제 받은 길이를 링에 반영한다",
+          "text": "게시 길이가 아니라 transferred만 used와 쓰기 위치에 더한다.",
+          "evidence": "receive.complete",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "ring",
+              "label": "RecvCompletion",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "title": "빈 공간으로 다음 수신을 맡긴다",
+          "text": "읽기 범위를 남겨 둔 채 겹치지 않는 빈 쓰기 구간만 게시한다.",
+          "evidence": "receive.post",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "rio",
+              "label": "PostRecv(빈 칸)",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "읽기 범위로 앱을 부른다",
+          "text": "콜백의 span은 반환 전까지만 유효하다.",
+          "evidence": "receive.callback",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "handler",
+              "label": "OnData(span)",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "실제 소비량만 회수한다",
+          "text": "반환값이 readable보다 큰지 검사하고 앞부분만 회수한다.",
+          "evidence": "receive.consume",
+          "messages": [
+            {
+              "from": "handler",
+              "to": "ring",
+              "label": "소비 바이트",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "title": "필요하면 게시를 재시도한다",
+          "text": "선게시 때 full이었던 링에 콜백이 공간을 만들었다면 다시 게시한다.",
+          "evidence": "receive.repost",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "rio",
+              "label": "보류 수신 재시도",
+              "kind": "call"
+            }
+          ]
+        }
+      ],
+      "caption": "아래 링은 읽기·쓰기 구간의 예다. 다음 완료가 콜백 중에 기록될 수 있어도 같은 워커가 콜백을 중첩 처리하지 않는다."
+    },
+    {
+      "id": "F-C12-2",
+      "kind": "ring",
+      "title": "콜백 읽기와 다음 커널 쓰기를 분리한다",
+      "capacity": 8,
+      "read": 0,
+      "write": 3,
+      "used": 3,
+      "posted": 4,
+      "steps": [
+        {
+          "title": "3바이트는 읽고 다음 네 칸은 커널에 맡긴다",
+          "text": "used는 콜백이 읽을 수 있는 범위다. posted는 아직 도착하지 않은 다음 요청의 길이다.",
+          "evidence": "receive.post"
+        }
+      ],
+      "caption": "L08 기본 완료 3바이트 뒤의 예다. 3+4가 용량 8을 넘지 않아 구간이 겹치지 않는다."
+    },
+    {
+      "id": "F-C14-1",
+      "kind": "ring",
+      "title": "송신 접수·게시·완료의 세 순간",
+      "capacity": 8,
+      "read": 0,
+      "write": 4,
+      "used": 4,
+      "posted": 0,
+      "postFrom": "read",
+      "inFlight": 0,
+      "steps": [
+        {
+          "title": "내부 링에 접수한다",
+          "text": "Send가 4바이트를 복사해 kQueued를 반환한다. 상대 처리나 완료는 아직 확인하지 않았다.",
+          "evidence": "api.send"
+        },
+        {
+          "title": "진행 요청 하나가 링 앞부분을 참조한다",
+          "text": "게시 길이 4를 완료 전까지 보호한다. 뒤로 들어오는 접수는 남은 공간에 쌓일 수 있다.",
+          "evidence": "send.prepare_post",
+          "spec": {
+            "posted": 4,
+            "inFlight": 4
+          }
+        },
+        {
+          "title": "2바이트 완료 뒤 남은 구간을 보호한다",
+          "text": "완료한 만큼 read를 옮기고 남은 2바이트를 다시 게시한다.",
+          "evidence": "send.partial_completion",
+          "spec": {
+            "read": 2,
+            "write": 4,
+            "used": 2,
+            "posted": 2,
+            "inFlight": 2
+          }
+        }
+      ],
+      "caption": "8칸 축소 모델이다. 실제 버퍼는 설정·페이지 단위 관계를 따른다."
+    },
+    {
+      "id": "F-C16-2",
+      "kind": "sequence",
+      "title": "FIN 뒤에도 접수 송신을 배출한다",
+      "lanes": [
+        {
+          "id": "peer",
+          "label": "상대"
+        },
+        {
+          "id": "worker",
+          "label": "I/O 워커"
+        },
+        {
+          "id": "sender",
+          "label": "송신 링"
+        },
+        {
+          "id": "app",
+          "label": "애플리케이션"
+        }
+      ],
+      "steps": [
+        {
+          "title": "FIN을 수신 완료 0으로 관찰한다",
+          "text": "수신 참조를 정리하고 새 Send 접수를 막는다.",
+          "evidence": "worker.fin",
+          "messages": [
+            {
+              "from": "peer",
+              "to": "worker",
+              "label": "FIN / 완료 0",
+              "kind": "completion"
+            }
+          ]
+        },
+        {
+          "title": "접수 송신의 완료를 기다린다",
+          "text": "기한 안에서 이미 맡긴 송신과 내부 재게시를 진행한다.",
+          "evidence": "close.peer_wait",
+          "messages": [
+            {
+              "from": "sender",
+              "to": "worker",
+              "label": "송신 잔여 참조",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "완료 또는 기한으로 닫기를 결정한다",
+          "text": "완료면 정상 peer close, 기한 초과면 오류·abortive 경로를 선택한다.",
+          "evidence": "close.session",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "peer",
+              "label": "소켓 닫기",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "닫힘 통지 뒤에도 참조를 확인한다",
+          "text": "앱에는 OnClosed를 한 번 보낸다. 격리 슬롯의 참조·이벤트 조건이 맞아야 재사용한다.",
+          "evidence": "session.lifecycle",
+          "messages": [
+            {
+              "from": "worker",
+              "to": "app",
+              "label": "OnClosed",
+              "kind": "callback"
+            }
+          ]
+        }
+      ],
+      "caption": "peer drain 기한과 서버 전체 Stop 예산은 다른 값이다. 실제 시각 비율은 생략했다."
+    },
+    {
+      "id": "F-C18-1",
+      "kind": "queue",
+      "title": "유계 이벤트 링과 parked close 게이트",
+      "shards": [
+        {
+          "slots": [
+            "connected",
+            "data"
+          ],
+          "capacity": 2,
+          "head": 0,
+          "count": 2
+        }
+      ],
+      "gates": [
+        {
+          "session": "7:41",
+          "parked": false
+        }
+      ],
+      "steps": [
+        {
+          "title": "두 선행 이벤트가 링을 채웠다",
+          "text": "payload는 큐의 자체 슬롯에 복사되어 있다. 앱의 로직 워커가 순서대로 소비한다.",
+          "evidence": "queue.push"
+        },
+        {
+          "title": "close가 가득 찬 링 밖에 보류된다",
+          "text": "세션 게이트가 close를 보존한다. 전체 depth는 링 두 개와 parked close 하나로 3이 된다.",
+          "evidence": "queue.park_close",
+          "spec": {
+            "gates": [
+              {
+                "session": "7:41",
+                "parked": true
+              }
+            ]
+          }
+        },
+        {
+          "title": "선행 이벤트 뒤에 close를 합성한다",
+          "text": "해당 세션의 in_ring이 0이면 TryPop이 close를 전달한다. 이전 세대 close를 보기 전에는 새 연결을 거절한다.",
+          "evidence": "queue.pop",
+          "spec": {
+            "shards": [
+              {
+                "slots": [
+                  "·",
+                  "·"
+                ],
+                "capacity": 2,
+                "head": 0,
+                "count": 0
+              }
+            ],
+            "gates": [
+              {
+                "session": "7:41",
+                "parked": false
+              }
+            ]
+          }
+        }
+      ],
+      "caption": "L14의 한 샤드·한 세션 예다. 실제 세션 게이트와 여러 세션의 순서는 W11에서 읽는다."
     }
   ]
 }

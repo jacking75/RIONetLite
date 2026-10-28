@@ -274,6 +274,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "public-api-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "public-api-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -430,6 +434,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "architecture-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "architecture-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -475,6 +483,10 @@
         {
           "id": "threads-and-callbacks-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "threads-and-callbacks-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "threads-and-callbacks-prior-notes",
@@ -616,6 +628,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "accept-and-session-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "accept-and-session-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -707,6 +723,10 @@
         {
           "id": "receive-path-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "receive-path-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "receive-path-prior-notes",
@@ -813,6 +833,10 @@
         {
           "id": "send-path-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "send-path-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "send-path-prior-notes",
@@ -924,6 +948,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "connection-close-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "connection-close-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1025,6 +1053,10 @@
         {
           "id": "logic-queue-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "logic-queue-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "logic-queue-prior-notes",
