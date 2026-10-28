@@ -1,4 +1,4 @@
-<article class="chapter" id="book-maintenance" data-title="책 생성과 검증"><div class="eyebrow">부록 · A05</div><h1>설명·모델·실행의 근거를 함께 관리한다</h1><p class="lead">독자는 index.html 하나를 열면 된다. 유지관리자는 원고, 출처와 재현 명령을 함께 갱신한다.</p>
+<article class="chapter" id="book-maintenance" data-title="책 생성과 검증"><div class="eyebrow">부록 · A05</div><h1>설명·모델·실행의 근거를 함께 관리한다</h1><div data-map="system" data-mini data-focus="server"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div><p class="lead">독자는 index.html 하나를 열면 된다. 유지관리자는 원고, 출처와 재현 명령을 함께 갱신한다.</p>
 <section id="maintenance-reader"><h2>독자에게는 독립 HTML 하나를 전달한다</h2>
 <p>이전 문서 보관 자료는 처음에는 본문·검색·인쇄에서 숨긴다. 도구 모음의 보관 자료 표시 버튼은 책 전체를, 장 끝의 보기 버튼은 그 장만 펼친다. 예전 절 주소는 해당 보관 자료를 자동으로 펼친다. 인쇄에 보관 자료까지 넣으려면 도구 모음에서 전체 표시를 선택한다.</p>
 <p>그림은 figures.json, 코드 따라가기·비교는 walkthroughs.json, 확인 문제는 quizzes.json, 시스템 지도는 map.json에 선언한다. 원고의 data-* 선언을 생성기가 대조하며 모르는 참조, 중복 사용, 미사용 정의, 모호한 코드 강조 범위를 거절한다. 그림 엔진은 모델과 함께 포함되는 순수 SVG 함수다. 원고에는 실행 스크립트나 이벤트 속성을 넣지 않는다.</p>

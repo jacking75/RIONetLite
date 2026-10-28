@@ -135,7 +135,40 @@ function initCompare(host){
 }
 
 function initQuiz(host){componentStub(host);}
-function initMap(host){componentStub(host);}
+function navigateLab(id){const definition=BOOK.manifest.labs.find(l=>l.id===id);const chapter=chapters.find(c=>c.id===definition.chapter);navigate(chapter);requestAnimationFrame(()=>document.querySelector(`[data-lab="${id}"]`)?.scrollIntoView({block:'start'}));}
+function initMap(host,printing=false){
+  const system=BOOK.map,mini=host.hasAttribute('data-mini');host.classList.add('map',...(mini?['map-mini']:[]));host.replaceChildren();
+  const focus=(host.dataset.focus??'').split(',').filter(Boolean),nodes=system.layers.flatMap(l=>l.nodes);
+  if(mini){
+    const node=nodes.find(n=>n.id===focus[0])??nodes[0];const caption=document.createElement('p');caption.className='small';caption.textContent='지도에서의 위치: '+focus.map(id=>nodes.find(n=>n.id===id)?.label??id).join(' · ');
+    if(printing){host.append(caption);return;}
+    const target=chapters.find(c=>c.id==='P02');const button=makeButton('',()=>{location.hash=chapterUrl(target,'overview-inside')+'&map='+encodeURIComponent(node.id);});button.setAttribute('aria-label','전체 지도에서 '+node.label+' 보기');
+    button.innerHTML=BookFigures.render('layers',{...system,focus,links:[]}).svg;for(const n of all('[tabindex]',button))n.removeAttribute('tabindex');button.querySelector('svg').setAttribute('aria-hidden','true');host.append(button,caption);return;
+  }
+  let selected=focus[0]??nodes[0].id,mode='echo',scene=null;
+  const grid=document.createElement('div');grid.className='map-grid';const diagram=document.createElement('div');diagram.className='diagram-scroll';const panel=document.createElement('div');panel.className='map-panel';
+  const controls=document.createElement('div');controls.className='controls';
+  const render=()=>{
+    const highlighted=scene?.nodes??[selected];diagram.innerHTML=BookFigures.render('layers',{...system,links:system.links.filter(l=>!l.mode||l.mode===mode),focus:highlighted}).svg;
+    panel.replaceChildren();const node=nodes.find(n=>n.id===selected);const heading=document.createElement('h3');heading.textContent=node.label;
+    const roles=document.createElement('p');roles.textContent='스레드: '+node.thread;const does=document.createElement('p');does.textContent='하는 일: '+node.does.join(' · ');const owns=document.createElement('p');owns.textContent='소유: '+node.owns.join(' · ');
+    const chapterLinks=document.createElement('p');chapterLinks.append('관련 장: ');for(const id of node.chapters){const a=document.createElement('a');a.href=chapterUrl(chapters.find(c=>c.id===id));a.textContent=id;chapterLinks.append(a,' · ');}
+    panel.append(heading,roles,does,owns,chapterLinks);
+    for(const id of node.evidence)panel.append(makeButton('실제 코드 · '+id,()=>openEvidence(id)));
+    for(const id of node.labs)panel.append(makeButton('실험 '+id,()=>navigateLab(id)));
+    for(const shape of all('[data-map-node]',diagram)){const choose=()=>{selected=shape.dataset.mapNode;scene=null;render();all('[data-map-node]',diagram).find(n=>n.dataset.mapNode===selected)?.focus({preventScroll:true});};shape.onclick=choose;shape.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose();}};}
+    for(const button of all('[data-scene]',controls))button.setAttribute('aria-pressed',String(button.dataset.scene===scene?.id));
+    for(const button of all('[data-mode]',controls))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
+  };
+  if(printing){
+    diagram.innerHTML=BookFigures.render('layers',{...system,focus,links:system.links.filter(l=>!l.mode||l.mode==='chat')}).svg;const table=document.createElement('table');
+    for(const node of nodes){const row=document.createElement('tr');for(const value of [node.label,node.thread,node.does.join(' · '),node.chapters.join(' · ')]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}table.append(row);}host.append(diagram,table);return;
+  }
+  for(const item of system.scenes){const b=makeButton(item.label,()=>{scene=item;selected=item.nodes[0];render();});b.dataset.scene=item.id;controls.append(b);}
+  for(const value of ['echo','chat']){const b=makeButton(value==='echo'?'Echo 경로':'Chat 경로',()=>{mode=value;render();});b.dataset.mode=value;controls.append(b);}
+  grid.append(diagram,panel);host.append(controls,grid);host.mapSelect=id=>{if(nodes.some(n=>n.id===id)){selected=id;scene=null;render();}};render();
+}
+
 function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){
   host.replaceChildren();
   if(kind==='figure'){
@@ -144,6 +177,7 @@ function printComponents(clone){for(const kind of Object.keys(components))for(co
     const steps=document.createElement('ol');for(const step of spec.steps??[]){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;steps.append(li);}host.append(title,diagram,steps);
   }else if(kind==='walkthrough')initWalkthrough(host,true);
   else if(kind==='compare')initCompare(host);
+  else if(kind==='map')initMap(host,true);
   else host.textContent='인쇄판에서는 생략한다.';
 }}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}
@@ -189,6 +223,7 @@ function renderRoute(){
   const article=$(chapter.slug);
   all('[data-lab]',article).forEach(initLab);
   initComponents(article);
+  if(params.has('map'))for(const host of all('[data-map]:not([data-mini])',article))host.mapSelect?.(params.get('map'));
   initTerms(article);
   applyArchives();
   if(params.has('lab')){
@@ -228,21 +263,6 @@ document.addEventListener('click',event=>{
   const direct=event.target.closest('[data-file]');if(direct){event.preventDefault();openSource(direct.dataset.file,direct.dataset.find??'');}
 });
 const searchIndex=[];
-let architectureMode='echo';
-let architectureComponent='application';
-function renderArchitecture(){
-  const panel=$('architectureFocus');if(!panel)return;
-  const content={application:architectureMode==='echo'?['EchoHandler가 I/O 콜백에서 Decode와 Send를 실행한다. span은 콜백 동안 유효하며 송신은 내부 복사다. 소유 객체는 애플리케이션이 유지한다.','echo.on_data']:['QueuedEventAdapter가 raw chunk를 복사하고 게임 shard가 TryPop한다. Player와 룸 상태는 로직 워커가 소유하고 Send로 응답한다.','architecture.chat_path'],
-    server:['Server::Impl은 공개 상태·설정·핸들러 브리지와 워커별 지표를 소유한다. 애플리케이션의 핸들러·로거는 빌려 쓰므로 더 오래 살아야 한다.','architecture.bridge'],
-    transport:['내부 transport는 세션 풀·링·accept·I/O 워커를 조립한다. 완료를 소유 워커에서 검사하고 수신 콜백으로 전달한다.','worker.dispatch'],
-    rio:['운영체제 RIO 함수 표가 RQ/CQ와 등록 버퍼를 다룬다. 성공한 게시의 완료가 돌아올 때까지 참조 자원을 유지한다.','rio.api']}[architectureComponent];
-  panel.textContent=content[0];$('architectureSource').dataset.evidence=content[1];
-  for(const button of all('[data-component]'))button.setAttribute('aria-pressed',String(button.dataset.component===architectureComponent));
-  for(const button of all('[data-architecture-mode]'))button.setAttribute('aria-pressed',String(button.dataset.architectureMode===architectureMode));
-}
-for(const button of all('[data-component]'))button.onclick=()=>{architectureComponent=button.dataset.component;renderArchitecture();};
-for(const button of all('[data-architecture-mode]'))button.onclick=()=>{architectureMode=button.dataset.architectureMode;renderArchitecture();};
-renderArchitecture();
 for(const chapter of available){
   const article=$(chapter.slug);
   for(const node of all('h1,h2,h3,p,td,li',article)){

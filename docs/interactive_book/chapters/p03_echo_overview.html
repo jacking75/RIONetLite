@@ -1,4 +1,4 @@
-<article class="chapter" id="echo-overview" data-title="EchoServer 한눈에 보기"><div class="eyebrow">0부 · P03</div><h1>EchoServer 전체를 먼저 읽는다</h1>
+<article class="chapter" id="echo-overview" data-title="EchoServer 한눈에 보기"><div class="eyebrow">0부 · P03</div><h1>EchoServer 전체를 먼저 읽는다</h1><div data-map="system" data-mini data-focus="handler,send-ring"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div>
 <p class="lead">EchoServer는 받은 메시지를 그대로 돌려보내는 가장 작은 예제다. 코드 전체의 모양, 실행 순서, 패킷 하나가 서버를 지나가는 길을 먼저 보고 나서 세부 장으로 들어간다.</p>
 <aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>EchoServer의 <code>main</code>과 <code>EchoHandler</code>가 각각 무슨 일을 하는지 설명하고, 클라이언트가 보낸 7바이트가 응답으로 돌아가기까지 거치는 단계를 순서대로 말할 수 있다. 같은 흐름을 한 단계씩 실행하는 실험은 <a href="#chapter=echo-walkthrough">C04</a>에 있다.</p><p>이 예제의 <dfn data-term="ownership">소유권</dfn>은 main이 관리한다. <dfn data-term="config">서버 설정</dfn>을 채우고 <dfn data-term="port">포트</dfn>를 연 뒤, <dfn data-term="callback">콜백</dfn>에서 <dfn data-term="frame">프레임</dfn>을 해석하며 <dfn data-term="session">세션</dfn>을 통해 답을 보낸다.</p></aside>
 <section id="echo-ov-goal"><h2>받은 패킷을 그대로 돌려준다</h2>

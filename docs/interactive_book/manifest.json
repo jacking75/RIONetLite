@@ -46,7 +46,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 1,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "server",
+        "handler"
+      ]
     },
     {
       "id": "P01",
@@ -79,7 +83,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "kernel-socket",
+        "rio"
+      ]
     },
     {
       "id": "P02",
@@ -116,7 +124,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "handler",
+        "server"
+      ]
     },
     {
       "id": "P03",
@@ -149,7 +161,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "handler",
+        "send-ring"
+      ]
     },
     {
       "id": "C02",
@@ -187,7 +203,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "server",
+        "rio"
+      ]
     },
     {
       "id": "C03",
@@ -226,7 +246,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 2,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "server",
+        "handler"
+      ]
     },
     {
       "id": "C04",
@@ -277,7 +301,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 3,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "handler",
+        "send-ring"
+      ]
     },
     {
       "id": "C05",
@@ -315,7 +343,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "rio",
+        "session"
+      ]
     },
     {
       "id": "C06",
@@ -353,7 +385,12 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "server",
+        "io-worker",
+        "logic-worker"
+      ]
     },
     {
       "id": "C07",
@@ -391,7 +428,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "io-worker",
+        "handler"
+      ]
     },
     {
       "id": "C08",
@@ -429,7 +470,12 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "recv-ring",
+        "send-ring",
+        "rio"
+      ]
     },
     {
       "id": "C09",
@@ -467,7 +513,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "recv-ring",
+        "send-ring"
+      ]
     },
     {
       "id": "C10",
@@ -505,7 +555,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "accepter",
+        "session-pool"
+      ]
     },
     {
       "id": "C11",
@@ -544,7 +598,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 6,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "session-pool",
+        "session"
+      ]
     },
     {
       "id": "C12",
@@ -582,7 +640,12 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "io-worker",
+        "recv-ring",
+        "handler"
+      ]
     },
     {
       "id": "C13",
@@ -629,7 +692,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 4,
-      "level": "입문"
+      "level": "입문",
+      "mapFocus": [
+        "recv-ring",
+        "handler"
+      ]
     },
     {
       "id": "C14",
@@ -667,7 +734,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "send-ring",
+        "server"
+      ]
     },
     {
       "id": "C15",
@@ -718,7 +789,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 5,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "send-ring",
+        "io-worker"
+      ]
     },
     {
       "id": "C16",
@@ -760,7 +835,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "lazy-close",
+        "session"
+      ]
     },
     {
       "id": "C17",
@@ -807,7 +886,13 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 7,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "server",
+        "accepter",
+        "io-worker",
+        "rio"
+      ]
     },
     {
       "id": "C18",
@@ -845,7 +930,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "logic-queue",
+        "logic-worker"
+      ]
     },
     {
       "id": "C19",
@@ -899,7 +988,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "logic-worker",
+        "logic-queue"
+      ]
     },
     {
       "id": "C20",
@@ -942,7 +1035,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 8,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "logic-worker",
+        "server"
+      ]
     },
     {
       "id": "C21",
@@ -980,7 +1077,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "server",
+        "session-pool"
+      ]
     },
     {
       "id": "C22",
@@ -1018,7 +1119,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "server",
+        "io-worker"
+      ]
     },
     {
       "id": "C23",
@@ -1052,7 +1157,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "중급"
+      "level": "중급",
+      "mapFocus": [
+        "server",
+        "io-worker"
+      ]
     },
     {
       "id": "C24",
@@ -1095,7 +1204,11 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 9,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "rio",
+        "server"
+      ]
     },
     {
       "id": "C25",
@@ -1137,7 +1250,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "io-worker",
+        "server"
+      ]
     },
     {
       "id": "C26",
@@ -1179,7 +1296,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "io-worker",
+        "send-ring"
+      ]
     },
     {
       "id": "C27",
@@ -1217,7 +1338,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "server",
+        "handler"
+      ]
     },
     {
       "id": "C28",
@@ -1255,7 +1380,11 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "심화"
+      "level": "심화",
+      "mapFocus": [
+        "server",
+        "session"
+      ]
     },
     {
       "id": "A01",
@@ -1293,7 +1422,10 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "참고"
+      "level": "참고",
+      "mapFocus": [
+        "server"
+      ]
     },
     {
       "id": "A02",
@@ -1319,7 +1451,10 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "참고"
+      "level": "참고",
+      "mapFocus": [
+        "server"
+      ]
     },
     {
       "id": "A03",
@@ -1341,7 +1476,10 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "참고"
+      "level": "참고",
+      "mapFocus": [
+        "server"
+      ]
     },
     {
       "id": "A04",
@@ -1367,7 +1505,10 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "level": "참고"
+      "level": "참고",
+      "mapFocus": [
+        "server"
+      ]
     },
     {
       "id": "A05",
@@ -1405,7 +1546,10 @@
       "technicalReviewed": true,
       "editorialReviewed": true,
       "legacyPage": 10,
-      "level": "참고"
+      "level": "참고",
+      "mapFocus": [
+        "server"
+      ]
     }
   ],
   "labs": [

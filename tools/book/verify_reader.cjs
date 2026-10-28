@@ -49,6 +49,11 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await caller.getByRole('button',{name:'Start 뒤 콜백으로 넘어간다',exact:true}).click();await caller.getByRole('button',{name:'들어가 보기',exact:true}).click();
   await page.waitForSelector('#echo-walkthrough.active');await walk.getByRole('button',{name:'돌아가기',exact:true}).click();await page.waitForSelector('#echo-overview.active');
   assert.match(await caller.locator('[role="status"]').innerText(),/5\/7/);
+  await go('library-overview','overview-inside');const systemMap=page.locator('#library-overview [data-map]:not([data-mini])');
+  await systemMap.locator('[data-map-node="io-worker"]').focus();await page.keyboard.press('Enter');
+  assert.ok(await systemMap.locator('.map-panel a').filter({hasText:'C12'}).count()>0);
+  await go('receive-path');await page.locator('#receive-path [data-mini] button').click();await page.waitForSelector('#library-overview.active');
+  assert.match(await systemMap.locator('.map-panel h3').innerText(),/I\/O 워커/);
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
@@ -157,6 +162,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   receipt.printBytes=printBytes;receipt.archivePrintBytes=archivePrintBytes;receipt.checks.push('archive toggle, search, persistence and smaller default PDF');
   receipt.figureStepMs=figureStepMs;receipt.checks.push('term keyboard focus return','figure step, playback cleanup and print steps');
   receipt.walkthroughs=walkReceipts;receipt.checks.push('all walkthrough steps and highlighted source lines');
+  receipt.checks.push('system map keyboard selection and mini-map route');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

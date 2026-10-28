@@ -1,4 +1,4 @@
-<article class="chapter" id="design-decisions" data-title="설계 결정 기록"><div class="eyebrow">부록 · A03</div><h1>선택한 이유와 당시의 경계를 남긴다</h1><p class="lead">설계 기록은 현재 코드의 검증 결과와 다르다. 날짜와 승인 상태를 보존하고 지금 읽을 구현으로 연결한다.</p>
+<article class="chapter" id="design-decisions" data-title="설계 결정 기록"><div class="eyebrow">부록 · A03</div><h1>선택한 이유와 당시의 경계를 남긴다</h1><div data-map="system" data-mini data-focus="server"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div><p class="lead">설계 기록은 현재 코드의 검증 결과와 다르다. 날짜와 승인 상태를 보존하고 지금 읽을 구현으로 연결한다.</p>
 <section id="decisions-current"><h2>현재 설계에서 지키는 선택을 읽는다</h2>
 <table><thead><tr><th>결정</th><th>이유와 비용</th><th>현재 확인 지점</th></tr></thead><tbody>
 <tr><td>Windows x64·RIO·정적 라이브러리</td><td>등록 메모리와 완료 큐의 수명을 한 플랫폼 계약에서 다룬다. Linux·x86이나 안정된 C ABI를 제공하지 않는다.</td><td>C02 환경, C27 ABI·패키지</td></tr>

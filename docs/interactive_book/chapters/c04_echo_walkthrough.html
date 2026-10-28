@@ -1,5 +1,5 @@
 <article class="chapter" id="echo-walkthrough" data-title="Echo 왕복을 따라간다">
-<div class="eyebrow">1부 · C04</div><h1>받은 패킷이 응답이 되기까지</h1>
+<div class="eyebrow">1부 · C04</div><h1>받은 패킷이 응답이 되기까지</h1><div data-map="system" data-mini data-focus="handler,send-ring"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div>
 <p class="lead">네트워크 호출의 성공, 패킷의 완성, 응답의 송신 완료는 서로 다른 순간이다. EchoServer 한 연결을 따라가며 그 사이에 누가 데이터를 소유하는지 확인한다.</p>
 <aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-basic">입문</span>큰 그림에서의 위치: <a href="#chapter=echo-overview&amp;section=echo-ov-flow">P03 패킷 하나가 왕복하는 길</a></p><p><strong>쉽게 말하면</strong> P03의 순서도를 실험으로 한 단계씩 실행해 보는 장이다. 수신 완료, <code>OnData</code>, <code>Send</code>, 송신 완료가 서로 다른 순간이라는 것을 직접 확인한다.</p><p class="small"><strong>처음 읽는다면</strong> L01 실험의 “단계별 재생”을 먼저 눌러 본 뒤 본문을 읽는다.</p></aside>
 <section id="echo-question"><h2>수신 <dfn data-term="callback">콜백</dfn> 한 번이면 응답도 한 번인가?</h2>

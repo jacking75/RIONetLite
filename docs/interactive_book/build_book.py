@@ -42,11 +42,14 @@ class Fragment(HTMLParser):
         self.ids, self.text, self.sources, self.links, self.evidence, self.labs = [], [], [], [], [], []
         self.prose = []
         self.components = {kind: [] for kind in ('figure', 'walkthrough', 'compare', 'quiz', 'term', 'map')}
+        self.map_focus = []
         self.in_prose = 0
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if 'data-map' in attrs:
+            self.map_focus.extend(filter(None, attrs.get('data-focus', '').split(',')))
         for kind in self.components:
             if 'data-' + kind in attrs:
                 self.components[kind].append(attrs['data-' + kind])
@@ -297,6 +300,9 @@ def collect_components(definitions, fragments, evidence, glossary, chapters, sou
     nodes = [node for layer in system.get('layers', []) for node in layer['nodes']]
     unique([node['id'] for node in nodes], 'map node')
     node_ids = {node['id'] for node in nodes}
+    for _, text in fragments:
+        if any(value not in node_ids for value in Fragment(text).map_focus):
+            raise ValueError('system: unknown data-focus node')
     for node in nodes:
         for chapter in node['chapters']:
             if chapter not in chapters:

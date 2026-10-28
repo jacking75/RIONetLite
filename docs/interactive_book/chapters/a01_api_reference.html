@@ -1,4 +1,4 @@
-<article class="chapter" id="api-reference" data-title="공개 API 계약"><div class="eyebrow">부록 · A01</div><h1>호출 전에 수명과 반환값을 확인한다</h1><p class="lead">아래 목록은 공개 헤더의 최상위 심볼과 직접 작성한 멤버 계약을 함께 보여 준다. 구현 클래스의 편의 함수는 애플리케이션 API에 포함하지 않는다.</p>
+<article class="chapter" id="api-reference" data-title="공개 API 계약"><div class="eyebrow">부록 · A01</div><h1>호출 전에 수명과 반환값을 확인한다</h1><div data-map="system" data-mini data-focus="server"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div><p class="lead">아래 목록은 공개 헤더의 최상위 심볼과 직접 작성한 멤버 계약을 함께 보여 준다. 구현 클래스의 편의 함수는 애플리케이션 API에 포함하지 않는다.</p>
 <section id="reference-ownership"><h2>namespace와 소유권을 먼저 정한다</h2>
 <p>신규 코드는 <code>include/rionetlite/</code>와 <code>rionetlite</code> namespace를 사용한다. Server는 내부 구현을 단독 소유하는 move-only 객체이며 handler와 logger는 빌려 쓴다. 생성 순서를 handler·logger, Server 순으로 두어 파괴가 반대로 일어나게 한다. 이동·대입·파괴 전에 모든 애플리케이션 호출자가 빠져나와야 한다. 자기 콜백 안에서 Server를 파괴하지 않는다.</p>
 <p>소멸자는 미종료 transport의 정리를 시도하지만 종료 오류를 반환할 수 없다. 정상 경로에서는 명시적으로 Stop을 호출해 결과를 검사한다. 소멸자가 실패를 없애거나 미완료 등록 메모리를 강제로 안전하게 해제해 주는 것으로 기대하지 않는다. 종료 timeout과 의도적 자원 보존 경로는 C17에서 확인한다.</p>

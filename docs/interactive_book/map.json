@@ -1,1 +1,463 @@
-{"schemaVersion": 1, "id": "system", "layers": [], "links": [], "scenes": []}
+{
+  "schemaVersion": 1,
+  "id": "system",
+  "layers": [
+    {
+      "id": "app",
+      "label": "애플리케이션",
+      "nodes": [
+        {
+          "id": "handler",
+          "label": "EventHandler 구현",
+          "thread": "콜백 호출 스레드",
+          "does": [
+            "콜백 안에서 입력을 처리하거나 복사 큐로 전달한다"
+          ],
+          "owns": [
+            "핸들러와 로거는 앱이 유지한다"
+          ],
+          "chapters": [
+            "P02",
+            "C03",
+            "C04",
+            "C07"
+          ],
+          "evidence": [
+            "api.callback_contract"
+          ],
+          "labs": [
+            "L03"
+          ]
+        },
+        {
+          "id": "logic-queue",
+          "label": "이벤트 복사 큐",
+          "thread": "I/O → 로직 경계",
+          "does": [
+            "payload를 복사하고 세션별 이벤트 순서를 보존한다"
+          ],
+          "owns": [
+            "유계 슬롯과 parked close 게이트"
+          ],
+          "chapters": [
+            "C18",
+            "C19"
+          ],
+          "evidence": [
+            "queue.push"
+          ],
+          "labs": [
+            "L14"
+          ]
+        },
+        {
+          "id": "logic-worker",
+          "label": "게임 로직 워커",
+          "thread": "앱의 샤드 스레드",
+          "does": [
+            "입력·Player 상태·룸 방송을 처리한다"
+          ],
+          "owns": [
+            "샤드별 PlayerMap"
+          ],
+          "chapters": [
+            "C19",
+            "C20"
+          ],
+          "evidence": [
+            "application.shard"
+          ],
+          "labs": [
+            "L15",
+            "L16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "public",
+      "label": "공개 Server",
+      "nodes": [
+        {
+          "id": "server",
+          "label": "Server",
+          "thread": "앱 호출자와 콜백 브리지",
+          "does": [
+            "설정·상태·오류와 transport 진입을 검사한다"
+          ],
+          "owns": [
+            "내부 transport와 지표"
+          ],
+          "chapters": [
+            "C03",
+            "C06"
+          ],
+          "evidence": [
+            "architecture.bridge"
+          ],
+          "labs": [
+            "L01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "transport",
+      "label": "내부 transport",
+      "nodes": [
+        {
+          "id": "accepter",
+          "label": "연결 수락",
+          "thread": "accept 스레드",
+          "does": [
+            "접속을 받고 슬롯과 워커 CQ를 연결한다"
+          ],
+          "owns": [
+            "accept 스레드의 소켓 설정 과정"
+          ],
+          "chapters": [
+            "C10"
+          ],
+          "evidence": [
+            "accept.run"
+          ],
+          "labs": [
+            "L06"
+          ]
+        },
+        {
+          "id": "session-pool",
+          "label": "세션 풀",
+          "thread": "accept·소유 I/O 워커",
+          "does": [
+            "빈 슬롯을 빌리고 참조가 끝난 뒤 반환한다"
+          ],
+          "owns": [
+            "세션 배열과 free list"
+          ],
+          "chapters": [
+            "C10",
+            "C11"
+          ],
+          "evidence": [
+            "accept.allocation"
+          ],
+          "labs": [
+            "L06",
+            "L07"
+          ]
+        },
+        {
+          "id": "session",
+          "label": "세션",
+          "thread": "담당 I/O 워커",
+          "does": [
+            "전체 ID와 연결 수명을 검사한다"
+          ],
+          "owns": [
+            "소켓·등록 버퍼·RQ 컨텍스트"
+          ],
+          "chapters": [
+            "C11",
+            "C16"
+          ],
+          "evidence": [
+            "session.lifecycle"
+          ],
+          "labs": [
+            "L07",
+            "L12"
+          ]
+        },
+        {
+          "id": "recv-ring",
+          "label": "수신 링",
+          "thread": "커널 쓰기·I/O 읽기",
+          "does": [
+            "완료 길이를 반영하고 소비한 앞부분을 회수한다"
+          ],
+          "owns": [
+            "등록된 수신 저장소"
+          ],
+          "chapters": [
+            "C09",
+            "C12",
+            "C13"
+          ],
+          "evidence": [
+            "receive.post"
+          ],
+          "labs": [
+            "L05",
+            "L08",
+            "L09"
+          ]
+        },
+        {
+          "id": "send-ring",
+          "label": "송신 링",
+          "thread": "앱 Send·담당 I/O 워커",
+          "does": [
+            "복사한 바이트를 게시하고 완료량만 회수한다"
+          ],
+          "owns": [
+            "등록된 송신 저장소"
+          ],
+          "chapters": [
+            "C14",
+            "C15"
+          ],
+          "evidence": [
+            "send.enqueue"
+          ],
+          "labs": [
+            "L10",
+            "L11"
+          ]
+        },
+        {
+          "id": "io-worker",
+          "label": "I/O 워커",
+          "thread": "워커별 스레드",
+          "does": [
+            "CQ의 소유권·세대·상태를 검사하고 콜백을 부른다"
+          ],
+          "owns": [
+            "CQ 결과 배치와 제어 작업"
+          ],
+          "chapters": [
+            "C07",
+            "C12",
+            "C15",
+            "C17"
+          ],
+          "evidence": [
+            "worker.loop"
+          ],
+          "labs": [
+            "L03",
+            "L08"
+          ]
+        },
+        {
+          "id": "lazy-close",
+          "label": "지연 종료 관리자",
+          "thread": "담당 I/O 워커",
+          "does": [
+            "전체 UID와 기한으로 송신 배출·종료를 진행한다"
+          ],
+          "owns": [
+            "유계 종료 메일박스"
+          ],
+          "chapters": [
+            "C16",
+            "C17"
+          ],
+          "evidence": [
+            "close.peer_wait"
+          ],
+          "labs": [
+            "L12",
+            "L13"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "os",
+      "label": "Windows 소켓·RIO",
+      "nodes": [
+        {
+          "id": "rio",
+          "label": "Windows RIO",
+          "thread": "Windows 커널",
+          "does": [
+            "등록된 구간으로 요청을 받고 완료를 기록한다"
+          ],
+          "owns": [
+            "RQ·CQ·등록 ID는 앱이 수명 관리한다"
+          ],
+          "chapters": [
+            "C05",
+            "C08"
+          ],
+          "evidence": [
+            "rio.api"
+          ],
+          "labs": [
+            "L02",
+            "L04"
+          ]
+        },
+        {
+          "id": "kernel-socket",
+          "label": "TCP 소켓",
+          "thread": "Windows 커널",
+          "does": [
+            "TCP 연결·바이트 전달·FIN과 취소를 처리한다"
+          ],
+          "owns": [
+            "커널 통신 상태"
+          ],
+          "chapters": [
+            "P01",
+            "C10",
+            "C16"
+          ],
+          "evidence": [
+            "close.session"
+          ],
+          "labs": [
+            "L12"
+          ]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from": "handler",
+      "to": "server",
+      "label": "Send",
+      "kind": "call"
+    },
+    {
+      "from": "server",
+      "to": "send-ring",
+      "label": "복사·접수",
+      "kind": "data"
+    },
+    {
+      "from": "send-ring",
+      "to": "rio",
+      "label": "게시",
+      "kind": "call"
+    },
+    {
+      "from": "rio",
+      "to": "io-worker",
+      "label": "완료",
+      "kind": "completion"
+    },
+    {
+      "from": "io-worker",
+      "to": "handler",
+      "label": "OnData",
+      "kind": "callback"
+    },
+    {
+      "from": "handler",
+      "to": "logic-queue",
+      "label": "복사",
+      "kind": "data",
+      "mode": "chat"
+    },
+    {
+      "from": "logic-queue",
+      "to": "logic-worker",
+      "label": "TryPop",
+      "kind": "data",
+      "mode": "chat"
+    },
+    {
+      "from": "logic-worker",
+      "to": "server",
+      "label": "응답",
+      "kind": "call",
+      "mode": "chat"
+    },
+    {
+      "from": "accepter",
+      "to": "session-pool",
+      "label": "할당",
+      "kind": "call"
+    },
+    {
+      "from": "session",
+      "to": "recv-ring",
+      "label": "읽기 범위",
+      "kind": "data"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "prepare",
+      "label": "① 준비",
+      "nodes": [
+        "server",
+        "session-pool",
+        "rio"
+      ],
+      "chapters": [
+        "C02",
+        "C03"
+      ]
+    },
+    {
+      "id": "accept",
+      "label": "② 연결",
+      "nodes": [
+        "accepter",
+        "session-pool",
+        "session"
+      ],
+      "chapters": [
+        "C10",
+        "C11"
+      ]
+    },
+    {
+      "id": "receive",
+      "label": "③ 수신",
+      "nodes": [
+        "rio",
+        "io-worker",
+        "recv-ring",
+        "handler"
+      ],
+      "chapters": [
+        "C12",
+        "C13"
+      ]
+    },
+    {
+      "id": "send",
+      "label": "④ 송신",
+      "nodes": [
+        "handler",
+        "server",
+        "send-ring",
+        "rio"
+      ],
+      "chapters": [
+        "C14",
+        "C15"
+      ]
+    },
+    {
+      "id": "close",
+      "label": "⑤ 연결 종료",
+      "nodes": [
+        "lazy-close",
+        "session",
+        "io-worker"
+      ],
+      "chapters": [
+        "C16"
+      ]
+    },
+    {
+      "id": "stop",
+      "label": "⑥ 서버 정지",
+      "nodes": [
+        "server",
+        "accepter",
+        "io-worker",
+        "rio"
+      ],
+      "chapters": [
+        "C17"
+      ]
+    }
+  ]
+}
