@@ -181,22 +181,44 @@ function printComponents(clone){for(const kind of Object.keys(components))for(co
   else host.textContent='인쇄판에서는 생략한다.';
 }}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}
+function selectedRoute(){return BOOK.manifest.readingRoutes.find(r=>r.id===persisted.route);}
+function routeProgress(route){return route.chapters.filter(id=>persisted.checks[id+'-understood']===true).length;}
+function routeNextChapter(route){const index=route.chapters.indexOf(current.id);return chapters.find(c=>c.id===(route.chapters[index+1]??route.chapters.find(id=>!persisted.checks[id+'-understood'])??route.chapters[0]));}
+function updateRoute(){
+  const route=selectedRoute();$('routeSelect').value=route?.id??'';$('routeOrder').disabled=!route;
+  $('routeOrder').textContent=persisted.routeOrder===false?'경로 순서로 보기':'부 순서로 보기';
+  if(!route){$('routeSummary').textContent='목적에 맞는 경로를 고르면 다음 장과 진도를 함께 볼 수 있다.';$('routeNext').hidden=true;return;}
+  const quizzes=BOOK.quizzes.filter(q=>route.chapters.includes(q.chapter));const correct=quizzes.filter(q=>q.options[persisted.quiz[q.id]]?.correct).length;
+  const next=routeNextChapter(route);$('routeSummary').textContent=`경로: ${route.title} · ${routeProgress(route)}/${route.chapters.length} · 다음: ${next.id} ${next.title}${quizzes.length?' · 퀴즈 '+correct+'/'+quizzes.length:''}`;
+  $('routeNext').hidden=false;$('routeNext').textContent='경로의 다음 장: '+next.id+' '+next.title;$('routeNext').onclick=()=>navigate(next);
+}
+function chooseRoute(id){persisted.route=BOOK.manifest.readingRoutes.some(r=>r.id===id)?id:null;save();makeToc();}
+function initRouteControls(){
+  const select=$('routeSelect');const option=document.createElement('option');option.value='';option.textContent='경로 미선택';select.append(option);
+  for(const route of BOOK.manifest.readingRoutes){const option=document.createElement('option');option.value=route.id;option.textContent=route.title;select.append(option);}
+  select.onchange=()=>chooseRoute(select.value);$('routeOrder').onclick=()=>{persisted.routeOrder=persisted.routeOrder===false;save();makeToc();};
+  for(const button of all('[data-route]'))button.onclick=()=>{chooseRoute(button.dataset.route);const route=selectedRoute();navigate(chapters.find(c=>c.id===route.chapters[0]));};
+}
+function tocChapter(container,c){
+  const a=document.createElement($(c.slug)?'a':'span');a.textContent=`${persisted.checks[c.id+'-understood']?'✓ ':''}${c.id} ${c.title}`;
+  if(c.level&&c.level!=='참고'){const level=document.createElement('span');level.className='level level-'+({입문:'basic',중급:'middle',심화:'deep'}[c.level]);level.textContent=c.level;a.append(' ',level);}
+  if($(c.slug)){a.href=chapterUrl(c);a.dataset.chapterLink=c.slug;}container.append(a);
+  if(c.slug===current.slug){const sections=document.createElement('div');sections.className='sections';
+    c.sections.filter(s=>!s.archive||persisted.showArchive||expandedArchives.has(c.slug)).forEach(s=>{const link=document.createElement('a');link.href=chapterUrl(c,s.id);link.textContent=s.title;sections.append(link);});container.append(sections);}
+}
 function makeToc(){
-  $('navigation').replaceChildren();
-  BOOK.manifest.parts.forEach((part,index)=>{
-    const group=document.createElement('details');group.open=true;
-    const heading=document.createElement('summary');heading.textContent=index===BOOK.manifest.parts.length-1?'부록':`${index}부 · ${part}`;group.append(heading);
-    chapters.filter(c=>c.part===index+1).forEach(c=>{
-      const a=document.createElement($(c.slug)?'a':'span');a.textContent=`${c.id} ${c.title}`;
-      if(c.level&&c.level!=='참고'){const level=document.createElement('span');level.className='level level-'+({입문:'basic',중급:'middle',심화:'deep'}[c.level]);level.textContent=c.level;a.append(' ',level);}
-      if($(c.slug)){a.href=chapterUrl(c);a.dataset.chapterLink=c.slug;}else{a.className='unwritten';a.textContent+=' · 집필 예정';}
-      group.append(a);
-      if(c.slug===current.slug){const sections=document.createElement('div');sections.className='sections';
-        c.sections.filter(s=>!s.archive||persisted.showArchive||expandedArchives.has(c.slug)).forEach(s=>{const link=document.createElement('a');link.href=chapterUrl(c,s.id);link.textContent=s.title;sections.append(link);});group.append(sections);}
-    });$('navigation').append(group);
+  $('navigation').replaceChildren();updateRoute();const route=selectedRoute();
+  if(route&&persisted.routeOrder!==false){
+    for(const id of route.chapters)tocChapter($('navigation'),chapters.find(c=>c.id===id));
+    const others=document.createElement('details');const heading=document.createElement('summary');heading.textContent='그 밖의 장';others.append(heading);
+    for(const c of chapters.filter(c=>!route.chapters.includes(c.id)))tocChapter(others,c);$('navigation').append(others);
+  }else BOOK.manifest.parts.forEach((part,index)=>{
+    const group=document.createElement('details');group.open=true;const heading=document.createElement('summary');heading.textContent=index===BOOK.manifest.parts.length-1?'부록':`${index}부 · ${part}`;group.append(heading);
+    chapters.filter(c=>c.part===index+1).forEach(c=>tocChapter(group,c));$('navigation').append(group);
   });
   all('[data-chapter-link]').forEach(a=>{if(a.dataset.chapterLink===current.slug)a.setAttribute('aria-current','page');});
 }
+
 function navigate(chapter,section='',replace=false){const target=chapterUrl(chapter,section);if(location.hash===target){renderRoute();return;}if(replace)location.replace(target);else location.hash=target;}
 function renderRoute(){
   if(!available.length)return;
@@ -305,7 +327,7 @@ document.addEventListener('keydown',event=>{
   if(event.key==='/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){event.preventDefault();$('search').focus();}
   if(event.key==='Escape'&&!$('sourceDialog').open&&!$('scenarioDialog').open){$('searchResults').hidden=true;$('sidebar').classList.remove('open');$('menu').setAttribute('aria-expanded','false');}
 });
-for(const input of all('[data-check]')){input.checked=persisted.checks[input.dataset.check]===true;input.onchange=()=>{persisted.checks[input.dataset.check]=input.checked;save();};}
+for(const input of all('[data-check]')){input.checked=persisted.checks[input.dataset.check]===true;input.onchange=()=>{persisted.checks[input.dataset.check]=input.checked;save();makeToc();};}
 function openEvidence(id,append=false){const evidence=BOOK.evidence.find(e=>e.id===id);if(!evidence){notice('코드 출처를 찾지 못했다. 책을 재생성해 확인해야 한다.');return;}openSource(evidence.source,evidence.selector.start,append,evidence);}
 function openSource(file,find='',append=false,evidence=null){
   stopPlayback();const source=SOURCES[file];if(!source){notice('포함된 소스에서 파일을 찾을 수 없다.');return;}
@@ -491,5 +513,6 @@ function preparePrint(){
 window.addEventListener('beforeprint',preparePrint);
 $('print').onclick=()=>{preparePrint();window.print();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopPlayback();});
+initRouteControls();
 renderRoute();
 document.documentElement.dataset.readerReady='true';

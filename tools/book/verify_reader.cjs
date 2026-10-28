@@ -54,6 +54,10 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   assert.ok(await systemMap.locator('.map-panel a').filter({hasText:'C12'}).count()>0);
   await go('receive-path');await page.locator('#receive-path [data-mini] button').click();await page.waitForSelector('#library-overview.active');
   assert.match(await systemMap.locator('.map-panel h3').innerText(),/I\/O 워커/);
+  await go('reading-guide');await page.locator('[data-route="first"]').click();await page.reload();assert.equal(await page.locator('#routeSelect').inputValue(),'first');
+  await go('packet-framing');const routeCheck=page.locator('#packet-framing [data-check="C13-understood"]');await routeCheck.uncheck();
+  const routeBefore=await page.evaluate(()=>routeProgress(selectedRoute()));await routeCheck.check();
+  assert.equal(await page.evaluate(()=>routeProgress(selectedRoute())),routeBefore+1);assert.match(await page.locator('#routeNext').innerText(),/C03/);
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
@@ -163,6 +167,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   receipt.figureStepMs=figureStepMs;receipt.checks.push('term keyboard focus return','figure step, playback cleanup and print steps');
   receipt.walkthroughs=walkReceipts;receipt.checks.push('all walkthrough steps and highlighted source lines');
   receipt.checks.push('system map keyboard selection and mini-map route');
+  receipt.checks.push('reading route selection, persistence and progress');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

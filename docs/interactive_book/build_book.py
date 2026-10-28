@@ -356,7 +356,10 @@ def build(complete=False):
     if [lab["id"] for lab in manifest["labs"]] != [f"L{i:02}" for i in range(1, 21)]:
         raise ValueError("Manifest must contain L01-L20")
     by_id = {c["id"]: c for c in chapters}
+    unique([route['id'] for route in manifest['readingRoutes']], 'reading route id')
     for route in manifest["readingRoutes"]:
+        if not route.get('description') or not route.get('audience'):
+            raise ValueError('Reading route needs description and audience')
         if any(c not in by_id for c in route["chapters"]):
             raise ValueError("Unknown chapter in reading route")
     fragments = []
