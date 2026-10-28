@@ -83,6 +83,10 @@
         {
           "id": "server-basics-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "server-basics-recap",
+          "title": "핵심 세 줄과 다음 장"
         }
       ],
       "technicalReviewed": true,
@@ -128,6 +132,10 @@
         {
           "id": "library-overview-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "library-overview-recap",
+          "title": "핵심 세 줄과 다음 장"
         }
       ],
       "technicalReviewed": true,
@@ -169,6 +177,10 @@
         {
           "id": "echo-overview-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "echo-overview-recap",
+          "title": "핵심 세 줄과 다음 장"
         }
       ],
       "technicalReviewed": true,
@@ -210,6 +222,10 @@
         {
           "id": "build-and-run-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "build-and-run-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "build-and-run-prior-notes",
@@ -315,6 +331,10 @@
         {
           "id": "echo-walkthrough-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "echo-walkthrough-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "echo-walkthrough-prior-notes",
@@ -742,6 +762,10 @@
         {
           "id": "packet-framing-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "packet-framing-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "packet-framing-prior-notes",

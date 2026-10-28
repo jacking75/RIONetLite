@@ -871,6 +871,527 @@
         }
       ],
       "caption": "공개 Stop의 앱 진입 차단은 accept 중지보다 먼저다. 내부 송신 재게시는 graceful 배출 동안 살아 있어야 한다. 모델은 정상 의존 관계를 단순화했다."
+    },
+    {
+      "id": "F-P01-1",
+      "kind": "bytes",
+      "title": "송신 세 묶음과 수신 두 조각",
+      "bytes": [
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "headerBytes": 0,
+      "arrived": 0,
+      "consumed": 0,
+      "steps": [
+        {
+          "title": "보낼 바이트는 순서대로 이어진다",
+          "text": "송신자가 AB·CD·EF 세 번에 나누어 보냈다고 가정한다. 스트림은 여섯 바이트의 순서만 유지한다.",
+          "evidence": "framing.decode",
+          "spec": {
+            "arrived": 0,
+            "marks": [
+              "송신 [AB][CD][EF]"
+            ]
+          }
+        },
+        {
+          "title": "ABC가 먼저 도착한다",
+          "text": "수신 조각은 송신 경계와 맞지 않을 수 있다. 첫 수신에 3바이트가 도착해도 정상이다.",
+          "evidence": "framing.decode",
+          "spec": {
+            "arrived": 3,
+            "marks": [
+              "수신 조각 1: ABC"
+            ]
+          }
+        },
+        {
+          "title": "DEF가 뒤에 도착한다",
+          "text": "두 번째 수신으로 나머지 바이트가 온다. 메시지 경계는 별도의 길이 규약으로 해석해야 한다.",
+          "evidence": "framing.decode",
+          "spec": {
+            "arrived": 6,
+            "marks": [
+              "수신 조각 2: DEF"
+            ]
+          }
+        }
+      ],
+      "caption": "개념 설명용 ASCII 바이트 예다. Echo의 실제 길이 헤더는 C13에서 본다."
+    },
+    {
+      "id": "F-P01-2",
+      "kind": "sequence",
+      "title": "동기 대기와 비동기 게시의 두 순간",
+      "lanes": [
+        {
+          "id": "caller",
+          "label": "호출자 스레드"
+        },
+        {
+          "id": "service",
+          "label": "운영체제"
+        }
+      ],
+      "steps": [
+        {
+          "title": "동기 호출은 반환까지 기다린다",
+          "text": "이 구간 동안 호출 스레드는 같은 실행 흐름의 다음 일을 진행하지 못한다.",
+          "evidence": "rio.api",
+          "messages": [
+            {
+              "from": "caller",
+              "to": "service",
+              "label": "동기 요청·대기",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "결과가 돌아오면 계속한다",
+          "text": "대기 중이던 호출자가 결과를 받은 뒤 다음 일을 한다.",
+          "evidence": "rio.api",
+          "messages": [
+            {
+              "from": "service",
+              "to": "caller",
+              "label": "동기 결과",
+              "kind": "completion"
+            }
+          ]
+        },
+        {
+          "title": "비동기는 요청을 맡기고 돌아온다",
+          "text": "게시 성공은 요청을 접수했다는 뜻이며 결과를 받은 것은 아니다.",
+          "evidence": "rio.post_rollback",
+          "messages": [
+            {
+              "from": "caller",
+              "to": "service",
+              "label": "비동기 게시",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "나중에 완료를 꺼낸다",
+          "text": "요청을 맡긴 뒤 다른 일을 진행하다 완료 결과를 처리한다. 버퍼는 그동안 살아 있어야 한다.",
+          "evidence": "worker.loop",
+          "messages": [
+            {
+              "from": "service",
+              "to": "caller",
+              "label": "CQ 완료",
+              "kind": "completion"
+            }
+          ]
+        }
+      ],
+      "caption": "앞의 두 단계는 동기, 뒤의 두 단계는 비동기 비유다. 실제 시간 비율과 OS 스케줄링은 생략했다."
+    },
+    {
+      "id": "F-P01-3",
+      "kind": "ring",
+      "title": "미리 등록한 그릇의 일부만 맡긴다",
+      "capacity": 8,
+      "read": 0,
+      "write": 0,
+      "used": 0,
+      "posted": 4,
+      "steps": [
+        {
+          "title": "등록 버퍼의 빈 네 칸으로 수신을 맡긴다",
+          "text": "바이트는 아직 없고 커널이 쓸 구간만 예약되어 있다. 완료가 올 때까지 이 저장소를 유지한다.",
+          "evidence": "memory.registration"
+        }
+      ],
+      "caption": "그릇 비유를 8칸 저장소로 단순화했다. 실제 페이지 단위 크기와 RIO_BUF 범위는 C08·C09를 따른다."
+    },
+    {
+      "id": "F-P02-2",
+      "kind": "sequence",
+      "title": "연결 하나의 여섯 장면",
+      "lanes": [
+        {
+          "id": "app",
+          "label": "애플리케이션"
+        },
+        {
+          "id": "net",
+          "label": "라이브러리"
+        },
+        {
+          "id": "os",
+          "label": "Windows"
+        }
+      ],
+      "steps": [
+        {
+          "title": "① 준비",
+          "text": "설정과 수명 객체를 만들고 Create·Start의 결과를 확인한다.",
+          "evidence": "echo.main",
+          "messages": [
+            {
+              "from": "app",
+              "to": "net",
+              "label": "Create → Start",
+              "kind": "call"
+            }
+          ],
+          "chapter": "C03"
+        },
+        {
+          "title": "② 연결",
+          "text": "accept가 슬롯을 빌리고 OnConnected 뒤 첫 수신을 게시한다.",
+          "evidence": "accept.run",
+          "messages": [
+            {
+              "from": "os",
+              "to": "net",
+              "label": "accept 성공",
+              "kind": "completion"
+            }
+          ],
+          "chapter": "C10"
+        },
+        {
+          "title": "③ 수신",
+          "text": "수신 완료 길이를 링에 반영하고 읽기 범위로 콜백을 부른다.",
+          "evidence": "receive.callback",
+          "messages": [
+            {
+              "from": "net",
+              "to": "app",
+              "label": "OnData",
+              "kind": "callback"
+            }
+          ],
+          "chapter": "C12"
+        },
+        {
+          "title": "④ 송신",
+          "text": "Send는 복사·접수 결과를 돌려주고 RIO 요청은 별도로 완료된다.",
+          "evidence": "api.send",
+          "messages": [
+            {
+              "from": "app",
+              "to": "net",
+              "label": "Send → kQueued",
+              "kind": "call"
+            }
+          ],
+          "chapter": "C14"
+        },
+        {
+          "title": "⑤ 연결 종료",
+          "text": "FIN 또는 앱 요청을 전체 ID로 처리하고 참조·통지를 정리한다.",
+          "evidence": "close.session",
+          "messages": [
+            {
+              "from": "net",
+              "to": "app",
+              "label": "OnClosed",
+              "kind": "callback"
+            }
+          ],
+          "chapter": "C16"
+        },
+        {
+          "title": "⑥ 서버 정지",
+          "text": "소유 스레드가 신규 진입을 막고 완료를 회수한 뒤 자원을 정리한다.",
+          "evidence": "shutdown.end",
+          "messages": [
+            {
+              "from": "app",
+              "to": "net",
+              "label": "Stop → drain",
+              "kind": "call"
+            }
+          ],
+          "chapter": "C17"
+        }
+      ],
+      "caption": "한 연결의 지도다. 여러 세션은 장면이 서로 교차할 수 있다."
+    },
+    {
+      "id": "F-C02-1",
+      "kind": "graph",
+      "title": "빌드 산출물의 의존 관계",
+      "nodes": [
+        {
+          "id": "vcpkg",
+          "label": "vcpkg 의존성",
+          "state": "done"
+        },
+        {
+          "id": "library",
+          "label": "정적 라이브러리",
+          "state": "waiting"
+        },
+        {
+          "id": "sample",
+          "label": "Echo·Chat 예제",
+          "state": "waiting"
+        },
+        {
+          "id": "tests",
+          "label": "단위·통합 실행 파일",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "from": "vcpkg",
+          "to": "library"
+        },
+        {
+          "from": "library",
+          "to": "sample"
+        },
+        {
+          "from": "library",
+          "to": "tests"
+        }
+      ],
+      "steps": [
+        {
+          "title": "하위 의존성부터 만든다",
+          "text": "GoogleTest와 mimalloc을 루트 manifest로 복원하고 라이브러리·예제·테스트를 같은 구성으로 빌드한다.",
+          "evidence": "build.script"
+        }
+      ],
+      "caption": "빌드 성공과 테스트 실행 성공은 다른 결과다. 이 그림은 산출물 의존 관계를 보여 준다."
+    },
+    {
+      "id": "F-C02-2",
+      "kind": "state",
+      "title": "오류 메시지는 멈춘 계층부터 읽는다",
+      "states": [
+        {
+          "id": "environment",
+          "label": "환경"
+        },
+        {
+          "id": "compile",
+          "label": "컴파일"
+        },
+        {
+          "id": "link",
+          "label": "링크"
+        },
+        {
+          "id": "run",
+          "label": "실행"
+        }
+      ],
+      "transitions": [],
+      "steps": [
+        {
+          "title": "환경에서 멈췄다",
+          "text": "SDK·MSVC·vcpkg 경로를 먼저 확인한다.",
+          "evidence": "build.script",
+          "active": "environment"
+        },
+        {
+          "title": "컴파일에서 멈췄다",
+          "text": "헤더·문법·구성별 옵션을 확인한다.",
+          "evidence": "build.script",
+          "active": "compile"
+        },
+        {
+          "title": "링크에서 멈췄다",
+          "text": "정적 라이브러리와 참조 구성을 확인한다.",
+          "evidence": "build.script",
+          "active": "link"
+        },
+        {
+          "title": "실행에서 멈췄다",
+          "text": "포트·provider·입력과 실제 실행 로그를 확인한다.",
+          "evidence": "build.script",
+          "active": "run"
+        }
+      ],
+      "caption": "오류 진단용 개념 계층이다. 실제 enum이나 모든 가능한 오류를 나열한 것은 아니다."
+    },
+    {
+      "id": "F-C04-1",
+      "kind": "state",
+      "title": "Send 결과를 앱 정책으로 바꾼다",
+      "states": [
+        {
+          "id": "kQueued",
+          "label": "kQueued"
+        },
+        {
+          "id": "kWouldBlock",
+          "label": "kWouldBlock"
+        },
+        {
+          "id": "kMessageTooLarge",
+          "label": "kMessageTooLarge"
+        },
+        {
+          "id": "kStaleSession",
+          "label": "kStaleSession"
+        },
+        {
+          "id": "kClosing",
+          "label": "kClosing"
+        },
+        {
+          "id": "kUnavailable",
+          "label": "kUnavailable"
+        }
+      ],
+      "transitions": [],
+      "steps": [
+        {
+          "title": "kQueued",
+          "text": "내부 접수 완료. 응답의 실제 완료는 따로 관찰한다.",
+          "evidence": "echo.on_data",
+          "active": "kQueued"
+        },
+        {
+          "title": "kWouldBlock",
+          "text": "송신 여유 공간이 없어 접수하지 못했다. Echo는 overload 종료한다.",
+          "evidence": "echo.on_data",
+          "active": "kWouldBlock"
+        },
+        {
+          "title": "kMessageTooLarge",
+          "text": "메시지 길이와 설정을 고친다. 같은 크기로 즉시 반복하지 않는다.",
+          "evidence": "echo.on_data",
+          "active": "kMessageTooLarge"
+        },
+        {
+          "title": "kStaleSession",
+          "text": "오래된 세대의 작업을 버리고 보관한 전체 ID를 확인한다.",
+          "evidence": "echo.on_data",
+          "active": "kStaleSession"
+        },
+        {
+          "title": "kClosing",
+          "text": "이미 닫는 대상에 새 요청을 쌓지 않는다.",
+          "evidence": "echo.on_data",
+          "active": "kClosing"
+        },
+        {
+          "title": "kUnavailable",
+          "text": "transport 실패를 기록한다. Echo는 overload 종료를 요청한다.",
+          "evidence": "echo.on_data",
+          "active": "kUnavailable"
+        }
+      ],
+      "caption": "일반 앱은 결과별 정책을 정한다. 현재 Echo가 직접 종료를 요청하는 결과는 kWouldBlock·kUnavailable이다."
+    },
+    {
+      "id": "F-C13-1",
+      "kind": "bytes",
+      "title": "Echo 7바이트: 길이 4 + 본문 3",
+      "bytes": [
+        0,
+        0,
+        0,
+        7,
+        114,
+        105,
+        111
+      ],
+      "headerBytes": 4,
+      "arrived": 7,
+      "consumed": 0,
+      "steps": [
+        {
+          "title": "큰 자릿수부터 전체 길이를 읽는다",
+          "text": "00 00 00 07은 헤더 포함 7바이트다. 72 69 6F는 rio 문자열의 UTF-8 바이트다.",
+          "evidence": "framing.decode"
+        }
+      ],
+      "caption": "네트워크에서 헤더와 본문이 함께 온다는 보장은 없다. 이 그림은 완성된 프레임 형식이다."
+    },
+    {
+      "id": "F-C13-2",
+      "kind": "sequence",
+      "title": "2+3+2 도착과 소비량 0·0·7",
+      "lanes": [
+        {
+          "id": "client",
+          "label": "클라이언트"
+        },
+        {
+          "id": "ring",
+          "label": "수신 링"
+        },
+        {
+          "id": "decoder",
+          "label": "디코더"
+        }
+      ],
+      "steps": [
+        {
+          "title": "첫 조각 2바이트",
+          "text": "헤더도 완성되지 않았다. 소비량은 0이다.",
+          "evidence": "framing.decode",
+          "messages": [
+            {
+              "from": "client",
+              "to": "ring",
+              "label": "2바이트",
+              "kind": "data"
+            },
+            {
+              "from": "decoder",
+              "to": "ring",
+              "label": "소비 0",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "두 번째 조각 3바이트",
+          "text": "누적 5바이트로 길이는 알지만 본문이 덜 왔다. 소비량은 여전히 0이다.",
+          "evidence": "framing.decode",
+          "messages": [
+            {
+              "from": "client",
+              "to": "ring",
+              "label": "3바이트 → 누적 5",
+              "kind": "data"
+            },
+            {
+              "from": "decoder",
+              "to": "ring",
+              "label": "소비 0",
+              "kind": "callback"
+            }
+          ]
+        },
+        {
+          "title": "마지막 조각 2바이트",
+          "text": "누적 7바이트가 모이면 handler를 한 번 부르고 7바이트를 소비한다.",
+          "evidence": "framing.decode",
+          "messages": [
+            {
+              "from": "client",
+              "to": "ring",
+              "label": "2바이트 → 누적 7",
+              "kind": "data"
+            },
+            {
+              "from": "decoder",
+              "to": "ring",
+              "label": "소비 7",
+              "kind": "callback"
+            }
+          ]
+        }
+      ],
+      "caption": "실험 L09의 기본 시나리오와 같은 길이다. 호출 간격은 실제 시간이 아니다."
     }
   ]
 }

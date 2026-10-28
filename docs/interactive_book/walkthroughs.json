@@ -890,6 +890,24 @@
       },
       "why": "지연 처리에는 독립 저장소가 필요하다. QueuedEventAdapter는 payload를 자체 슬롯에 복사하며 큐 포화도 호출자에게 알린다.",
       "evidence": "api.callback_contract"
+    },
+    {
+      "id": "X-C13-1",
+      "title": "불완전한 앞부분을 소비하는 실수",
+      "wrong": {
+        "label": "학습용 예시 · 컴파일 검증하지 않음",
+        "code": "if (data.size() < 4) return data.size();\n// 첫 2바이트를 버려 다음 입력에서 길이를 읽을 수 없다."
+      },
+      "right": {
+        "label": "실제 코드 · 헤더 전체가 있을 때만 반복",
+        "evidence": "framing.decode",
+        "focus": {
+          "start": "    while (data.size() - result.consumed_bytes >= kHeaderBytes) {",
+          "end": "      const auto header = data.subspan(result.consumed_bytes, kHeaderBytes);"
+        }
+      },
+      "why": "소비는 처리한 앞부분을 링에서 회수한다는 뜻이다. 아직 해석하지 못한 헤더는 0으로 남기고 다음 조각을 기다린다.",
+      "evidence": "framing.decode"
     }
   ]
 }

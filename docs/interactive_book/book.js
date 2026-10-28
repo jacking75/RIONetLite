@@ -58,6 +58,7 @@ function initFigure(host){
     for(const button of all('[data-figure-step]',controls))button.setAttribute('aria-pressed',String(Number(button.dataset.figureStep)===session.step));
     links.replaceChildren();
     if(frame?.evidence)links.append(makeButton('실제 코드',()=>openEvidence(frame.evidence)));
+    if(frame?.chapter)links.append(makeButton('관련 장 '+frame.chapter,()=>navigate(chapters.find(c=>c.id===frame.chapter))));
     if(frame?.walkthrough)links.append(makeButton('코드 따라가기에서 보기',()=>openWalkthrough(frame.walkthrough.id,frame.walkthrough.step)));
     for(const node of all('[data-step]',diagram)){const choose=()=>session.setStep(Number(node.dataset.step));node.onclick=choose;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose();}};}
   };

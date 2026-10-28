@@ -12,7 +12,7 @@
 </tbody></table></div>
 <p>동시 접속자가 수천 명이면 이 네 동작이 수천 개 세션에서 동시에 일어난다. 네트워크 라이브러리가 하는 일은 이 많은 연결을 적은 수의 <dfn data-term="thread">스레드</dfn>로 빠르고 안전하게 처리하는 것이다. 애플리케이션은 표의 오른쪽 이름들만 사용하고, 그 아래의 <dfn data-term="socket">소켓</dfn>과 운영체제 호출은 라이브러리에 맡긴다.</p>
 </section>
-<section id="basics-tcp-stream"><h2>TCP는 편지가 아니라 물줄기다</h2>
+<section id="basics-tcp-stream"><h2>TCP는 편지가 아니라 물줄기다</h2><p>그림으로 보기 · 송신 세 묶음과 수신 두 조각에서 먼저 상태를 바꾸어 본다. 아래 코드와 표는 이 그림의 조건을 세부로 읽는다.</p><figure data-figure="F-P01-1"><p class="no-script">개념 설명용 ASCII 바이트 예다. Echo의 실제 길이 헤더는 C13에서 본다.</p></figure>
 <p>네트워크 코드를 처음 짤 때 가장 흔한 오해는 “클라이언트가 한 번 보낸 것을 서버가 한 번에 받는다”는 생각이다. TCP는 바이트의 순서와 내용을 보장하지만 <strong>보낸 단위</strong>는 보장하지 않는다.</p>
 <div class="analogy"><p><strong>비유</strong> 편지는 봉투 단위로 도착한다. TCP는 수도관의 물줄기에 가깝다. 컵 세 잔 분량을 흘려보내도 받는 쪽은 한 번에 받을 수도, 다섯 번에 나눠 받을 수도 있다. 물의 순서는 바뀌지 않지만 “어디까지가 한 잔인지”는 물에 적혀 있지 않다.</p></div>
 <p>그래서 애플리케이션이 메시지의 경계를 직접 표시해야 한다. 가장 흔한 방법은 메시지 앞에 길이를 적는 것이다. 이 책의 Echo 예제는 4바이트 <dfn data-term="length-prefix">길이 헤더</dfn>를 붙인다. 문자열 <code>rio</code>를 보내면 실제로 흐르는 바이트는 다음과 같다.</p>
@@ -20,13 +20,13 @@
 <p>맨 앞 네 바이트 <code>00 00 00 07</code>은 “헤더를 포함한 이 메시지 전체가 7바이트”라는 뜻이다. 서버는 일곱 바이트가 모두 모일 때까지 기다렸다가 메시지 하나로 처리한다. 2바이트, 3바이트, 2바이트로 쪼개져 와도, 다음 메시지와 붙어서 와도 같은 규칙으로 잘라 낸다. 이 작업을 <strong><dfn data-term="frame">프레이밍</dfn>(framing)</strong>이라고 하며 <a href="#chapter=packet-framing">C13</a>에서 직접 실험한다.</p>
 <p>이 책에서 “패킷”은 대부분 이렇게 애플리케이션이 길이로 구분한 메시지 하나를 말한다. 네트워크 장비가 다루는 IP 패킷과는 다른 단위다.</p>
 </section>
-<section id="basics-async"><h2>기다리지 않고 주문서를 맡긴다</h2>
+<section id="basics-async"><h2>기다리지 않고 주문서를 맡긴다</h2><p>그림으로 보기 · 동기 대기와 비동기 게시의 두 순간에서 먼저 상태를 바꾸어 본다. 아래 코드와 표는 이 그림의 조건을 세부로 읽는다.</p><figure data-figure="F-P01-2"><p class="no-script">앞의 두 단계는 동기, 뒤의 두 단계는 비동기 비유다. 실제 시간 비율과 OS 스케줄링은 생략했다.</p></figure>
 <p>가장 단순한 서버는 연결마다 스레드를 하나 두고, 데이터가 올 때까지 <code>recv</code> 함수 안에서 멈춰 기다린다. 이를 <dfn data-term="blocking">블로킹</dfn>(blocking) 방식이라고 한다. 이해하기 쉽지만 접속자가 5,000명이면 대부분 잠들어 있는 스레드 5,000개가 필요하다. 스레드마다 스택 메모리가 들고, 스레드를 오가는 전환 비용도 커진다.</p>
 <p>게임 서버는 보통 <dfn data-term="async">비동기</dfn>(asynchronous) 방식을 쓴다. “이 버퍼에 데이터가 오면 채워 달라”는 <strong>요청</strong>을 운영체제에 맡겨 두고 스레드는 다른 일을 한다. 운영체제가 일을 끝내면 <strong>완료(completion)</strong> 기록을 남기고, 적은 수의 <dfn data-term="worker">워커</dfn> 스레드가 그 기록을 꺼내 처리한다.</p>
 <div class="analogy"><p><strong>비유</strong> 블로킹 방식은 손님 한 명마다 직원 한 명이 붙어 음식이 나올 때까지 주방 앞에서 기다리는 식당이다. 비동기 방식은 주문서를 주방에 넣고 진동벨을 받는 식당이다. 직원 몇 명이 진동벨이 울린 주문만 골라 손님에게 가져다준다.</p></div>
 <p>여기서 꼭 구분할 두 순간이 있다. 요청을 <strong>맡긴(게시한) 순간</strong>과 요청이 <strong>끝난(완료된) 순간</strong>이다. 맡긴 뒤 완료되기 전까지 운영체제는 우리가 넘긴 메모리를 계속 사용한다. 그 사이에 메모리를 지우거나 옮기면 운영체제가 엉뚱한 곳을 읽거나 쓰게 된다. 이 책의 중급·심화 장 대부분은 결국 “맡긴 요청이 끝나기 전에 무엇을 건드리면 안 되는가”를 다룬다.</p>
 </section>
-<section id="basics-rio"><h2>RIO는 미리 등록한 그릇으로 주문을 받는다</h2>
+<section id="basics-rio"><h2>RIO는 미리 등록한 그릇으로 주문을 받는다</h2><div class="analogy"><p><strong>비유</strong> 주방에 미리 맡긴 그릇에 이름표를 붙이고 필요한 칸만 주문에 적는 것과 같다. 음식을 담는 동안 그릇을 치우거나 다른 창고로 옮기지 않는다. 실제 RIO는 주소·길이·등록 ID의 수명으로 이 조건을 지킨다.</p></div><p>그림으로 보기 · 미리 등록한 그릇의 일부만 맡긴다에서 먼저 상태를 바꾸어 본다. 아래 코드와 표는 이 그림의 조건을 세부로 읽는다.</p><figure data-figure="F-P01-3"><p class="no-script">그릇 비유를 8칸 저장소로 단순화했다. 실제 페이지 단위 크기와 RIO_BUF 범위는 C08·C09를 따른다.</p></figure>
 <p>Windows의 대표적인 비동기 소켓 방식은 IOCP(I/O Completion Port)다. <strong>RIO(Registered I/O)</strong>는 Windows 8과 Windows Server 2012부터 제공되는 더 가벼운 방식이다. 이름처럼 데이터를 담을 메모리를 미리 <em>등록</em>해 두고, 요청할 때는 그 메모리의 한 구간을 가리키기만 한다. 요청마다 메모리를 준비하던 비용을 줄여 처리량과 지연 시간을 개선한다.</p>
 <div class="diagram"><svg viewBox="0 0 820 300" role="img" aria-label="I/O 워커가 RQ에 요청을 게시하고, 커널이 등록 버퍼에 읽고 쓴 뒤 CQ에 완료를 남기며, 워커가 CQ에서 완료를 꺼내는 흐름"><g>
 <rect x="10" y="40" width="160" height="70" rx="6" class="accent-box"/><text x="90" y="70" text-anchor="middle">I/O 워커 스레드</text><text x="90" y="94" text-anchor="middle" font-size="13" class="muted-text">라이브러리 안</text>
@@ -49,7 +49,7 @@
 </tbody></table></div>
 <p>RIONetLite는 이 부품들을 모두 내부에 숨긴다. 애플리케이션 코드에서 <code>RIOReceive</code>를 직접 부를 일은 없다. 다만 라이브러리가 왜 “완료 전에는 버퍼를 건드리지 않는다”를 그토록 지키는지 이해하려면 이 그림을 기억해 두는 것이 좋다. 실제 함수 표 초기화와 요청 수명은 심화 장인 <a href="#chapter=rio-requests">C05</a>에서 다룬다.</p>
 </section>
-<section id="basics-words"><h2>이 책에서 자주 만나는 말</h2>
+<section id="basics-words"><h2>이 책에서 자주 만나는 말</h2><div class="table-wrap"><table><thead><tr><th>자주 하는 오해</th><th>정확한 관계</th><th>확인할 곳</th></tr></thead><tbody><tr><td>스레드 하나가 세션 하나다</td><td>한 I/O 워커가 여러 세션의 CQ 결과를 처리한다.</td><td>C07·L03</td></tr><tr><td>한 번 Send하면 한 번 OnData가 온다</td><td>TCP 조각과 앱 프레임 경계는 다르다.</td><td>C13·L09</td></tr></tbody></table></div>
 <p>다음 단어들은 거의 모든 장에 나온다. 지금 모두 외울 필요는 없고, 낯선 단어가 나오면 이 표나 <a href="#chapter=glossary">A02 용어</a>로 돌아온다.</p>
 <div class="table-wrap"><table><thead><tr><th>말</th><th>뜻</th><th>처음 자세히 다루는 곳</th></tr></thead><tbody>
 <tr><td>세션, <code>SessionId</code></td><td>연결 하나를 가리키는 표. <dfn data-term="slot">슬롯</dfn> 번호(<code>index</code>)와 그 슬롯을 몇 번째로 쓰는지(<code>generation</code>, 세대)를 함께 담는다. 끊긴 플레이어의 슬롯을 새 플레이어가 받아도 둘을 구분할 수 있다.</td><td><a href="#chapter=session-identity">C11</a></td></tr>
@@ -61,6 +61,6 @@
 <tr><td>배압(backpressure)</td><td>상대가 느려 송신 버퍼가 가득 찼을 때 “지금은 더 못 받는다”고 알리는 것. <code>Send</code>가 <code>kWouldBlock</code>을 돌려준다.</td><td><a href="#chapter=send-path">C14</a></td></tr>
 <tr><td>graceful 종료</td><td>새 일은 막고 이미 맡은 송신은 끝낼 기회를 준 뒤 멈추는 정지 방식</td><td><a href="#chapter=server-shutdown">C17</a></td></tr>
 </tbody></table></div>
-<label class="check"><input type="checkbox" data-check="P01-understood"><span>TCP에 길이 헤더가 필요한 이유와 “게시한 요청이 완료되기 전에는 그 메모리를 건드리지 않는다”는 규칙을 설명할 수 있다.</span></label>
+
 <p>다음 <a href="#chapter=library-overview">P02</a>에서는 이 개념들이 RIONetLite 안에서 어떤 부품으로 묶여 있는지 한 장의 그림으로 본다.</p>
-</section><section id="server-basics-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-P01-1"><p class="no-script">7바이트 메시지가 2+3+2로 도착했다. 무엇이 정상인가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-2"><p class="no-script">RIOReceive가 성공 반환했다. 버퍼를 언제 회수하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-3"><p class="no-script">연결이 5,000개가 되었다. 스레드도 5,000개여야 하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section></article>
+</section><aside class="exercise"><h3>실험으로 연결한다</h3><p><a href="#chapter=packet-framing&amp;lab=L09">L09에서 2+3+2 조각의 소비량을 비교한다</a>. 버튼을 누르기 전에 다음 상태를 한 문장으로 예상하고, 결과가 다르면 위 그림의 게시·완료·소비 중 어느 순간을 혼동했는지 확인한다.</p></aside><section id="server-basics-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-P01-1"><p class="no-script">7바이트 메시지가 2+3+2로 도착했다. 무엇이 정상인가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-2"><p class="no-script">RIOReceive가 성공 반환했다. 버퍼를 언제 회수하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-3"><p class="no-script">연결이 5,000개가 되었다. 스레드도 5,000개여야 하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section><section id="server-basics-recap" class="recap"><h2>핵심 세 줄과 다음 장</h2><ol><li>TCP는 순서 있는 바이트 스트림이므로 앱이 프레임 경계를 정한다.</li><li>게시 성공과 완료를 나누고 참조 중인 등록 메모리를 유지한다.</li><li>세션은 연결 상태이고 워커는 여러 완료를 처리하는 실행 주체다.</li></ol><label class="check"><input type="checkbox" data-check="P01-understood"><span>TCP에 길이 헤더가 필요한 이유와 “게시한 요청이 완료되기 전에는 그 메모리를 건드리지 않는다”는 규칙을 설명할 수 있다.</span></label><p>권장 다음 읽기: <a href="#chapter=library-overview">P02 RIONetLite 한눈에 보기</a>. 선택한 경로의 다음 장은 화면 아래 경로 버튼에서 확인한다.</p></section></article>

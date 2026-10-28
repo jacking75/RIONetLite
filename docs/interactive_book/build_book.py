@@ -254,6 +254,8 @@ def collect_components(definitions, fragments, evidence, glossary, chapters, sou
         if item['kind'] not in FIGURE_KINDS:
             raise ValueError(f'{ident}: unknown figure kind')
         for step in item.get('steps', []):
+            if step.get('chapter') and step['chapter'] not in chapters:
+                raise ValueError(f'{ident}: unknown chapter')
             if step.get('evidence'):
                 source_ref(ident, step['evidence'])
             if step.get('walkthrough'):
