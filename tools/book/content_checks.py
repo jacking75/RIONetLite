@@ -54,6 +54,24 @@ class BookContentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not complete"):
             builder.build(complete=True)
 
+    def test_component_references_are_validated(self):
+        path = self.book / 'chapters/p03_echo_overview.html'
+        original = path.read_text(encoding='utf-8')
+        path.write_text(original + '<figure data-figure="F-missing"></figure>', encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'F-missing: unknown figure'):
+            builder.build()
+        path.write_text(original, encoding='utf-8')
+        self.change('figures.json', lambda d: d['figures'].append({'id': 'F-unused', 'kind': 'state'}))
+        with self.assertRaisesRegex(ValueError, 'F-unused: unused figure'):
+            builder.build()
+        self.change('figures.json', lambda d: d['figures'].pop())
+        path.write_text(original + '<div data-walkthrough="W99"></div>', encoding='utf-8')
+        self.change('walkthroughs.json', lambda d: d['walkthroughs'].append({
+            'id': 'W99', 'evidence': 'echo.main', 'steps': [
+                {'focus': {'start': ' ', 'end': ' '}}]}))
+        with self.assertRaisesRegex(ValueError, 'W99: focus missing or ambiguous'):
+            builder.build()
+
     def test_check_is_read_only_and_reports_stale_output(self):
         output = self.book / "index.html"
         output.write_bytes(builder.build()[0].encode("utf-8"))

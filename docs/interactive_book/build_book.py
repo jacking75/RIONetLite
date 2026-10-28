@@ -14,6 +14,7 @@ ROOT = HERE.parent.parent
 EXPECTED_CHAPTERS = (["C01"] + [f"P{i:02}" for i in range(1, 4)] + [f"C{i:02}" for i in range(2, 29)] +
                      [f"A{i:02}" for i in range(1, 6)])
 CHAPTER_COUNT = len(EXPECTED_CHAPTERS)
+FIGURE_KINDS = ('sequence', 'state', 'ring', 'slots', 'queue', 'bytes', 'graph', 'layers')
 
 
 def read_json(path):
@@ -40,11 +41,15 @@ class Fragment(HTMLParser):
         super().__init__()
         self.ids, self.text, self.sources, self.links, self.evidence, self.labs = [], [], [], [], [], []
         self.prose = []
+        self.components = {kind: [] for kind in ('figure', 'walkthrough', 'compare', 'quiz', 'term', 'map')}
         self.in_prose = 0
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        for kind in self.components:
+            if 'data-' + kind in attrs:
+                self.components[kind].append(attrs['data-' + kind])
         if tag in ("p", "li", "td", "pre"):
             self.in_prose += 1
         if "id" in attrs:
@@ -151,6 +156,133 @@ def check_migration(migration, complete, fragments=None):
 
 def table(headers, rows):
     return '<div class="table-wrap"><table><thead><tr>' + ''.join('<th>' + escape(h) + '</th>' for h in headers) + '</tr></thead><tbody>' + ''.join('<tr>' + ''.join('<td>' + c + '</td>' for c in row) + '</tr>' for row in rows) + '</tbody></table></div>'
+
+
+def collect_components(definitions, fragments, evidence, glossary, chapters, sources):
+    """Resolve declarative references before any browser executes the book."""
+    figures, walks, quizzes, system = definitions
+    groups = {'figure': figures['figures'], 'walkthrough': walks['walkthroughs'],
+              'compare': walks['compares'], 'quiz': quizzes['quizzes'],
+              'term': glossary['items'], 'map': [system] if system.get('layers') else []}
+    refs = {kind: [] for kind in groups}
+    uses = {}
+    for index, text in fragments:
+        parsed = Fragment(text)
+        for kind, ids in parsed.components.items():
+            refs[kind].extend(ids)
+            for ident in ids:
+                uses.setdefault((kind, ident), []).append(list(chapters)[index])
+    lookup = {}
+    for kind, items in groups.items():
+        unique([item['id'] for item in items], kind + ' id')
+        lookup[kind] = {item['id']: item for item in items}
+        for ident in refs[kind]:
+            if ident not in lookup[kind]:
+                raise ValueError(f'{ident}: unknown {kind}')
+        if kind not in ('term', 'map'):
+            for ident in lookup[kind]:
+                if ident not in refs[kind]:
+                    raise ValueError(f'{ident}: unused {kind}')
+            if kind in ('walkthrough', 'compare', 'quiz'):
+                unique(refs[kind], kind + ' use')
+    ev = {item['id']: item for item in evidence}
+
+    def reference(ident, value, kind):
+        if value not in lookup[kind]:
+            raise ValueError(f'{ident}: unknown {kind} {value}')
+
+    def source_ref(ident, value):
+        if value not in ev:
+            raise ValueError(f'{ident}: unknown evidence {value}')
+        return ev[value]
+
+    def focus(ident, item, evidence_id):
+        e = source_ref(ident, evidence_id)
+        lines = sources[e['source']]['text'].splitlines()
+        selected = '\n'.join(lines[e['startLine'] - 1:e['endLine']])
+        boundary = item.get('focus')
+        if boundary:
+            start, end = boundary['start'], boundary['end']
+            if not start or not end or selected.count(start) != 1 or selected.count(end) != 1:
+                raise ValueError(f'{ident}: focus missing or ambiguous')
+            a, b = selected.index(start), selected.index(end) + len(end)
+            if b < a:
+                raise ValueError(f'{ident}: inverted focus')
+            item['startLine'] = e['startLine'] + selected.count('\n', 0, a)
+            item['endLine'] = e['startLine'] + selected.count('\n', 0, b)
+        else:
+            item['startLine'], item['endLine'] = e['startLine'], e['endLine']
+
+    for item in groups['figure']:
+        ident = item['id']
+        if item['kind'] not in FIGURE_KINDS:
+            raise ValueError(f'{ident}: unknown figure kind')
+        for step in item.get('steps', []):
+            if step.get('evidence'):
+                source_ref(ident, step['evidence'])
+            if step.get('walkthrough'):
+                target = step['walkthrough']
+                reference(ident, target['id'], 'walkthrough')
+                if not 0 <= target['step'] < len(lookup['walkthrough'][target['id']]['steps']):
+                    raise ValueError(f'{ident}: invalid walkthrough step')
+    for item in groups['walkthrough']:
+        ident = item['id']
+        source_ref(ident, item['evidence'])
+        if not item.get('steps'):
+            raise ValueError(f'{ident}: no walkthrough steps')
+        for step in item['steps']:
+            focus(ident, step, step.get('evidence', item['evidence']))
+            for key, kind in (('calls', 'walkthrough'), ('mistake', 'compare'), ('term', 'term')):
+                if step.get(key):
+                    reference(ident, step[key], kind)
+            if step.get('figure'):
+                target = step['figure']
+                reference(ident, target['id'], 'figure')
+                if not 0 <= target['step'] < max(1, len(lookup['figure'][target['id']].get('steps', []))):
+                    raise ValueError(f'{ident}: invalid figure step')
+    for item in groups['compare']:
+        ident = item['id']
+        source_ref(ident, item['evidence'])
+        for side in ('left', 'right') if item.get('mode') == 'evolution' else ('wrong', 'right'):
+            part = item[side]
+            if part.get('evidence'):
+                focus(ident, part, part['evidence'])
+            elif not part.get('label') or not part.get('code'):
+                raise ValueError(f'{ident}: comparison needs labelled code')
+    lab_ids = {lab['id'] for lab in read_json(HERE / 'manifest.json')['labs']}
+    for item in groups['quiz']:
+        ident = item['id']
+        if uses.get(('quiz', ident)) != [item['chapter']]:
+            raise ValueError(f'{ident}: quiz chapter mismatch')
+        if sum(option.get('correct') is True for option in item['options']) != 1:
+            raise ValueError(f'{ident}: quiz needs exactly one answer')
+        if any(not option.get('text') or not option.get('explain') for option in item['options']):
+            raise ValueError(f'{ident}: quiz explanation missing')
+        source_ref(ident, item['evidence'])
+        if item.get('lab') and item['lab'] not in lab_ids:
+            raise ValueError(f'{ident}: unknown lab')
+    nodes = [node for layer in system.get('layers', []) for node in layer['nodes']]
+    unique([node['id'] for node in nodes], 'map node')
+    node_ids = {node['id'] for node in nodes}
+    for node in nodes:
+        for chapter in node['chapters']:
+            if chapter not in chapters:
+                raise ValueError(f"{node['id']}: unknown chapter")
+        for value in node.get('evidence', []):
+            source_ref(node['id'], value)
+        if any(lab not in lab_ids for lab in node.get('labs', [])):
+            raise ValueError(f"{node['id']}: unknown lab")
+    for link in system.get('links', []):
+        if link['from'] not in node_ids or link['to'] not in node_ids:
+            raise ValueError('system: unknown map link endpoint')
+    for chapter in chapters.values():
+        if any(value not in node_ids for value in chapter.get('mapFocus', [])):
+            raise ValueError(f"{chapter['id']}: unknown mapFocus")
+    for scene in system.get('scenes', []):
+        if any(value not in node_ids for value in scene['nodes']) or any(c not in chapters for c in scene['chapters']):
+            raise ValueError(f"{scene['id']}: invalid map scene")
+    return {key: groups[kind] for key, kind in (('figures', 'figure'), ('walkthroughs', 'walkthrough'),
+            ('compares', 'compare'), ('quizzes', 'quiz'))} | {'map': system}
 
 
 def validate_links(links, chapters, ids):
@@ -270,6 +402,8 @@ def build(complete=False):
     if set(parsed.labs) != lab_ids or len(parsed.labs) != len(lab_ids):
         raise ValueError("Each lab must occur exactly once in the manuscripts")
     data = {"manifest": manifest, "evidence": evidence, "glossary": glossary["items"], "api":api}
+    definitions = [read_json(HERE / name) for name in ('figures.json', 'walkthroughs.json', 'quizzes.json', 'map.json')]
+    data.update(collect_components(definitions, fragments, evidence, glossary, by_id, sources))
     script = "const BOOK = " + json.dumps(data, ensure_ascii=False).replace("<", "\\u003c") + ";\n"
     script += "const SOURCES = " + json.dumps(sources, ensure_ascii=False).replace("<", "\\u003c") + ";\n"
     models = manifest.get("modelFiles", [])
@@ -289,6 +423,8 @@ def build(complete=False):
     html = html.replace("{{SOURCE_COUNT}}", str(len(sources)))
     if re.search(r"\{\{[A-Z_]+\}\}|<!-- (STYLES|SCRIPTS|CHAPTERS) -->", html):
         raise ValueError("Unresolved template slot")
+    if len(html.encode('utf-8')) > 4 * 1024 * 1024:
+        raise ValueError('Book exceeds 4 MiB budget')
     return html, progress, len(evidence)
 
 

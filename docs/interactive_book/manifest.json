@@ -3401,7 +3401,8 @@
     "models/packet_framing.js",
     "models/partial_send.js",
     "models/configuration.js",
-    "models/network_models.js"
+    "models/network_models.js",
+    "models/figure_engine.js"
   ],
   "aliases": {
     "p1": "C01",

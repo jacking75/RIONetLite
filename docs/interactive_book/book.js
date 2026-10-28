@@ -6,6 +6,9 @@ const chapters = BOOK.manifest.chapters;
 const articles = all('.chapter');
 const available = chapters.filter(c => $(c.slug));
 const labSessions = new Map();
+const figureSessions = new Map();
+const playbackSessions = new Set();
+const components = {figure:initFigure,walkthrough:initWalkthrough,compare:initCompare,quiz:initQuiz,map:initMap};
 const scrollPositions = new Map();
 const storageKey = 'rionetlite.book.reader.v2';
 let current = available[0];
@@ -17,14 +20,14 @@ let sourceOpener = null;
 let scenarioLab = null;
 let storageWorks = true;
 let firstRoute = true;
-let persisted = {schemaVersion:2, edition:BOOK.manifest.edition, checks:{}, position:null, theme:null};
+let persisted = {schemaVersion:3, edition:BOOK.manifest.edition, checks:{}, position:null, theme:null,quiz:{},route:null,showArchive:false};
 function notice(text) { $('notice').textContent=text; $('notice').hidden=!text; }
 try {
   const raw=localStorage.getItem(storageKey);
   if(raw){
     const value=JSON.parse(raw);
-    if(value && value.schemaVersion===2 && value.edition===BOOK.manifest.edition &&
-      value.checks && typeof value.checks==='object' && !Array.isArray(value.checks)) persisted={...persisted,...value};
+    if(value && [2,3].includes(value.schemaVersion) && value.edition===BOOK.manifest.edition &&
+      value.checks && typeof value.checks==='object' && !Array.isArray(value.checks)) persisted={...persisted,...value,schemaVersion:3};
     else notice('저장된 읽기 기록이 이번 판본과 달라 새로 시작한다.');
   }
   localStorage.setItem(storageKey,JSON.stringify(persisted));
@@ -34,7 +37,15 @@ function chapterUrl(chapter,section=''){return '#'+new URLSearchParams({chapter:
 function setTheme(value){document.documentElement.dataset.theme=value;$('theme').textContent=value==='dark'?'밝은 화면':'어두운 화면';}
 setTheme(['dark','light'].includes(persisted.theme)?persisted.theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
 $('theme').onclick=()=>{persisted.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(persisted.theme);save();};
-function stopPlayback(){for(const session of labSessions.values())if(session.timer){clearInterval(session.timer);session.timer=null;session.playButton.textContent='단계별 재생';}}
+function stopPlayback(){for(const session of [...labSessions.values(),...figureSessions.values()])if(session.timer){clearInterval(session.timer);session.timer=null;session.playButton.textContent=session.definition?'단계별 재생':'재생';}playbackSessions.clear();}
+function initComponents(article){for(const [kind,init]of Object.entries(components))for(const host of all(`[data-${kind}]`,article))if(!host.dataset.initialized){init(host);host.dataset.initialized='true';}}
+function componentStub(host){host.replaceChildren();const p=document.createElement('p');p.className='small';p.textContent='집필 중인 학습 컴포넌트다.';host.append(p);}
+function initFigure(host){componentStub(host);}
+function initWalkthrough(host){componentStub(host);}
+function initCompare(host){componentStub(host);}
+function initQuiz(host){componentStub(host);}
+function initMap(host){componentStub(host);}
+function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){host.replaceChildren();host.textContent='인쇄판에서는 생략한다.';}}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}
 function makeToc(){
   $('navigation').replaceChildren();
@@ -76,6 +87,7 @@ function renderRoute(){
   articles.forEach(a=>{a.classList.toggle('active',a.id===chapter.slug);a.setAttribute('aria-hidden',String(a.id!==chapter.slug));});
   const article=$(chapter.slug);
   all('[data-lab]',article).forEach(initLab);
+  initComponents(article);
   if(params.has('lab')){
     const session=labSessions.get(params.get('lab'));
     if(!session || session.definition.chapter!==chapter.id)notice('이 장에서 사용할 수 없는 실험 주소다. 기본 실험 상태를 유지한다.');
@@ -187,6 +199,12 @@ $('sourceScope').onchange=renderSource;
 $('sourceBack').onclick=()=>{sourceFrame=sourceFrames.pop();$('sourceScope').value=sourceFrame.scope??'snippet';$('sourceScope').querySelector('[value="function"]').disabled=!sourceFrame.evidence;renderSource();};
 $('sourceClose').onclick=()=>$('sourceDialog').close();
 $('sourceDialog').addEventListener('close',()=>sourceOpener?.focus());
+let figureOpener=null;
+$('figureClose').onclick=()=>$('figureDialog').close();
+$('figureDialog').addEventListener('close',()=>figureOpener?.focus());
+let termOpener=null;
+function closeTerm(){if($('termPopover').hidden)return;$('termPopover').hidden=true;termOpener?.focus();}
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeTerm();});
 function getModel(definition){return BookModels[definition.modelKey];}
 function labAction(session,action){
   try{
@@ -271,6 +289,7 @@ function initLab(host){
     const sequence=definition.stepSequence??definition.defaultActions??[];if(!sequence.length)return;
     resetLab(session);session.playButton.textContent='재생 멈추기';
     session.timer=setInterval(()=>{if(session.cursor>=sequence.length){stopPlayback();return;}labAction(session,sequence[session.cursor]);if(session.cursor>=sequence.length)stopPlayback();},matchMedia('(prefers-reduced-motion: reduce)').matches?1400:900);
+    playbackSessions.add(session);
   });
   playback.append(session.backButton,session.forwardButton,session.playButton,makeButton('이 실험 초기화',()=>{stopPlayback();resetLab(session);}),makeButton('실험 JSON 내보내기 / 가져오기',()=>openScenario(session)));
   if(!(definition.stepSequence??definition.defaultActions)?.length)session.playButton.disabled=true;
@@ -286,6 +305,7 @@ $('scenarioCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('s
 function preparePrint(){
   stopPlayback();const output=$('printBook');output.replaceChildren();
   for(const chapter of available){const clone=$(chapter.slug).cloneNode(true);clone.className='print-chapter';clone.removeAttribute('aria-hidden');
+    printComponents(clone);
     for(const host of all('[data-lab]',clone)){
       const definition=BOOK.manifest.labs.find(l=>l.id===host.dataset.lab);const model=definition&&getModel(definition);host.replaceChildren();if(!model)continue;
       const h=document.createElement('h3');h.textContent=`${definition.id} · ${definition.title}`;const p=document.createElement('p');p.textContent='인쇄 대표 상태: '+definition.printSummary;host.append(h,p);visualState(host,{definition,model,output:document.createElement('p')},model.createInitialState(definition.defaultConfig??{}));
