@@ -1,5 +1,5 @@
 <article class="chapter" id="design-decisions" data-title="설계 결정 기록"><div class="eyebrow">부록 · A03</div><h1>선택한 이유와 당시의 경계를 남긴다</h1><div data-map="system" data-mini data-focus="server"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div><p class="lead">설계 기록은 현재 코드의 검증 결과와 다르다. 날짜와 승인 상태를 보존하고 지금 읽을 구현으로 연결한다.</p>
-<section id="decisions-current"><h2>현재 설계에서 지키는 선택을 읽는다</h2>
+<aside class="primer" aria-label="쉽게 말하면"><p><strong>쉽게 말하면</strong> 보관한 결정은 당시의 맥락과 제약을 이해하는 자료다. 현재 동작·승인 여부는 본문과 검증 기록으로 확인한다.</p></aside><section id="decisions-current"><h2>현재 설계에서 지키는 선택을 읽는다</h2>
 <table><thead><tr><th>결정</th><th>이유와 비용</th><th>현재 확인 지점</th></tr></thead><tbody>
 <tr><td>Windows x64·RIO·정적 라이브러리</td><td>등록 메모리와 완료 큐의 수명을 한 플랫폼 계약에서 다룬다. Linux·x86이나 안정된 C ABI를 제공하지 않는다.</td><td>C02 환경, C27 ABI·패키지</td></tr>
 <tr><td>소유 I/O 워커와 별도 게임 큐</td><td>같은 연결의 수신·종료 순서를 보존하고 긴 작업을 분리한다. 다른 세션의 콜백 동시성은 애플리케이션이 다룬다.</td><td>C07 콜백, C18 adapter</td></tr>
@@ -8,7 +8,7 @@
 <tr><td>correctness 통과 뒤 동일 조건 비교</td><td>처리량 증가가 손실·종료 오류를 숨기지 않게 한다. 승인 기준선은 지정 환경의 별도 증거가 필요하다.</td><td>C25·C26 측정</td></tr>
 </tbody></table>
 <p>아래 원문은 2026-08-26에 작성된 ADR 다섯 개다. 승인 상태·배경·대안·결과와 단계 이름을 그대로 보존한다. 당시 T03·T08·T11 같은 구현 단계 표현과 0.4.0 제거 목표는 역사적 맥락이다. 현행 완료 여부나 새 출시 약속으로 해석하지 않는다.</p>
-</section><section id="decisions-archive" data-archive><h2>다섯 설계 결정의 원문을 대조한다</h2>
+</section><section id="design-decisions-recap" class="recap"><h2>핵심 세 줄과 다음 장</h2><ol><li>과거 결정의 조건과 선택 이유를 보존한다.</li><li>현재 코드·계약과 차이가 있으면 본문을 따른다.</li><li>보관 자료는 도구 모음에서 선택해 검색·인쇄한다.</li></ol><p>관련 부품은 장 머리의 지도에서, 다음 읽기는 선택한 경로에서 확인한다.</p></section><section id="decisions-archive" data-archive><h2>다섯 설계 결정의 원문을 대조한다</h2>
 <details class="archive" id="migration-d19-i0"><summary>과거 원문 · docs/adr/0001-supported-platform.md · ADR 0001: 지원 플랫폼과 배포 단위</summary><p class="archive-context">당시 문장·명령·수치는 현행 실행·승인을 뜻하지 않는다. 현재 설명은 이 장의 본문을 따른다. 출처 revision: a5f29df610bdbafe68a69e0698ca71260b4c1fa7 · 항목: lines-1-5</p><div class="archive-body"><h3>ADR 0001: 지원 플랫폼과 배포 단위</h3>
 <p class="archive-point">- 상태: 승인</p>
 <p class="archive-point">- 날짜: 2026-08-26</p></div></details>

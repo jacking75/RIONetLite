@@ -2153,6 +2153,513 @@
         }
       ],
       "caption": "docs/protocol/chat-fixtures.tsv의 login_a·join_1·chat_hi 행을 그대로 읽었다. 노란 헤더 8바이트는 길이 4·버전 2·타입 2로 나뉜다."
+    },
+    {
+      "id": "F-C05-1",
+      "kind": "layers",
+      "title": "RQ·CQ·등록 구간·요청 컨텍스트",
+      "layers": [
+        {
+          "id": "session",
+          "label": "세션이 유지한다",
+          "nodes": [
+            {
+              "id": "rq",
+              "label": "RQ",
+              "sub": "소켓의 요청 큐"
+            },
+            {
+              "id": "context",
+              "label": "RioIoContext",
+              "sub": "세대·방향·오프셋"
+            }
+          ]
+        },
+        {
+          "id": "memory",
+          "label": "등록된 저장소",
+          "nodes": [
+            {
+              "id": "buffer",
+              "label": "등록 버퍼",
+              "sub": "주소·길이·등록 ID"
+            }
+          ]
+        },
+        {
+          "id": "worker",
+          "label": "담당 워커가 처리한다",
+          "nodes": [
+            {
+              "id": "cq",
+              "label": "CQ",
+              "sub": "완료 상태와 바이트 수"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "from": "context",
+          "to": "rq",
+          "label": "요청 게시",
+          "kind": "call"
+        },
+        {
+          "from": "context",
+          "to": "buffer",
+          "label": "구간 참조",
+          "kind": "data"
+        },
+        {
+          "from": "rq",
+          "to": "cq",
+          "label": "완료",
+          "kind": "completion"
+        }
+      ],
+      "steps": [
+        {
+          "title": "등록 ID만으로 요청 수명이 끝나지 않는다",
+          "text": "RIO_BUF는 버퍼 ID와 오프셋·길이이고 RequestContext는 완료 때 되찾을 요청 정보다. 어느 세대의 요청인지와 버퍼 참조를 함께 유지한다.",
+          "evidence": "rio.api"
+        }
+      ],
+      "caption": "RQ·CQ·등록 메모리는 서로 다른 자원이다. 모든 부품이 전용 스레드를 갖는다는 뜻은 아니다."
+    },
+    {
+      "id": "F-C08-1",
+      "kind": "graph",
+      "title": "등록 버퍼의 해제 조건",
+      "nodes": [
+        {
+          "id": "block",
+          "label": "신규 게시 차단",
+          "state": "waiting"
+        },
+        {
+          "id": "send",
+          "label": "송신 참조 0",
+          "state": "waiting"
+        },
+        {
+          "id": "recv",
+          "label": "수신 참조 0",
+          "state": "waiting"
+        },
+        {
+          "id": "unregister",
+          "label": "등록 해제",
+          "state": "waiting"
+        },
+        {
+          "id": "free",
+          "label": "저장소 해제",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "from": "block",
+          "to": "unregister"
+        },
+        {
+          "from": "send",
+          "to": "unregister"
+        },
+        {
+          "from": "recv",
+          "to": "unregister"
+        },
+        {
+          "from": "unregister",
+          "to": "free"
+        }
+      ],
+      "steps": [
+        {
+          "title": "등록·요청·주소의 수명을 함께 본다",
+          "text": "송신과 수신의 미완료 참조가 모두 끝나고 신규 게시가 차단되어야 등록을 해제할 수 있다. 저장소 이동과 해제는 그 뒤의 조건이다.",
+          "evidence": "memory.registration"
+        }
+      ],
+      "caption": "정상 해제의 조건 그래프다. 종료 실패 시 자원 보존은 별도 오류 경로다."
+    },
+    {
+      "id": "F-C11-1",
+      "kind": "sequence",
+      "title": "같은 슬롯의 이전 세대와 새 연결",
+      "lanes": [
+        {
+          "id": "old",
+          "label": "이전 연결 7:41"
+        },
+        {
+          "id": "slot",
+          "label": "슬롯 7"
+        },
+        {
+          "id": "new",
+          "label": "새 연결 7:42"
+        }
+      ],
+      "steps": [
+        {
+          "title": "이전 연결이 작업을 남긴다",
+          "text": "비동기 업무는 전체 SessionId 7:41을 복사해 보관한다.",
+          "evidence": "session.generation",
+          "messages": [
+            {
+              "from": "old",
+              "to": "slot",
+              "label": "지연 작업 7:41",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "참조와 통지를 마치고 슬롯을 반환한다",
+          "text": "완료·이벤트·닫힘 통지를 확인한 뒤에만 Free가 된다.",
+          "evidence": "session.lifecycle",
+          "messages": [
+            {
+              "from": "old",
+              "to": "slot",
+              "label": "정리 → Free",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "새 연결은 새 세대를 받는다",
+          "text": "같은 인덱스를 빌려도 generation은 바뀐다. 0은 유효한 세대로 쓰지 않는다.",
+          "evidence": "session.generation",
+          "messages": [
+            {
+              "from": "slot",
+              "to": "new",
+              "label": "예약 → 7:42",
+              "kind": "call"
+            }
+          ]
+        },
+        {
+          "title": "이전 작업이 늦게 도착한다",
+          "text": "인덱스만 보면 같지만 전체 ID는 다르다. 새 Player의 상태를 바꾸기 전에 거절한다.",
+          "evidence": "session.lifecycle",
+          "messages": [
+            {
+              "from": "old",
+              "to": "new",
+              "label": "7:41 ≠ 7:42",
+              "kind": "blocked"
+            }
+          ]
+        },
+        {
+          "title": "현재 세대 작업만 진행한다",
+          "text": "세대 일치와 활성 상태는 각각 확인한다. 일치해도 이미 닫는 연결에는 새 송신을 접수하지 않을 수 있다.",
+          "evidence": "api.send",
+          "messages": [
+            {
+              "from": "new",
+              "to": "slot",
+              "label": "현재 ID 검증",
+              "kind": "call"
+            }
+          ]
+        }
+      ],
+      "caption": "업무 요청 중복 제거는 세대 검사와 별도 앱 정책이다. uint64 세대는 정확한 정수로 유지한다."
+    },
+    {
+      "id": "F-C15-1",
+      "kind": "bytes",
+      "title": "4바이트를 2+2로 완료한다",
+      "bytes": [
+        65,
+        66,
+        67,
+        68
+      ],
+      "headerBytes": 0,
+      "arrived": 4,
+      "consumed": 0,
+      "steps": [
+        {
+          "title": "처음 4바이트 요청이 진행 중이다",
+          "text": "원래 요청 구간 전체를 완료 전까지 유지한다.",
+          "evidence": "send.partial_completion"
+        },
+        {
+          "title": "앞의 2바이트만 소비한다",
+          "text": "offset을 2로 옮기고 남은 2바이트 구간으로 재게시한다.",
+          "evidence": "send.partial_completion",
+          "spec": {
+            "consumed": 2,
+            "marks": [
+              "offset 2 · remaining 2 · 새 요청 1"
+            ]
+          }
+        },
+        {
+          "title": "나머지 2바이트가 완료된다",
+          "text": "이 메시지의 미완료 송신 참조가 0이 된다. 다른 수신·큐·소켓의 종료 조건은 별도로 확인한다.",
+          "evidence": "send.partial_completion",
+          "spec": {
+            "consumed": 4,
+            "marks": [
+              "offset 4 · remaining 0"
+            ]
+          }
+        }
+      ],
+      "caption": "문자 A·B·C·D의 설명용 바이트다. 재게시 실패와 잘못된 완료 길이는 L11에서 따로 실행한다."
+    },
+    {
+      "id": "F-C21-1",
+      "kind": "graph",
+      "title": "설정 숫자는 서로의 범위를 제한한다",
+      "nodes": [
+        {
+          "id": "recv",
+          "label": "수신 버퍼",
+          "state": "waiting"
+        },
+        {
+          "id": "send",
+          "label": "송신 버퍼",
+          "state": "waiting"
+        },
+        {
+          "id": "message",
+          "label": "최대 메시지",
+          "state": "waiting"
+        },
+        {
+          "id": "sessions",
+          "label": "최대 세션",
+          "state": "waiting"
+        },
+        {
+          "id": "workers",
+          "label": "I/O 워커 수",
+          "state": "waiting"
+        },
+        {
+          "id": "per-worker",
+          "label": "워커별 세션 상한",
+          "state": "waiting"
+        },
+        {
+          "id": "cq",
+          "label": "CQ 용량 예산",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "from": "recv",
+          "to": "message",
+          "label": "안에 들어감"
+        },
+        {
+          "from": "send",
+          "to": "message",
+          "label": "안에 들어감"
+        },
+        {
+          "from": "sessions",
+          "to": "per-worker",
+          "label": "ceil 나눗셈"
+        },
+        {
+          "from": "workers",
+          "to": "per-worker",
+          "label": "분할"
+        },
+        {
+          "from": "per-worker",
+          "to": "cq",
+          "label": "송수신 각 1"
+        }
+      ],
+      "steps": [
+        {
+          "title": "단위와 상호 제약부터 검사한다",
+          "text": "메시지는 양방향 버퍼에 들어가야 한다. 워커 수와 세션 수로 계산한 CQ 크기도 RIO 범위 안이어야 한다.",
+          "evidence": "config.validation"
+        }
+      ],
+      "caption": "실제 검증은 정수 범위·페이지 정렬·시간 한도도 확인한다. 계산 통과가 메모리·provider 확보 성공은 아니다."
+    },
+    {
+      "id": "F-C22-1",
+      "kind": "layers",
+      "title": "각 지표가 파이프라인의 어디를 세는가",
+      "layers": [
+        {
+          "id": "send",
+          "label": "송신의 서로 다른 순간",
+          "nodes": [
+            {
+              "id": "queued",
+              "label": "queued_send_bytes",
+              "sub": "내부 복사·접수"
+            },
+            {
+              "id": "completed",
+              "label": "completed_send_bytes",
+              "sub": "실제 완료 바이트"
+            }
+          ]
+        },
+        {
+          "id": "logic",
+          "label": "게임 큐의 서로 다른 단위",
+          "nodes": [
+            {
+              "id": "depth",
+              "label": "event_queue_depth",
+              "sub": "대기 이벤트 개수"
+            },
+            {
+              "id": "wait",
+              "label": "queue wait 시간",
+              "sub": "소비까지 기다린 시간"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "from": "queued",
+          "to": "completed",
+          "label": "게시·완료",
+          "kind": "call"
+        },
+        {
+          "from": "depth",
+          "to": "wait",
+          "label": "소비 시 측정",
+          "kind": "call"
+        }
+      ],
+      "steps": [
+        {
+          "title": "개수·바이트·시간을 섞지 않는다",
+          "text": "누적 counter는 측정 구간의 차이를 계산한다. 순간 depth와 누적 대기 시간은 각자의 단위·표본 수와 함께 읽는다.",
+          "evidence": "metrics.snapshot"
+        }
+      ],
+      "caption": "지표는 같은 사건을 다른 이름으로 복제한 값이 아니다. 대상 연결·시간 구간·활동 여부도 맞춘다."
+    },
+    {
+      "id": "F-C23-1",
+      "kind": "graph",
+      "title": "증상에서 확인을 거쳐 조치로 좁힌다",
+      "nodes": [
+        {
+          "id": "symptom",
+          "label": "증상·작업·native 코드",
+          "state": "waiting"
+        },
+        {
+          "id": "port",
+          "label": "포트 소유자 확인",
+          "state": "waiting"
+        },
+        {
+          "id": "refs",
+          "label": "완료·참조·콜백 확인",
+          "state": "waiting"
+        },
+        {
+          "id": "policy",
+          "label": "원인에 맞는 유계 조치",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "from": "symptom",
+          "to": "port",
+          "label": "bind 실패"
+        },
+        {
+          "from": "symptom",
+          "to": "refs",
+          "label": "종료·I/O 지연"
+        },
+        {
+          "from": "port",
+          "to": "policy"
+        },
+        {
+          "from": "refs",
+          "to": "policy"
+        }
+      ],
+      "steps": [
+        {
+          "title": "관찰과 추측을 구분한다",
+          "text": "한 증상이 원인 하나를 증명하지 않는다. 실행 환경과 오류 계층을 좁힌 뒤 바꿀 대상을 정한다.",
+          "evidence": "diagnostics.errors"
+        }
+      ],
+      "caption": "다른 프로세스 종료나 참조 중 메모리 해제를 첫 조치로 선택하지 않는다. L18에서 선택을 비교한다."
+    },
+    {
+      "id": "F-C24-1",
+      "kind": "graph",
+      "title": "검사 계층마다 증거의 범위가 다르다",
+      "nodes": [
+        {
+          "id": "pure",
+          "label": "순수 상태·범위",
+          "state": "waiting"
+        },
+        {
+          "id": "fake",
+          "label": "Fake API 실패 주입",
+          "state": "waiting"
+        },
+        {
+          "id": "win32",
+          "label": "Win32 자원 수명",
+          "state": "waiting"
+        },
+        {
+          "id": "rio",
+          "label": "실제 Winsock·RIO",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "from": "pure",
+          "to": "fake",
+          "label": "실제 분기 접점"
+        },
+        {
+          "from": "fake",
+          "to": "win32",
+          "label": "OS 자원"
+        },
+        {
+          "from": "win32",
+          "to": "rio",
+          "label": "실제 완료·취소"
+        }
+      ],
+      "steps": [
+        {
+          "title": "통과한 계층만 보고한다",
+          "text": "순수 모델은 브라우저 설명을 검사하고 fake API는 실패 분기를 반복한다. 실제 accept·취소 완료·provider 동작은 네이티브 통합 실행이 필요하다.",
+          "evidence": "testing.worker"
+        }
+      ],
+      "caption": "하위 계층 통과가 상위 계층·다른 PC·장시간 안정성을 자동으로 증명하지 않는다."
     }
   ]
 }

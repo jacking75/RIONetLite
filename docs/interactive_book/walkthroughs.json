@@ -1288,6 +1288,78 @@
       },
       "why": "실제 Chat 순서는 Server::Stop 다음 StopAfterDrain이다. transport가 더 이상 이벤트를 생산하지 않은 뒤 이벤트·실행 중 작업·broadcast를 비우고 로직 워커를 join한다.",
       "evidence": "chat.main_shutdown"
+    },
+    {
+      "id": "X-C25-1",
+      "title": "측정 조건이 다른 수치를 개선으로 단정하는 실수",
+      "wrong": {
+        "label": "학습용 예시 · 실행 코드가 아님",
+        "code": "// 학습용 의사 코드\nif (fastest_run > old_run) approve();"
+      },
+      "right": {
+        "label": "실제 코드·도구 스크립트",
+        "evidence": "benchmark.script",
+        "focus": {
+          "start": "    $baseline_environment_path = Join-Path $baseline_directory 'environment.json'",
+          "end": "    $approval = Get-Content -Raw -Encoding UTF8 $approval_path | ConvertFrom-Json"
+        }
+      },
+      "why": "같은 장비·조건·오류 0 반복과 승인 baseline을 대조한다. 실행 기록의 최댓값 하나로 개선을 판정하지 않는다.",
+      "evidence": "benchmark.script"
+    },
+    {
+      "id": "X-C26-1",
+      "title": "spin 횟수를 고정 시간으로 해석하는 실수",
+      "wrong": {
+        "label": "학습용 예시 · 실행 코드가 아님",
+        "code": "// 학습용 의사 코드\nlatency_us = adaptive_spin_count;"
+      },
+      "right": {
+        "label": "실제 코드·도구 스크립트",
+        "evidence": "tuning.wait",
+        "focus": {
+          "start": "    if (worker_wait_mode_ == 0 ||",
+          "end": "      YieldProcessor();"
+        }
+      },
+      "why": "spin은 빈 폴링 횟수다. 장비와 다른 작업에 따라 같은 횟수의 시간이 달라지므로 실제 조건에서 비교한다.",
+      "evidence": "tuning.wait"
+    },
+    {
+      "id": "X-C27-1",
+      "title": "오래된 바이너리와 새 헤더를 섞는 실수",
+      "wrong": {
+        "label": "학습용 예시 · 실행 코드가 아님",
+        "code": "// 학습용 의사 코드\ncopy(new_headers); copy(any_old_library);"
+      },
+      "right": {
+        "label": "실제 코드·도구 스크립트",
+        "evidence": "package.script",
+        "focus": {
+          "start": "function Get-SourceSnapshot {",
+          "end": "function Get-SnapshotHash($snapshot) {"
+        }
+      },
+      "why": "같은 소스 스냅샷의 헤더·라이브러리·구성으로 패키지를 만든다. ZIP-only 소비자 검증과 정식 release 승인은 구분한다.",
+      "evidence": "package.script"
+    },
+    {
+      "id": "X-C28-1",
+      "title": "바꾼 계층의 검증을 건너뛰는 실수",
+      "wrong": {
+        "label": "학습용 예시 · 실행 코드가 아님",
+        "code": "// 학습용 의사 코드\nchange_buffer_lifetime(); push_without_checks();"
+      },
+      "right": {
+        "label": "실제 코드·도구 스크립트",
+        "evidence": "build.script",
+        "focus": {
+          "start": "$target = if ($Rebuild) { 'Rebuild' } else { 'Build' }",
+          "end": "if ($LASTEXITCODE -ne 0) {"
+        }
+      },
+      "why": "변경 경계의 포맷·빌드·테스트·실제 동작과 책의 출처를 함께 점검한다. 실행하지 않은 검증은 미실행으로 남긴다.",
+      "evidence": "build.script"
     }
   ]
 }

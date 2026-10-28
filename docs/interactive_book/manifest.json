@@ -38,6 +38,10 @@
           "title": "검색하고, 돌아오고, 기록을 남긴다"
         },
         {
+          "id": "reading-guide-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "reading-guide-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -388,6 +392,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "rio-requests-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "rio-requests-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -535,6 +543,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "registered-memory-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "registered-memory-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -580,6 +592,10 @@
         {
           "id": "ring-buffer-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "ring-buffer-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "ring-buffer-prior-notes",
@@ -676,6 +692,10 @@
         {
           "id": "session-identity-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "session-identity-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "session-identity-prior-notes",
@@ -897,6 +917,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "partial-send-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "partial-send-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1004,6 +1028,10 @@
         {
           "id": "server-shutdown-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "server-shutdown-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "server-shutdown-prior-notes",
@@ -1226,6 +1254,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "configuration-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "configuration-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1272,6 +1304,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "logs-and-metrics-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "logs-and-metrics-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1312,6 +1348,10 @@
         {
           "id": "troubleshooting-quiz",
           "title": "확인 퀴즈"
+        },
+        {
+          "id": "troubleshooting-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "troubleshooting-prior-notes",
@@ -1364,6 +1404,10 @@
           "title": "확인 퀴즈"
         },
         {
+          "id": "testing-and-memory-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "testing-and-memory-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1409,6 +1453,10 @@
         {
           "id": "benchmark-limits",
           "title": "짧은 측정의 범위를 넘겨 결론내리지 않는다"
+        },
+        {
+          "id": "benchmarking-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "benchmarking-prior-notes",
@@ -1457,6 +1505,10 @@
           "title": "과거 장비의 표를 현재 승인으로 바꾸지 않는다"
         },
         {
+          "id": "performance-tuning-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "performance-tuning-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1497,6 +1549,10 @@
         {
           "id": "package-release",
           "title": "정식 release는 별도의 깨끗한 tag 조건을 요구한다"
+        },
+        {
+          "id": "packaging-and-release-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "packaging-and-release-prior-notes",
@@ -1541,6 +1597,10 @@
           "title": "리뷰에서 변경 결과와 남은 위험을 설명한다"
         },
         {
+          "id": "safe-changes-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "safe-changes-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1583,6 +1643,10 @@
           "title": "공개 헤더의 심볼 목록을 확인한다"
         },
         {
+          "id": "api-reference-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "api-reference-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1612,6 +1676,10 @@
           "title": "단위와 포함 범위를 적는다"
         },
         {
+          "id": "glossary-recap",
+          "title": "핵심 세 줄과 다음 장"
+        },
+        {
           "id": "glossary-prior-notes",
           "title": "이전 안내의 설명과 독해 포인트를 대조한다",
           "archive": true
@@ -1635,6 +1703,10 @@
         {
           "id": "decisions-current",
           "title": "현재 설계에서 지키는 선택을 읽는다"
+        },
+        {
+          "id": "design-decisions-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "decisions-archive",
@@ -1664,6 +1736,10 @@
         {
           "id": "history-measurements",
           "title": "측정 기록의 적용 범위를 보존한다"
+        },
+        {
+          "id": "historical-records-recap",
+          "title": "핵심 세 줄과 다음 장"
         },
         {
           "id": "history-originals",
@@ -1709,6 +1785,10 @@
         {
           "id": "maintenance-delivery",
           "title": "집필 단계를 완료한 결과를 남긴다"
+        },
+        {
+          "id": "book-maintenance-recap",
+          "title": "핵심 세 줄과 다음 장"
         }
       ],
       "technicalReviewed": true,

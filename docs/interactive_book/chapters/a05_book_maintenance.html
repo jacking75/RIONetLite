@@ -1,5 +1,5 @@
 <article class="chapter" id="book-maintenance" data-title="책 생성과 검증"><div class="eyebrow">부록 · A05</div><h1>설명·모델·실행의 근거를 함께 관리한다</h1><div data-map="system" data-mini data-focus="server"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div><p class="lead">독자는 index.html 하나를 열면 된다. 유지관리자는 원고, 출처와 재현 명령을 함께 갱신한다.</p>
-<section id="maintenance-reader"><h2>독자에게는 독립 HTML 하나를 전달한다</h2>
+<aside class="primer" aria-label="쉽게 말하면"><p><strong>쉽게 말하면</strong> 저자는 원고·정의 파일·출처·검사를 함께 갱신한다. 독자에게는 인터넷 없이 여는 index.html 하나를 전달한다.</p></aside><section id="maintenance-reader"><h2>독자에게는 독립 HTML 하나를 전달한다</h2>
 <p>이전 문서 보관 자료는 처음에는 본문·검색·인쇄에서 숨긴다. 도구 모음의 보관 자료 표시 버튼은 책 전체를, 장 끝의 보기 버튼은 그 장만 펼친다. 예전 절 주소는 해당 보관 자료를 자동으로 펼친다. 인쇄에 보관 자료까지 넣으려면 도구 모음에서 전체 표시를 선택한다.</p>
 <p>그림은 figures.json, 코드 따라가기·비교는 walkthroughs.json, 확인 문제는 quizzes.json, 시스템 지도는 map.json에 선언한다. 원고의 data-* 선언을 생성기가 대조하며 모르는 참조, 중복 사용, 미사용 정의, 모호한 코드 강조 범위를 거절한다. 그림 엔진은 모델과 함께 포함되는 순수 SVG 함수다. 원고에는 실행 스크립트나 이벤트 속성을 넣지 않는다.</p>
 <p><code>docs/interactive_book/index.html</code>을 복사해 Edge 또는 Chromium에서 연다. 인터넷·서버·계정 없이 본문·검색·그림·실험·코드 탐험을 사용할 수 있다. Python과 Node는 읽을 때 필요하지 않다. 브라우저 저장소가 차단되면 읽기 위치·체크·화면 선택을 다음 실행에 보존하지 못하지만 현재 창의 학습 기능은 작동한다.</p>
@@ -34,4 +34,4 @@ tools\book\update_config_fixture.ps1 -Check</code></pre>
 <p>B04~B07은 구조·메모리·수신·송신·종료·게임 큐·Chat·설정·진단·검사를 실제 구현과 대조해 집필했다. B08은 측정·튜닝·패키징·변경 안내와 다섯 부록 및 과거 기록을 완성했다. B09는 API JSON·문서 검사·README를 새 경로로 전환했고 B10은 내용별 대조와 해시 확인 후 기존 독자 문서를 정리했다.</p>
 <p>B11은 33개 장·20개 모델의 내용·브라우저·인쇄와 실행 안내를 검사했다. B12는 최종 HTML·유지관리 방법·이관 결과를 이 부록과 JSON으로 옮기고 작업 계획을 제거했다. 완료 사실은 해당 검사 receipt와 범위를 함께 읽으며, 실행하지 않은 환경을 완료로 바꾸지 않는다.</p>
 <div class="checklist"><label><input type="checkbox" data-check="A05:0"><span>미완료 I/O가 남은 메모리를 해제할 수 없는 이유를 C08·C17의 경로로 설명한다.</span></label><label><input type="checkbox" data-check="A05:1"><span>프레이밍·부분 송신·parked close를 조건을 바꾸어 재현한다.</span></label><label><input type="checkbox" data-check="A05:2"><span>현재 실행·과거 기록·설명용 모델·미실행 인수를 구분한다.</span></label></div>
-</section></article>
+</section><section id="book-maintenance-recap" class="recap"><h2>핵심 세 줄과 다음 장</h2><ol><li>선언·원고·출처를 생성기와 회귀 검사로 함께 검증한다.</li><li>저장 스키마를 이관해 기존 체크·위치·테마를 유지한다.</li><li>실행한 검사와 미실행 인수를 구분해 배포한다.</li></ol><p>관련 부품은 장 머리의 지도에서, 다음 읽기는 선택한 경로에서 확인한다.</p></section></article>

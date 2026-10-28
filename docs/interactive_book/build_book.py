@@ -430,8 +430,8 @@ def build(complete=False):
             raise ValueError(f"API JSON header changed: {header['path']}")
     html = html.replace("<!-- API_REFERENCE -->", table(["헤더", "심볼", "설명"], [
         [escape(s["header"]), '<code>'+escape(s["symbol"])+ '</code>', escape(s["description"])] for s in api["symbols"]]))
-    html = html.replace("<!-- GLOSSARY -->", table(["용어", "의미", "검색 별칭", "관련 장"], [
-        [escape(g["term"]),escape(g["definition"]),escape(', '.join(g["aliases"])),', '.join('<a href="#chapter='+by_id[c]["slug"]+'">'+c+'</a>' for c in g["chapters"])] for g in glossary["items"]]))
+    html = html.replace("<!-- GLOSSARY -->", table(["용어", "의미", "난이도", "검색 별칭", "관련 장"], [
+        [escape(g["term"]),escape(g["definition"]),escape(g.get('level', '중급')),escape(', '.join(g["aliases"])),', '.join('<a href="#chapter='+by_id[c]["slug"]+'">'+c+'</a>' for c in g["chapters"])] for g in glossary["items"]]))
     html = html.replace("<!-- MIGRATION_SUMMARY -->", table(["원본", "개정본", "항목", "처리 상태"], [
         [escape(d["source"]),escape(d["revision"][:12]),str(len(d["items"])),escape(d["status"])] for d in migration["documents"]]))
     verification = read_json(HERE / "verification.json")

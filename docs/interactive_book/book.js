@@ -39,7 +39,13 @@ function setTheme(value){document.documentElement.dataset.theme=value;$('theme')
 setTheme(['dark','light'].includes(persisted.theme)?persisted.theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
 $('theme').onclick=()=>{persisted.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';setTheme(persisted.theme);save();};
 function stopPlayback(){for(const session of [...labSessions.values(),...figureSessions.values()])if(session.timer){clearInterval(session.timer);session.timer=null;session.playButton.textContent=session.definition?'단계별 재생':'재생';}playbackSessions.clear();}
-function initComponents(article){for(const [kind,init]of Object.entries(components))for(const host of all(`[data-${kind}]`,article))if(!host.dataset.initialized){init(host);host.dataset.initialized='true';}}
+function initComponents(article){for(const [kind,init]of Object.entries(components))for(const host of all(`[data-${kind}]`,article))if(!host.dataset.initialized){init(host);host.dataset.initialized='true';}for(const host of all('[data-budget]',article))initBudget(host);}
+function renderBudget(host,budget){
+  const bars=document.createElement('div');bars.className='budget-bars';const keys={registered:'RIO 등록 범위',reserved:'가상 주소 예약',committed:'실제 backing commit',control:'제어 저장소 예산'};
+  const max=Math.max(...Object.keys(keys).map(k=>Number(budget[k])));
+  for(const [key,label]of Object.entries(keys)){const row=document.createElement('p');row.textContent=label+' · '+budget[key]+' bytes';const bar=document.createElement('span');bar.style.width=(100*Number(budget[key])/max)+'%';row.append(bar);bars.append(row);}host.append(bars);
+}
+function initBudget(host){host.replaceChildren();const state=BookModels.configuration.createInitialState({});renderBudget(host,state.budgets);}
 function componentStub(host){host.replaceChildren();const p=document.createElement('p');p.className='small';p.textContent='집필 중인 학습 컴포넌트다.';host.append(p);}
 function initFigure(host){
   const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');host.replaceChildren();
@@ -191,7 +197,7 @@ function initMap(host,printing=false){
   grid.append(diagram,panel);host.append(controls,grid);host.mapSelect=id=>{if(nodes.some(n=>n.id===id)){selected=id;scene=null;render();}};render();
 }
 
-function printComponents(clone){for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){
+function printComponents(clone){for(const host of all('[data-budget]',clone))initBudget(host);for(const kind of Object.keys(components))for(const host of all(`[data-${kind}]`,clone)){
   host.replaceChildren();
   if(kind==='figure'){
     const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');
@@ -440,8 +446,7 @@ function visualState(host,session,state){
   host.append(diagram);
   }
   if(view.budget){
-    const budget=document.createElement('div');budget.className='budget-bars';const max=Math.max(...['registered','reserved','committed','control'].map(k=>Number(view.budget[k])));
-    for(const key of ['registered','reserved','committed','control']){const row=document.createElement('p');row.textContent=key+' '+view.budget[key]+' bytes';const bar=document.createElement('span');bar.style.width=(100*Number(view.budget[key])/max)+'%';row.append(bar);budget.append(row);}host.append(budget);
+    renderBudget(host,view.budget);
   }
   if(state.ticks!==undefined){const table=document.createElement('table');const row=document.createElement('tr');for(const value of ['틱 '+state.ticks,'유입 '+state.incoming,'처리 상한 '+state.outgoing,'대기 '+state.used]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}table.append(row);host.append(table);}
   const details=document.createElement('div');details.className='lab-state';const dl=document.createElement('dl');
