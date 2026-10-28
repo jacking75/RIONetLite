@@ -14,7 +14,7 @@ tools\build.ps1 -Configuration Release -Rebuild
 bin\x64\Debug\EchoServer.exe --port 32452 --duration 30
 ```
 
-[HTML 책을 내려받아 브라우저로 연다](docs/interactive_book/index.html). **28개 장·5개 부록·20개 설명용 실험**과 코드 탐험·검색·인쇄가 HTML 하나에 들어 있다. 읽을 때 서버·계정·인터넷·Python·Node가 필요하지 않다. 실제 네트워크 실습은 별도 실행 파일로 수행한다.
+[HTML 책을 내려받아 브라우저로 연다](docs/interactive_book/index.html). **36개 장(부록 5개 포함)·20개 설명용 실험·그림 33개·코드 따라가기 12개·퀴즈 61문항**과 코드 탐험·검색·인쇄가 HTML 하나에 들어 있다. 읽을 때 서버·계정·인터넷·Python·Node가 필요하지 않다. 실제 네트워크 실습은 별도 실행 파일로 수행한다. [처음 읽는 사람의 경로](docs/interactive_book/index.html#chapter=reading-guide&section=reading-routes)에서 시작한다. 시스템 지도·용어 팝오버·학습 진도를 제공하며 과거 보관 자료는 기본적으로 화면·검색·인쇄에서 숨긴다.
 
 | 해결할 질문 | 읽을 곳 |
 |---|---|

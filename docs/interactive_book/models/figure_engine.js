@@ -42,6 +42,7 @@
       if(!position.has(edge.from)||!position.has(edge.to))throw new Error('Unknown state endpoint');
       const a=position.get(edge.from)+75,b=position.get(edge.to)+75,y=165+i%3*38;
       body+=`<path d="M${a} 110 V${y} H${b} V110" style="stroke:var(${edge.step===step+1?'--accent':'--line'});fill:none;stroke-width:2"/>${text((a+b)/2,y-7,edge.label)}`;
+      body+=`<polyline points="${b-5},118 ${b},110 ${b+5},118" style="stroke:var(--accent);fill:none;stroke-width:2"/>`;
     }
     nodes.forEach((n,i)=>{body+=box(position.get(n.id),35,150,76,n.label,n.id,n.id===active,`data-step="${Math.min(i,count-1)}" tabindex="0" role="button" aria-label="${esc(n.label)}"`);});
     return {body,width,height:300,activeIds:active?[active]:[]};
@@ -57,6 +58,7 @@
       const [x1,y1]=point(r,a),[x2,y2]=point(r,b),[x3,y3]=point(r-25,b),[x4,y4]=point(r-25,a);
       body+=`<path data-ring-index="${index}" class="${occupied?'occupied':reserved?'posted':'empty'}" d="M${x1} ${y1} A${r} ${r} 0 ${b-a>Math.PI?1:0} 1 ${x2} ${y2} L${x3} ${y3} A${r-25} ${r-25} 0 ${b-a>Math.PI?1:0} 0 ${x4} ${y4} Z" style="fill:var(${occupied?'--soft':reserved?'--bg':'--paper'});stroke:var(${reserved?'--gold':'--accent'});stroke-width:${reserved?3:1}"/>`;
       const [tx,ty]=point(r+18,(a+b)/2);if(cells<=16)body+=text(tx,ty+5,index);
+      if(reserved){const [hx,hy]=point(r-12,(a+b)/2);body+=`<path d="M${hx-5} ${hy+6} l10 -12" style="stroke:var(--gold);stroke-width:2;fill:none"/>`;}
       if(occupied)activeIds.push('ring-'+index);
     }
     for(const [label,value,color,inner]of [['read',read,'--accent',56],['write',write,'--gold',77]]){
@@ -67,9 +69,10 @@
     body+=text(cx,32,status);body+=text(615,32,'같은 메모리를 두 번 매핑한 주소 뷰');
     const count=Math.min(capacity,32),cell=540/(count*2);
     for(let i=0;i<count*2;i++){
-      const index=Math.floor((i%count)*capacity/count);const occupied=(index-read+capacity)%capacity<used;const x=350+i*cell;
+      const index=Math.floor((i%count)*capacity/count);const occupied=(index-read+capacity)%capacity<used;const reserved=(index-(spec.postFrom==='read'?read:write)+capacity)%capacity<posted;const x=350+i*cell;
       body+=`<rect data-view="${i<count?1:2}" data-index="${index}" x="${x}" y="110" width="${cell-1}" height="62" style="fill:var(${occupied?'--soft':'--paper'});stroke:var(--line)"/>`;
       if(count<=16)body+=text(x+cell/2,145,index);
+      if(reserved)body+=`<path d="M${x+2} 169 l${Math.max(1,cell-5)} -56" style="stroke:var(--gold);stroke-width:1;fill:none"/>`;
     }
     body+=text(485,94,'view 1');body+=text(755,94,'view 2');
     const start=350+read/capacity*270,end=start+used/capacity*270;
@@ -85,7 +88,7 @@
     for(let worker=0;worker<workers;worker++){
       body+=text(130+worker*260,28,'워커 '+worker);let row=0;
       for(const slot of all.filter(s=>num(s.owner,s.index%workers)===worker)){
-        const free=(spec.free??[]).indexOf(slot.index);const active=!['free','kFree','비어 있음'].includes(slot.state);
+        const free=(spec.free??[]).indexOf(slot.index);const active=!['free','Free','kFree','비어 있음'].includes(slot.state);
         const label=`슬롯 ${slot.index} · 세대 ${slot.generation??0}`;const sub=free>=0?`free 순서 ${free+1}`:slot.state;
         body+=box(20+worker*260,55+row*95,220,78,label,sub,active);if(active)activeIds.push('slot-'+slot.index);row++;
       }

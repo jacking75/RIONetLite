@@ -33,6 +33,9 @@ try {
   }
   localStorage.setItem(storageKey,JSON.stringify(persisted));
 }catch{storageWorks=false;$('storageStatus').textContent='이 브라우저에서는 읽기 기록을 저장할 수 없다. 본문과 실험은 계속 사용할 수 있다.';}
+if(!persisted.quiz||typeof persisted.quiz!=='object'||Array.isArray(persisted.quiz))persisted.quiz={};
+persisted.showArchive=persisted.showArchive===true;
+if(!BOOK.manifest.readingRoutes.some(route=>route.id===persisted.route))persisted.route=null;
 function save(){if(storageWorks)try{localStorage.setItem(storageKey,JSON.stringify(persisted));}catch{storageWorks=false;$('storageStatus').textContent='읽기 기록 저장이 중단됐다. 현재 창의 실험은 계속 사용할 수 있다.';}}
 function chapterUrl(chapter,section=''){return '#'+new URLSearchParams({chapter:chapter.slug,...(section?{section}:{})});}
 function setTheme(value){document.documentElement.dataset.theme=value;$('theme').textContent=value==='dark'?'밝은 화면':'어두운 화면';}
@@ -46,7 +49,6 @@ function renderBudget(host,budget){
   for(const [key,label]of Object.entries(keys)){const row=document.createElement('p');row.textContent=label+' · '+budget[key]+' bytes';const bar=document.createElement('span');bar.style.width=(100*Number(budget[key])/max)+'%';row.append(bar);bars.append(row);}host.append(bars);
 }
 function initBudget(host){host.replaceChildren();const state=BookModels.configuration.createInitialState({});renderBudget(host,state.budgets);}
-function componentStub(host){host.replaceChildren();const p=document.createElement('p');p.className='small';p.textContent='집필 중인 학습 컴포넌트다.';host.append(p);}
 function initFigure(host){
   const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');host.replaceChildren();
   const title=document.createElement('h3');title.textContent=spec.title;
@@ -70,6 +72,7 @@ function initFigure(host){
   };
   session.playButton=makeButton('재생',()=>{
     if(session.timer){stopPlayback();return;}stopPlayback();if(session.step===count-1)session.setStep(0);
+    session.interval=matchMedia('(prefers-reduced-motion: reduce)').matches?1400:900;
     session.playButton.textContent='정지';session.timer=setInterval(()=>{session.setStep(session.step+1,false);if(session.step===count-1)stopPlayback();},session.interval);playbackSessions.add(session);
   });
   controls.append(makeButton('처음',()=>{stopPlayback();session.setStep(0);}),makeButton('이전',()=>{stopPlayback();session.setStep(session.step-1);}),session.playButton,makeButton('다음',()=>{stopPlayback();session.setStep(session.step+1);}));
@@ -104,6 +107,7 @@ function initWalkthrough(host,printing=false){
   const status=document.createElement('p');status.setAttribute('role','status');const explanation=document.createElement('p');const links=document.createElement('div');links.className='controls';
   const session={host,spec,step:0,status};
   session.setStep=value=>{
+    const focusedControl=links.contains(document.activeElement)?document.activeElement.textContent:null;
     session.step=Math.max(0,Math.min(spec.steps.length-1,value));const step=spec.steps[session.step],eid=step.evidence??spec.evidence,e=BOOK.evidence.find(e=>e.id===eid),source=SOURCES[e.source];
     code.innerHTML=codeMarkup(eid,step.startLine,step.endLine,spec.steps);meta.textContent=`실제 코드 · ${e.source} · 검토 ${e.commit.slice(0,12)} · SHA-256 ${source.sha256}`;
     status.textContent=`${session.step+1}/${spec.steps.length} · ${step.title}`;explanation.textContent=step.text;
@@ -116,11 +120,12 @@ function initWalkthrough(host,printing=false){
     if(step.calls)links.append(makeButton('들어가 보기',()=>openWalkthrough(step.calls,0,true)));
     if(step.mistake)links.append(makeButton('자주 하는 실수 보기',()=>all('[data-compare]').find(n=>n.dataset.compare===step.mistake)?.scrollIntoView({block:'center'})));
     if(step.term){const term=BOOK.glossary.find(t=>t.id===step.term);const p=document.createElement('p');p.className='small';p.textContent=term.term+' — '+term.definition;links.append(p);}
+    if(focusedControl)all('button',links).find(button=>button.textContent===focusedControl)?.focus({preventScroll:true});
     const line=code.querySelector('.focusline');code.scrollTop=line?line.offsetTop-code.offsetTop-50:0;
   };
   if(printing){
     const ids=[...new Set(spec.steps.map(s=>s.evidence??spec.evidence))];grid.className='';
-    for(const eid of ids){const block=document.createElement('pre');block.innerHTML=codeMarkup(eid,-1,-1,spec.steps);grid.append(block);}
+    for(const eid of ids){const e=BOOK.evidence.find(e=>e.id===eid);const label=document.createElement('p');label.className='source-ref';label.textContent=`실제 코드 · ${e.source} · L${e.startLine}–L${e.endLine} · 검토 ${e.commit.slice(0,12)} · SHA-256 ${SOURCES[e.source].sha256}`;const block=document.createElement('pre');block.innerHTML=codeMarkup(eid,-1,-1,spec.steps);grid.append(label,block);}
     for(const step of spec.steps){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;list.append(li);}host.append(title,intro,grid,list);return;
   }
   for(const [i,step]of spec.steps.entries()){const li=document.createElement('li');const b=makeButton(step.title,()=>session.setStep(i));b.dataset.walkStep=i;li.append(b);list.append(li);}
@@ -145,7 +150,7 @@ function initQuiz(host,printing=false){
   const spec=BOOK.quizzes.find(q=>q.id===host.dataset.quiz);host.classList.add('quiz');host.replaceChildren();
   const fieldset=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=spec.question;fieldset.append(legend);
   const feedback=document.createElement('div');feedback.className='quiz-feedback';feedback.hidden=true;feedback.setAttribute('role','status');
-  if(printing){const list=document.createElement('ol');for(const option of spec.options){const li=document.createElement('li');li.textContent=option.text;list.append(li);}const answer=document.createElement('p');const correct=spec.options.find(o=>o.correct);answer.textContent='정답: '+correct.text+' — '+correct.explain;host.append(legend,list,answer);return;}
+  if(printing){const heading=document.createElement('h3');heading.textContent=spec.question;const list=document.createElement('ol');for(const option of spec.options){const li=document.createElement('li');li.textContent=option.text;list.append(li);}const answer=document.createElement('p');const correct=spec.options.find(o=>o.correct);answer.textContent='정답: '+correct.text+' — '+correct.explain;const source=document.createElement('p');source.className='source-ref';source.textContent='근거: '+BOOK.evidence.find(e=>e.id===spec.evidence).source+(spec.lab?' · 실험 '+spec.lab:'');host.append(heading,list,answer,source);return;}
   const choices=[];
   for(const [i,option]of spec.options.entries()){
     const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');input.type='radio';input.name='rt-'+spec.id;input.id='rt-'+spec.id+'-'+i;input.value=i;label.htmlFor=input.id;text.textContent=option.text;label.append(input,text);fieldset.append(label);choices.push(input);
@@ -202,7 +207,7 @@ function printComponents(clone){for(const host of all('[data-budget]',clone))ini
   if(kind==='figure'){
     const spec=BOOK.figures.find(f=>f.id===host.dataset.figure);host.classList.add('figure');
     const title=document.createElement('h3');title.textContent=spec.title;const diagram=document.createElement('div');diagram.className='diagram-scroll';diagram.innerHTML=BookFigures.render(spec.kind,spec,BookFigures.stepCount(spec.kind,spec)-1).svg;
-    const steps=document.createElement('ol');for(const step of spec.steps??[]){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;steps.append(li);}host.append(title,diagram,steps);
+    const steps=document.createElement('ol');for(const step of spec.steps??[]){const li=document.createElement('li');li.textContent=step.title+' — '+step.text;steps.append(li);}const caption=document.createElement('figcaption');caption.textContent=spec.caption??spec.note??'';const proof=document.createElement('p');proof.className='source-ref';proof.textContent=[...new Set((spec.steps??[]).map(step=>step.evidence).filter(Boolean))].map(id=>{const e=BOOK.evidence.find(e=>e.id===id);return `${e.source} · L${e.startLine}–L${e.endLine}`;}).join(' / ');host.append(title,diagram,steps,caption,proof);
   }else if(kind==='walkthrough')initWalkthrough(host,true);
   else if(kind==='compare')initCompare(host);
   else if(kind==='map')initMap(host,true);
@@ -253,6 +258,7 @@ function renderRoute(){
   if(!available.length)return;
   if(!firstRoute)notice('');firstRoute=false;
   stopPlayback();
+  closeTerm();
   if(current)scrollPositions.set(current.slug,{y:scrollY,section:currentSection});
   let hash=location.hash.slice(1);
   if(hash.length>40000){notice('주소의 실험 자료가 너무 길다. 기본 읽기 위치로 이동한다.');hash='';}
@@ -479,7 +485,7 @@ function initLab(host){
   const fields=document.createElement('div');fields.className='lab-config';const inputs={};
   for(const field of definition.configFields??[]){
     const label=document.createElement('label');label.textContent=field.label;
-    const input=document.createElement(field.options?'select':'input');input.id=`${id}-config-${field.key}`;
+    const input=document.createElement(field.options?'select':'input');input.id=`rt-${id}-config-${field.key}`;
     if(field.options){for(const [value,title] of field.options){const o=document.createElement('option');o.value=value;o.textContent=title;input.append(o);}}
     else{input.type=field.type??'number';if(input.type==='text')input.maxLength=512;if(field.min!==undefined)input.min=field.min;if(field.max!==undefined)input.max=field.max;}
     input.value=String(config[field.key]??field.default??'');label.append(input);fields.append(label);inputs[field.key]={input,field};

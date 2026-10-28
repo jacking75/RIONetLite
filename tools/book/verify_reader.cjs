@@ -3,6 +3,7 @@ const {chromium}=require('playwright');
 const {pathToFileURL}=require('node:url');
 const path=require('node:path');
 const fs=require('node:fs');
+const {createHash}=require('node:crypto');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../..');
 const book=path.join(root,'docs/interactive_book');
@@ -49,6 +50,8 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await caller.getByRole('button',{name:'Start 뒤 콜백으로 넘어간다',exact:true}).click();await caller.getByRole('button',{name:'들어가 보기',exact:true}).click();
   await page.waitForSelector('#echo-walkthrough.active');await walk.getByRole('button',{name:'돌아가기',exact:true}).click();await page.waitForSelector('#echo-overview.active');
   assert.match(await caller.locator('[role="status"]').innerText(),/5\/7/);
+  await page.evaluate(()=>figureSessions.get('F-P03-1').setStep(4));await figure.getByRole('button',{name:'코드 따라가기에서 보기',exact:true}).click();await page.waitForSelector('#echo-walkthrough.active');
+  assert.match(await walk.locator('[role="status"]').innerText(),/2\/5/);await walk.getByRole('button',{name:'그림에서 보기',exact:true}).click();await page.waitForSelector('#echo-overview.active');assert.equal(await page.evaluate(()=>figureSessions.get('F-P03-1').step),4);
   await go('library-overview','overview-inside');const systemMap=page.locator('#library-overview [data-map]:not([data-mini])');
   await systemMap.locator('[data-map-node="io-worker"]').focus();await page.keyboard.press('Enter');
   assert.ok(await systemMap.locator('.map-panel a').filter({hasText:'C12'}).count()>0);
@@ -144,12 +147,44 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await go('packet-framing');
   const searchMs=await page.locator('#search').evaluate(input=>{input.value='generation';const start=performance.now();input.dispatchEvent(new Event('input',{bubbles:true}));return performance.now()-start;});
   assert.ok(searchMs<100,`search ${searchMs}ms exceeds 100ms`);await page.fill('#search','');
-  for(const width of [1440,1920,390]){await page.setViewportSize({width,height:width===390?844:900});for(const c of rendered){await go(c.slug);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow ${c.slug} at ${width}`);}}
+  const componentReceipts=[];
+  for(const width of [1440,1920,390]){await page.setViewportSize({width,height:width===390?844:900});for(const c of rendered){await go(c.slug);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow ${c.slug} at ${width}`);
+   if(width===1440){
+    const audit=await page.evaluate(slug=>{
+     const article=document.getElementById(slug),hosts=[...article.querySelectorAll('[data-figure],[data-walkthrough],[data-compare],[data-quiz],[data-map]')];
+     const missing=hosts.filter(h=>!h.children.length||h.querySelector('.no-script')).map(h=>h.outerHTML.slice(0,180));
+     let maxStepMs=0;for(const host of article.querySelectorAll('[data-figure]')){const session=figureSessions.get(host.dataset.figure);for(let i=0;i<BookFigures.stepCount(session.spec.kind,session.spec);i++){const start=performance.now();session.setStep(i);maxStepMs=Math.max(maxStepMs,performance.now()-start);}session.setStep(0);}
+     return {chapter:slug,components:hosts.length,missing,maxStepMs};
+    },c.slug);assert.deepEqual(audit.missing,[]);assert.ok(audit.maxStepMs<50,`${c.slug}: figure ${audit.maxStepMs}ms`);componentReceipts.push(audit);
+   }
+  }}
   await page.setViewportSize({width:390,height:844});await page.click('#menu');assert.equal(await page.locator('#menu').getAttribute('aria-expanded'),'true');await page.locator('#navigation a').first().focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.getElementById('menu').getAttribute('aria-expanded')==='false');
-  await page.emulateMedia({reducedMotion:'reduce'});await go('packet-framing');
+  await page.emulateMedia({reducedMotion:'reduce'});await go('echo-overview');
+  await figure.getByRole('button',{name:'재생',exact:true}).click();assert.equal(await page.evaluate(()=>figureSessions.get('F-P03-1').interval),1400);await figure.getByRole('button',{name:'정지',exact:true}).click();
+  await figure.getByRole('button',{name:'확대',exact:true}).click();assert.equal(await page.locator('#figureDialog').evaluate(d=>d.open),true);await page.keyboard.press('Escape');assert.match(await page.evaluate(()=>document.activeElement.textContent),/확대/);
   await page.setViewportSize({width:1440,height:900});
   for(const [slug,name]of [['reading-guide','cover'],['server-basics','p01'],['library-overview','p02'],['echo-overview','p03'],['build-and-run','c02'],['echo-walkthrough','c04'],['packet-framing','c13'],['echo-walkthrough','echo'],['packet-framing','framing'],['partial-send','partial'],['server-shutdown','shutdown'],['ring-buffer','ring'],['accept-and-session','slots']]){await go(slug);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>{scrollTo(0,0);requestAnimationFrame(resolve);})));await page.screenshot({path:path.join(output,name+'.png'),fullPage:true});const labs=page.locator('article.active .lab');if(await labs.count())await labs.first().scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,name+'-viewport.png')});}
   await go('packet-framing');await page.evaluate(()=>scrollTo(0,0));await page.click('#theme');await page.screenshot({path:path.join(output,'dark.png'),fullPage:true});await page.screenshot({path:path.join(output,'dark-viewport.png')});await page.click('#theme');await page.setViewportSize({width:390,height:844});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(output,'mobile.png'),fullPage:true});await page.screenshot({path:path.join(output,'mobile-viewport.png')});
+  await page.setViewportSize({width:1440,height:900});await go('library-overview','overview-inside');await systemMap.scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,'system-map.png')});
+  await go('receive-path');await page.locator('#receive-path h1').focus();
+  const keyboardSeen=new Set(),keyboardTrace=[];let keyboardTabs=0;
+  for(;keyboardTabs<240;keyboardTabs++){
+   await page.keyboard.press('Tab');const focus=await page.evaluate(()=>{
+    const n=document.activeElement;return {chapter:n.closest('article')?.id,figure:!!n.closest('[data-figure]'),walk:!!n.closest('[data-walkthrough]'),lab:!!n.closest('[data-lab]'),quiz:!!n.closest('[data-quiz]'),mini:!!n.closest('[data-mini]'),check:n.dataset.check??'',source:!!n.dataset.evidence,action:n.dataset.action??'',text:n.textContent.slice(0,100),tag:n.tagName,type:n.type};
+   });
+   keyboardTrace.push({tab:keyboardTabs,...focus});
+   for(const key of ['figure','walk','lab','quiz','mini'])if(focus[key])keyboardSeen.add(key);
+   if(focus.figure&&focus.text==='다음'){await page.keyboard.press('Enter');keyboardSeen.add('figure-enter');}
+   if(focus.walk&&focus.text==='다음'){await page.keyboard.press('Enter');keyboardSeen.add('walk-enter');}
+   if(focus.source){await page.keyboard.press('Enter');await page.waitForFunction(()=>document.getElementById('sourceDialog').open);await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.getElementById('sourceDialog').open&&document.activeElement===sourceOpener);keyboardSeen.add('source-escape');}
+   if(focus.lab&&focus.action&&!keyboardSeen.has('lab-action')){await page.keyboard.press('Enter');keyboardSeen.add('lab-action');}
+   if(focus.quiz&&focus.type==='radio')await page.keyboard.press('Space');
+   if(focus.quiz&&focus.text==='확인'){await page.keyboard.press('Enter');keyboardSeen.add('quiz-submit');}
+   if(focus.check==='C12-understood'){await page.keyboard.press('Space');keyboardSeen.add('check');break;}
+  }
+  fs.writeFileSync(path.join(output,'keyboard-c12.json'),JSON.stringify({seen:[...keyboardSeen],trace:keyboardTrace},null,2));
+  for(const key of ['figure','walk','lab','quiz','mini','figure-enter','walk-enter','source-escape','lab-action','quiz-submit','check'])assert.ok(keyboardSeen.has(key),'keyboard '+key);
+  assert.ok(keyboardTabs<240,'C12 Tab traversal reaches the recap');
   await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));await page.emulateMedia({media:'print'});
   assert.equal(await page.locator('#printBook article:visible').count(),rendered.length);assert.equal(await page.locator('#printBook .lab .controls:visible').count(),0);
   const printColor=await page.locator('#printBook').evaluate(n=>getComputedStyle(n).getPropertyValue('--ink').trim());assert.equal(printColor,'#172c32');
@@ -159,12 +194,17 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   const printBytes=fs.statSync(path.join(output,'book.pdf')).size;
   assert.equal(await page.locator('#printBook [data-archive]').count(),0);
   assert.ok(await page.locator('#printBook [data-figure] ol li').count()>0);
+  assert.equal(await page.locator('#printBook .figure-controls:visible,#printBook .quiz input:visible').count(),0);
+  assert.equal(await page.locator('#printBook [data-quiz]').count(),61);assert.equal(await page.locator('#printBook [data-walkthrough]').count(),12);
   await page.emulateMedia({media:'screen'});
   await page.click('#archiveToggle');await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));await page.emulateMedia({media:'print'});
   await page.pdf({path:path.join(output,'book-with-archives.pdf'),preferCSSPageSize:true,printBackground:true});
   const archivePrintBytes=fs.statSync(path.join(output,'book-with-archives.pdf')).size;assert.ok(archivePrintBytes>printBytes);
   await page.emulateMedia({media:'screen'});await page.click('#archiveToggle');
   const noStorage=await browser.newContext({offline:true});await noStorage.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked');}}));const blocked=await noStorage.newPage();blocked.on('pageerror',e=>errors.push(String(e)));await blocked.goto(base+'#chapter=packet-framing');assert.match(await blocked.locator('#storageStatus').innerText(),/저장할 수 없다/);await blocked.locator('[data-lab="L09"]').getByRole('button',{name:'다음 수신 전달',exact:true}).click();await noStorage.close();
+  const migration=await browser.newContext({offline:true});await migration.addInitScript(edition=>localStorage.setItem('rionetlite.book.reader.v2',JSON.stringify({schemaVersion:2,edition,checks:{'C12-understood':true},position:{chapter:'receive-path',section:'receive-validation'},theme:'dark'})),manifest.edition);
+  const migrated=await migration.newPage();migrated.on('pageerror',e=>errors.push(String(e)));await migrated.goto(base);await migrated.waitForSelector('#receive-path.active');
+  const migratedState=await migrated.evaluate(()=>JSON.parse(localStorage.getItem('rionetlite.book.reader.v2')));assert.equal(migratedState.schemaVersion,3);assert.equal(migratedState.checks['C12-understood'],true);assert.equal(migratedState.theme,'dark');assert.equal(migratedState.position.chapter,'receive-path');assert.equal(migratedState.showArchive,false);await migration.close();
   assert.deepEqual(errors,[]);assert.equal(requests.filter(u=>!u.startsWith('file:')).length,0);
   const receipt={scope:manifest.chapters.every(c=>c.status==='complete')?'complete book browser acceptance':'reader acceptance; manuscript acceptance pending',browser:browser.version(),offline:true,chapters:rendered.length,labs:labReceipts,viewports:[1440,1920,390],firstRenderMs:firstRender,searchMs,errors,externalRequests:requests.filter(u=>!u.startsWith('file:')),checks:['canonical/legacy URL','back/forward','search and aliases','source scopes, history and focus','all 20 models: JSON replay, undo/redo, play/stop','bounded scenario JSON','persistence','storage blocked','keyboard menu','reduced motion','all-chapter print visibility and PDF','representative screenshots']};
   receipt.printBytes=printBytes;receipt.archivePrintBytes=archivePrintBytes;receipt.checks.push('archive toggle, search, persistence and smaller default PDF');
@@ -173,6 +213,9 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   receipt.checks.push('system map keyboard selection and mini-map route');
   receipt.checks.push('reading route selection, persistence and progress');
   receipt.checks.push('quiz submission, explanation, persistence and print answers');
+  receipt.components=componentReceipts;receipt.htmlBytes=fs.statSync(standalone).size;assert.ok(receipt.htmlBytes<=4*1024*1024);receipt.htmlSha256=createHash('sha256').update(fs.readFileSync(standalone)).digest('hex');
+  receipt.keyboard={chapter:'C12',tabCount:keyboardTabs,checks:[...keyboardSeen],scope:'agent keyboard execution, no mouse during traversal; no human/screen-reader acceptance'};
+  receipt.checks.push('all declared components and figure steps','schema v2 to v3 migration','C12 keyboard-only traversal','reduced-motion 1400ms and enlarged-figure focus return','4 MiB HTML budget');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

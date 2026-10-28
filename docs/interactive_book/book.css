@@ -19,6 +19,7 @@
 
 .budget-bars p{font:13px Consolas,monospace}.budget-bars span{display:block;min-height:10px;background:var(--accent)}
 .walkthrough-grid>*,.compare-grid>*,.map-grid>*{min-width:0}.walkthrough button,.compare button{max-width:100%;overflow-wrap:anywhere}.walkthrough-steps{padding-left:24px}.walkthrough pre em{width:auto;min-width:65px}.walkthrough pre{position:relative}
+.compare pre{max-height:440px}@media print{#printBook .compare pre{max-height:none}#printBook .quiz h3{font-size:11pt}}
 
 .map-mini{border:0;padding:0;margin:12px 0 20px}.map-mini button{display:block;width:100%;padding:0}.map-mini .book-figure{min-width:0;max-height:110px}.map-mini p{margin:5px 0}.map-panel button{max-width:100%;overflow-wrap:anywhere}.map-panel h3{margin-top:0}.map-panel p{font-size:14px}.map-grid{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}@media(max-width:720px){.map-grid{grid-template-columns:1fr}}
 

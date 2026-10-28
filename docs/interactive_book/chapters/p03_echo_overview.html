@@ -6,8 +6,46 @@
 <p>메시지 형식은 <a href="#chapter=server-basics&amp;section=basics-tcp-stream">P01</a>에서 본 <dfn data-term="length-prefix">길이 헤더</dfn> 방식이다. 앞의 4바이트는 헤더를 포함한 전체 길이이고, 큰 자리부터 적는다(big-endian). 길이는 최소 4(본문 없음)이고 최대는 <code>max_message_bytes</code>(기본 16KiB)다. 이 범위를 벗어난 길이가 오면 서버는 그 연결을 닫는다.</p>
 <div class="bytes" role="img" aria-label="요청과 응답이 같은 7바이트 00 00 00 07 72 69 6F"><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">07<small>길이</small></span><span class="byte">72<small>r</small></span><span class="byte">69<small>i</small></span><span class="byte">6F<small>o</small></span></div>
 <p class="small">클라이언트가 보낸 바이트와 서버가 돌려주는 바이트가 똑같다. 헤더까지 그대로 돌려주므로 클라이언트는 같은 규칙으로 응답을 읽을 수 있다.</p>
-</section>
-<section id="echo-ov-code"><h2>전체 코드는 두 덩어리다</h2><p>출력 형식 예 · 실제 코드의 문자열을 재현한 것이며 이번 집필에서 네이티브 서버를 실행한 로그는 아니다.</p><pre><code>EchoServer listening on port 32452. Type quit or press Ctrl+C to stop.</code></pre><p>Create·Start·Stop 오류는 각각 create failed, start failed, stop failed로 구분된다. listen 문구 뒤에는 클라이언트로 실제 왕복을 별도로 확인한다.</p><p>위 그림의 장면을 실제 코드로 내려가 읽는다. 줄 번호 옆 작은 숫자는 해당 단계가 시작하는 곳이다.</p><div data-walkthrough="W01"><p class="no-script">코드 따라가기의 단계는 아래 설명과 실제 코드 버튼으로도 확인할 수 있다.</p></div>
+</section><section id="echo-ov-flow"><h2>패킷 하나가 왕복하는 길</h2>
+<p>그림으로 보기 · 단계 버튼으로 요청과 상태가 바뀌는 순서를 확인한다. 다음 코드 설명은 이 그림의 해당 단계를 구체적으로 읽는다.</p><details class="predict"><summary>먼저 예측해 보기 · Create가 오류를 반환했다. 다음 단계는 무엇인가?</summary><p>오류를 기록하고 Start를 호출하지 않는다 — W01은 create failed를 출력하고 종료 코드 3으로 반환한다.</p></details><figure data-figure="F-P03-1"><p class="no-script">단계별 그림은 JavaScript를 켜면 보인다. 동작 순서와 제약은 이어지는 본문에도 적었다.</p></figure>
+<p>클라이언트가 <code>rio</code> 메시지(7바이트)를 보내고 같은 7바이트를 돌려받기까지를 네 참여자로 나누어 그렸다. 세로선은 각 참여자이고, 위에서 아래로 시간이 흐른다.</p>
+<div class="diagram diagram-scroll"><svg viewBox="0 0 820 590" role="img" aria-label="클라이언트, Windows 커널, RIONetLite I/O 워커, EchoHandler 사이의 메시지 순서도"><g>
+<rect x="20" y="10" width="140" height="44" rx="6"/><text x="90" y="38" text-anchor="middle">클라이언트</text>
+<rect x="225" y="10" width="160" height="44" rx="6"/><text x="305" y="38" text-anchor="middle">Windows 커널·RIO</text>
+<rect x="440" y="10" width="170" height="44" rx="6" class="accent-box"/><text x="525" y="38" text-anchor="middle">RIONetLite I/O 워커</text>
+<rect x="660" y="10" width="140" height="44" rx="6" class="accent-box"/><text x="730" y="38" text-anchor="middle">EchoHandler</text>
+<path class="lifeline" d="M90 54 V580 M305 54 V580 M525 54 V580 M730 54 V580"/>
+<path class="arrow" d="M525 85 H312"/><polygon class="head" points="305,85 315,80 315,90"/><text x="415" y="76" text-anchor="middle" font-size="13">0 수신 요청을 미리 게시</text>
+<path class="arrow" d="M90 130 H298"/><polygon class="head" points="305,130 295,125 295,135"/><text x="197" y="121" text-anchor="middle" font-size="13">1 7바이트 전송</text>
+<text x="315" y="158" font-size="13">2 수신 링에 쓰고</text><text x="315" y="176" font-size="13">CQ에 완료 기록</text>
+<path class="arrow-back" d="M305 195 H518"/><polygon class="head-back" points="525,195 515,190 515,200"/><text x="415" y="215" text-anchor="middle" font-size="13">3 워커가 완료를 꺼낸다</text>
+<text x="535" y="238" font-size="13">링에 7바이트 반영</text><text x="535" y="256" font-size="13">다음 수신 먼저 게시</text>
+<path class="arrow" d="M525 295 H723"/><polygon class="head" points="730,295 720,290 720,300"/><text x="628" y="286" text-anchor="middle" font-size="13">4 OnData(7바이트)</text>
+<text x="740" y="322" font-size="13">5 Decode</text><text x="740" y="340" font-size="13">→ 패킷 1개</text>
+<path class="arrow" d="M730 375 H532"/><polygon class="head" points="525,375 535,370 535,380"/><text x="628" y="366" text-anchor="middle" font-size="13">6 Send(packet)</text>
+<text x="535" y="398" font-size="13">송신 링에 복사</text><text x="535" y="416" font-size="13">RIO 송신 게시</text>
+<path class="arrow" d="M525 432 H312"/><polygon class="head" points="305,432 315,427 315,437"/>
+<path class="arrow-back" d="M525 462 H723"/><polygon class="head-back" points="730,462 720,457 720,467"/><text x="628" y="453" text-anchor="middle" font-size="13">kQueued 반환</text>
+<path class="arrow-back" d="M730 500 H532"/><polygon class="head-back" points="525,500 535,495 535,505"/><text x="628" y="491" text-anchor="middle" font-size="13">7 return 7 (소비량)</text>
+<path class="arrow" d="M305 530 H97"/><polygon class="head" points="90,530 100,525 100,535"/><text x="197" y="521" text-anchor="middle" font-size="13">8 같은 7바이트 응답</text>
+<path class="arrow-back" d="M305 560 H518"/><polygon class="head-back" points="525,560 515,555 515,565"/><text x="415" y="580" text-anchor="middle" font-size="13">9 송신 완료 → 송신 링 정리</text>
+</g></svg></div>
+<ol start="0">
+<li><strong>미리 게시한 수신 요청</strong> — 연결이 생길 때 라이브러리가 “이 세션의 수신 링 빈 칸에 데이터를 받아 달라”는 요청을 이미 맡겨 두었다.</li>
+<li><strong>전송</strong> — 클라이언트가 <code>00 00 00 07 72 69 6F</code>를 보낸다.</li>
+<li><strong>커널이 수신 링에 쓴다</strong> — <dfn data-term="registered-buffer">등록 버퍼</dfn>로 만든 수신 링에 바이트를 직접 쓰고, 이 세션 담당 워커의 CQ에 “7바이트 받음” 완료를 남긴다.</li>
+<li><strong>워커가 완료를 꺼낸다</strong> — 완료가 정말 이 세션의 현재 연결 것인지 확인하고, 받은 7바이트를 링에 반영한다. 링에 빈 칸이 있으면 다음 수신 요청을 콜백보다 먼저 게시해 둔다.</li>
+<li><strong><code>OnData</code> 호출</strong> — 워커가 아직 처리하지 않은 바이트 전체(여기서는 7바이트)를 넘긴다.</li>
+<li><strong>Decode</strong> — 디코더가 헤더의 7을 읽고, 7바이트가 다 있으므로 패킷 하나를 람다에 넘긴다.</li>
+<li><strong><code>Send</code></strong> — 패킷이 송신 링에 복사된다. 진행 중인 송신이 없으므로 RIO 송신 요청이 바로 게시되고, <code>Send</code>는 <code>kQueued</code>를 돌려준다. 이 시점은 “라이브러리가 맡았다”는 뜻이지 “상대가 받았다”는 뜻이 아니다.</li>
+<li><strong>소비량 반환</strong> — <code>OnData</code>가 7을 돌려주면 수신 링의 읽기 위치가 7만큼 이동해 그 공간이 다시 빈 칸이 된다.</li>
+<li><strong>응답 전송</strong> — 커널이 송신 링의 7바이트를 클라이언트로 보낸다.</li>
+<li><strong>송신 완료</strong> — CQ에 송신 완료가 오면 워커가 보낸 만큼 송신 링을 비운다. 그 사이 쌓인 데이터가 있으면 다음 송신을 게시한다.</li>
+</ol>
+<div class="analogy"><p><strong>쪼개져 오면?</strong> 1번에서 2바이트만 먼저 도착했다고 하자. <code>OnData</code>는 2바이트를 받고, 디코더는 헤더 4바이트도 다 오지 않았으니 패킷을 찾지 못한다. <code>OnData</code>는 0을 돌려주고 2바이트는 수신 링에 그대로 남는다. 나머지 5바이트가 도착하면 <code>OnData</code>는 이어 붙은 7바이트를 받아 그때 응답한다. 앱이 조각을 모으는 버퍼를 따로 만들 필요가 없다.</p></div>
+<p>정상 흐름에서 수신 요청은 항상 하나가 커널에 맡겨진 상태로 남는다. 그래서 응답 송신이 끝나도 그 세션의 메모리를 바로 해제할 수 없다. 이런 “맡긴 요청의 수명”이 3부와 4부의 핵심 주제다.</p>
+<button class="source" data-evidence="worker.dispatch">실제 코드 · 수신 완료 검사와 다음 수신 선게시</button>
+</section><section id="echo-ov-code"><h2>전체 코드는 두 덩어리다</h2><p>출력 형식 예 · 실제 코드의 문자열을 재현한 것이며 이번 집필에서 네이티브 서버를 실행한 로그는 아니다.</p><pre><code>EchoServer listening on port 32452. Type quit or press Ctrl+C to stop.</code></pre><p>Create·Start·Stop 오류는 각각 create failed, start failed, stop failed로 구분된다. listen 문구 뒤에는 클라이언트로 실제 왕복을 별도로 확인한다.</p><p>위 그림의 장면을 실제 코드로 내려가 읽는다. 줄 번호 옆 작은 숫자는 해당 단계가 시작하는 곳이다.</p><div data-walkthrough="W01"><p class="no-script">코드 따라가기의 단계는 아래 설명과 실제 코드 버튼으로도 확인할 수 있다.</p></div>
 <p><code>main.cpp</code>는 약 220줄이지만 절반 가까이는 명령행 옵션 처리다. 뼈대는 두 덩어리뿐이다. 네트워크 알림을 받아 응답하는 <code>EchoHandler</code> 클래스와, 서버를 만들고 돌리고 멈추는 <code>main</code> 함수다. 아래는 실제 코드에서 옵션 처리, 로그 출력, Ctrl+C 처리를 뺀 축약본이다. 번호는 바로 아래 표의 설명과 짝을 이룬다.</p>
 <pre><code>// samples/echo_server/main.cpp의 축약본이다. 옵션 처리와 로그 출력은 뺐다.
 class EchoHandler final : public rionetlite::EventHandler {
@@ -73,48 +111,7 @@ int main() {
 </tbody></table></div>
 <p>코드에 <dfn data-term="socket">소켓</dfn>, 스레드 생성, RIO 함수가 하나도 없다는 점에 주목한다. 그 일은 모두 라이브러리 안에서 일어난다. 실제 원문은 아래 버튼으로 확인한다.</p>
 <button class="source" data-evidence="echo.main">실제 코드 · main의 생성·시작·정지 순서</button><button class="source" data-evidence="echo.on_data">실제 코드 · EchoHandler::OnData</button>
-</section>
-<section id="echo-ov-flow"><h2>패킷 하나가 왕복하는 길</h2>
-<p>그림으로 보기 · 단계 버튼으로 요청과 상태가 바뀌는 순서를 확인한다. 다음 코드 설명은 이 그림의 해당 단계를 구체적으로 읽는다.</p><details class="predict"><summary>먼저 예측해 보기 · Create가 오류를 반환했다. 다음 단계는 무엇인가?</summary><p>오류를 기록하고 Start를 호출하지 않는다 — W01은 create failed를 출력하고 종료 코드 3으로 반환한다.</p></details><figure data-figure="F-P03-1"><p class="no-script">단계별 그림은 JavaScript를 켜면 보인다. 동작 순서와 제약은 이어지는 본문에도 적었다.</p></figure>
-<p>클라이언트가 <code>rio</code> 메시지(7바이트)를 보내고 같은 7바이트를 돌려받기까지를 네 참여자로 나누어 그렸다. 세로선은 각 참여자이고, 위에서 아래로 시간이 흐른다.</p>
-<div class="diagram diagram-scroll"><svg viewBox="0 0 820 590" role="img" aria-label="클라이언트, Windows 커널, RIONetLite I/O 워커, EchoHandler 사이의 메시지 순서도"><g>
-<rect x="20" y="10" width="140" height="44" rx="6"/><text x="90" y="38" text-anchor="middle">클라이언트</text>
-<rect x="225" y="10" width="160" height="44" rx="6"/><text x="305" y="38" text-anchor="middle">Windows 커널·RIO</text>
-<rect x="440" y="10" width="170" height="44" rx="6" class="accent-box"/><text x="525" y="38" text-anchor="middle">RIONetLite I/O 워커</text>
-<rect x="660" y="10" width="140" height="44" rx="6" class="accent-box"/><text x="730" y="38" text-anchor="middle">EchoHandler</text>
-<path class="lifeline" d="M90 54 V580 M305 54 V580 M525 54 V580 M730 54 V580"/>
-<path class="arrow" d="M525 85 H312"/><polygon class="head" points="305,85 315,80 315,90"/><text x="415" y="76" text-anchor="middle" font-size="13">0 수신 요청을 미리 게시</text>
-<path class="arrow" d="M90 130 H298"/><polygon class="head" points="305,130 295,125 295,135"/><text x="197" y="121" text-anchor="middle" font-size="13">1 7바이트 전송</text>
-<text x="315" y="158" font-size="13">2 수신 링에 쓰고</text><text x="315" y="176" font-size="13">CQ에 완료 기록</text>
-<path class="arrow-back" d="M305 195 H518"/><polygon class="head-back" points="525,195 515,190 515,200"/><text x="415" y="215" text-anchor="middle" font-size="13">3 워커가 완료를 꺼낸다</text>
-<text x="535" y="238" font-size="13">링에 7바이트 반영</text><text x="535" y="256" font-size="13">다음 수신 먼저 게시</text>
-<path class="arrow" d="M525 295 H723"/><polygon class="head" points="730,295 720,290 720,300"/><text x="628" y="286" text-anchor="middle" font-size="13">4 OnData(7바이트)</text>
-<text x="740" y="322" font-size="13">5 Decode</text><text x="740" y="340" font-size="13">→ 패킷 1개</text>
-<path class="arrow" d="M730 375 H532"/><polygon class="head" points="525,375 535,370 535,380"/><text x="628" y="366" text-anchor="middle" font-size="13">6 Send(packet)</text>
-<text x="535" y="398" font-size="13">송신 링에 복사</text><text x="535" y="416" font-size="13">RIO 송신 게시</text>
-<path class="arrow" d="M525 432 H312"/><polygon class="head" points="305,432 315,427 315,437"/>
-<path class="arrow-back" d="M525 462 H723"/><polygon class="head-back" points="730,462 720,457 720,467"/><text x="628" y="453" text-anchor="middle" font-size="13">kQueued 반환</text>
-<path class="arrow-back" d="M730 500 H532"/><polygon class="head-back" points="525,500 535,495 535,505"/><text x="628" y="491" text-anchor="middle" font-size="13">7 return 7 (소비량)</text>
-<path class="arrow" d="M305 530 H97"/><polygon class="head" points="90,530 100,525 100,535"/><text x="197" y="521" text-anchor="middle" font-size="13">8 같은 7바이트 응답</text>
-<path class="arrow-back" d="M305 560 H518"/><polygon class="head-back" points="525,560 515,555 515,565"/><text x="415" y="580" text-anchor="middle" font-size="13">9 송신 완료 → 송신 링 정리</text>
-</g></svg></div>
-<ol start="0">
-<li><strong>미리 게시한 수신 요청</strong> — 연결이 생길 때 라이브러리가 “이 세션의 수신 링 빈 칸에 데이터를 받아 달라”는 요청을 이미 맡겨 두었다.</li>
-<li><strong>전송</strong> — 클라이언트가 <code>00 00 00 07 72 69 6F</code>를 보낸다.</li>
-<li><strong>커널이 수신 링에 쓴다</strong> — <dfn data-term="registered-buffer">등록 버퍼</dfn>로 만든 수신 링에 바이트를 직접 쓰고, 이 세션 담당 워커의 CQ에 “7바이트 받음” 완료를 남긴다.</li>
-<li><strong>워커가 완료를 꺼낸다</strong> — 완료가 정말 이 세션의 현재 연결 것인지 확인하고, 받은 7바이트를 링에 반영한다. 링에 빈 칸이 있으면 다음 수신 요청을 콜백보다 먼저 게시해 둔다.</li>
-<li><strong><code>OnData</code> 호출</strong> — 워커가 아직 처리하지 않은 바이트 전체(여기서는 7바이트)를 넘긴다.</li>
-<li><strong>Decode</strong> — 디코더가 헤더의 7을 읽고, 7바이트가 다 있으므로 패킷 하나를 람다에 넘긴다.</li>
-<li><strong><code>Send</code></strong> — 패킷이 송신 링에 복사된다. 진행 중인 송신이 없으므로 RIO 송신 요청이 바로 게시되고, <code>Send</code>는 <code>kQueued</code>를 돌려준다. 이 시점은 “라이브러리가 맡았다”는 뜻이지 “상대가 받았다”는 뜻이 아니다.</li>
-<li><strong>소비량 반환</strong> — <code>OnData</code>가 7을 돌려주면 수신 링의 읽기 위치가 7만큼 이동해 그 공간이 다시 빈 칸이 된다.</li>
-<li><strong>응답 전송</strong> — 커널이 송신 링의 7바이트를 클라이언트로 보낸다.</li>
-<li><strong>송신 완료</strong> — CQ에 송신 완료가 오면 워커가 보낸 만큼 송신 링을 비운다. 그 사이 쌓인 데이터가 있으면 다음 송신을 게시한다.</li>
-</ol>
-<div class="analogy"><p><strong>쪼개져 오면?</strong> 1번에서 2바이트만 먼저 도착했다고 하자. <code>OnData</code>는 2바이트를 받고, 디코더는 헤더 4바이트도 다 오지 않았으니 패킷을 찾지 못한다. <code>OnData</code>는 0을 돌려주고 2바이트는 수신 링에 그대로 남는다. 나머지 5바이트가 도착하면 <code>OnData</code>는 이어 붙은 7바이트를 받아 그때 응답한다. 앱이 조각을 모으는 버퍼를 따로 만들 필요가 없다.</p></div>
-<p>정상 흐름에서 수신 요청은 항상 하나가 커널에 맡겨진 상태로 남는다. 그래서 응답 송신이 끝나도 그 세션의 메모리를 바로 해제할 수 없다. 이런 “맡긴 요청의 수명”이 3부와 4부의 핵심 주제다.</p>
-<button class="source" data-evidence="worker.dispatch">실제 코드 · 수신 완료 검사와 다음 수신 선게시</button>
-</section>
-<section id="echo-ov-run"><h2>직접 실행해 본다</h2>
+</section><section id="echo-ov-run"><h2>직접 실행해 본다</h2>
 <p>저장소 루트의 PowerShell에서 실행한다. 첫 명령은 Release 구성을 빌드하고 단위·통합 테스트까지 실행한다. 도구 설치와 오류 해결은 <a href="#chapter=build-and-run">C02</a>에서 자세히 다룬다.</p>
 <pre><code>tools\build.ps1 -Configuration Release
 bin\x64\Release\EchoServer.exe --port 32452
@@ -122,8 +119,7 @@ bin\x64\Release\EchoServer.exe --port 32452
 # 다른 터미널에서 부하 클라이언트로 10초 동안 왕복을 확인한다.
 bin\x64\Release\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenario echo --json result.json</code></pre>
 <p>서버 창에 <code>EchoServer listening on port 32452</code>가 보이면 접속을 기다리는 중이다. 클라이언트가 붙을 때마다 <code>connected:</code> 뒤에 세션의 index와 generation이 <code>index:generation</code> 형태로 찍힌다. 클라이언트가 끝나면 <code>result.json</code>에서 받은 패킷 수가 0보다 크고 오류 카운터가 0인지 확인한다. 서버는 콘솔에 <code>quit</code>을 입력하거나 Ctrl+C로 멈춘다.</p>
-</section>
-<section id="echo-ov-next"><h2>여기서 어디로 가는가</h2>
+</section><section id="echo-ov-next"><h2>여기서 어디로 가는가</h2>
 <p>이제 라이브러리 전체와 Echo의 흐름을 한 번 보았다. 다음 장부터는 이 그림의 한 부분씩을 확대한다. 궁금한 것에 따라 골라 읽어도 되고, 처음이라면 C02부터 순서대로 읽는다.</p>
 <div class="table-wrap"><table><thead><tr><th>궁금한 것</th><th>읽을 장</th></tr></thead><tbody>
 <tr><td>빌드가 안 되거나 포트 오류가 난다.</td><td><a href="#chapter=build-and-run">C02 빌드와 첫 실행</a></td></tr>

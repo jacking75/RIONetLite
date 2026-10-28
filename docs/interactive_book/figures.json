@@ -39,7 +39,11 @@
               "kind": "call",
               "from": "worker"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W01",
+            "step": 4
+          }
         },
         {
           "title": "바이트가 도착한다",
@@ -52,7 +56,11 @@
               "kind": "data",
               "from": "client"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W02",
+            "step": 0
+          }
         },
         {
           "title": "완료를 꺼내 링에 반영한다",
@@ -65,7 +73,11 @@
               "kind": "completion",
               "from": "kernel"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W04",
+            "step": 1
+          }
         },
         {
           "title": "다음 수신을 게시하고 콜백을 부른다",
@@ -78,7 +90,11 @@
               "kind": "callback",
               "from": "worker"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 3
+          }
         },
         {
           "title": "프레임을 자르고 송신을 접수한다",
@@ -91,7 +107,11 @@
               "kind": "call",
               "from": "app"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W02",
+            "step": 1
+          }
         },
         {
           "title": "송신 요청과 완료로 링을 회수한다",
@@ -104,7 +124,11 @@
               "kind": "completion",
               "from": "worker"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W08",
+            "step": 1
+          }
         }
       ],
       "caption": "단계 간격은 실제 시간이 아니다. 한 프레임이 한 번에 도착한 정상 예이며 분할 도착은 C13에서 다룬다."
@@ -166,31 +190,51 @@
           "title": "구현 객체 준비",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "api.server_contract",
-          "active": "kCreated"
+          "active": "kCreated",
+          "walkthrough": {
+            "id": "W01",
+            "step": 0
+          }
         },
         {
           "title": "Create 초기화 성공",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "api.server_contract",
-          "active": "kInitialized"
+          "active": "kInitialized",
+          "walkthrough": {
+            "id": "W01",
+            "step": 2
+          }
         },
         {
           "title": "Start 성공",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "api.server_contract",
-          "active": "kRunning"
+          "active": "kRunning",
+          "walkthrough": {
+            "id": "W01",
+            "step": 4
+          }
         },
         {
           "title": "Stop 소유자 결정",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "api.server_contract",
-          "active": "kStopping"
+          "active": "kStopping",
+          "walkthrough": {
+            "id": "W10",
+            "step": 2
+          }
         },
         {
           "title": "워커 종료와 정리 완료",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "api.server_contract",
-          "active": "kStopped"
+          "active": "kStopped",
+          "walkthrough": {
+            "id": "W10",
+            "step": 7
+          }
         }
       ],
       "caption": "정상 경로를 읽는 지도다. 실패·재시작·quarantine에서 free로의 반환은 관련 본문과 실제 코드에서 확인한다."
@@ -262,37 +306,61 @@
           "title": "빈 슬롯",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kFree"
+          "active": "kFree",
+          "walkthrough": {
+            "id": "W03",
+            "step": 2
+          }
         },
         {
           "title": "accept가 슬롯 예약",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kAccepting"
+          "active": "kAccepting",
+          "walkthrough": {
+            "id": "W03",
+            "step": 4
+          }
         },
         {
           "title": "연결 콜백 보호",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kActive"
+          "active": "kActive",
+          "walkthrough": {
+            "id": "W03",
+            "step": 5
+          }
         },
         {
           "title": "FIN 뒤 송신 배출",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kDraining"
+          "active": "kDraining",
+          "walkthrough": {
+            "id": "W09",
+            "step": 1
+          }
         },
         {
           "title": "종료 승자 결정",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kClosing"
+          "active": "kClosing",
+          "walkthrough": {
+            "id": "W09",
+            "step": 4
+          }
         },
         {
           "title": "미완료 참조 격리",
           "text": "표시한 상태는 실제 enum 이름이다. 다음 상태로 넘어가기 전에 해당 콜백·요청의 수명 조건을 만족해야 한다.",
           "evidence": "session.lifecycle",
-          "active": "kQuarantined"
+          "active": "kQuarantined",
+          "walkthrough": {
+            "id": "W09",
+            "step": 6
+          }
         }
       ],
       "caption": "정상 경로를 읽는 지도다. 실패·재시작·quarantine에서 free로의 반환은 관련 본문과 실제 코드에서 확인한다."
@@ -1665,7 +1733,11 @@
               "label": "접속",
               "kind": "data"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 0
+          }
         },
         {
           "title": "빈 슬롯을 빌린다",
@@ -1678,7 +1750,11 @@
               "label": "AllocClientSession",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 2
+          }
         },
         {
           "title": "담당 CQ를 고른다",
@@ -1691,7 +1767,11 @@
               "label": "owner → CQ",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 3
+          }
         },
         {
           "title": "RQ와 세션을 준비한다",
@@ -1704,7 +1784,11 @@
               "label": "NewSession",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 4
+          }
         },
         {
           "title": "연결 콜백을 먼저 부른다",
@@ -1717,7 +1801,11 @@
               "label": "OnConnected",
               "kind": "callback"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 5
+          }
         },
         {
           "title": "여전히 연결돼 있으면 수신을 맡긴다",
@@ -1730,7 +1818,11 @@
               "label": "PostRecv",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 6
+          }
         },
         {
           "title": "슬롯 보호를 마지막에 푼다",
@@ -1743,7 +1835,11 @@
               "label": "CompleteConnectCallback",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W03",
+            "step": 7
+          }
         }
       ],
       "caption": "실제 워커의 완료 처리는 별도 스레드에서 이어진다. 이 그림의 세션·CQ 레인은 저장소 경계다."
@@ -1782,7 +1878,11 @@
               "label": "CQ 결과",
               "kind": "completion"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W04",
+            "step": 2
+          }
         },
         {
           "title": "실제 받은 길이를 링에 반영한다",
@@ -1795,7 +1895,11 @@
               "label": "RecvCompletion",
               "kind": "data"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 1
+          }
         },
         {
           "title": "빈 공간으로 다음 수신을 맡긴다",
@@ -1808,7 +1912,11 @@
               "label": "PostRecv(빈 칸)",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 2
+          }
         },
         {
           "title": "읽기 범위로 앱을 부른다",
@@ -1821,7 +1929,11 @@
               "label": "OnData(span)",
               "kind": "callback"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 3
+          }
         },
         {
           "title": "실제 소비량만 회수한다",
@@ -1834,7 +1946,11 @@
               "label": "소비 바이트",
               "kind": "data"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 4
+          }
         },
         {
           "title": "필요하면 게시를 재시도한다",
@@ -1847,7 +1963,11 @@
               "label": "보류 수신 재시도",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W05",
+            "step": 5
+          }
         }
       ],
       "caption": "아래 링은 읽기·쓰기 구간의 예다. 다음 완료가 콜백 중에 기록될 수 있어도 같은 워커가 콜백을 중첩 처리하지 않는다."
@@ -1885,7 +2005,11 @@
         {
           "title": "내부 링에 접수한다",
           "text": "Send가 4바이트를 복사해 kQueued를 반환한다. 상대 처리나 완료는 아직 확인하지 않았다.",
-          "evidence": "api.send"
+          "evidence": "api.send",
+          "walkthrough": {
+            "id": "W07",
+            "step": 3
+          }
         },
         {
           "title": "진행 요청 하나가 링 앞부분을 참조한다",
@@ -1894,6 +2018,10 @@
           "spec": {
             "posted": 4,
             "inFlight": 4
+          },
+          "walkthrough": {
+            "id": "W07",
+            "step": 5
           }
         },
         {
@@ -1906,6 +2034,10 @@
             "used": 2,
             "posted": 2,
             "inFlight": 2
+          },
+          "walkthrough": {
+            "id": "W08",
+            "step": 1
           }
         }
       ],
@@ -1945,7 +2077,11 @@
               "label": "FIN / 완료 0",
               "kind": "completion"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W09",
+            "step": 0
+          }
         },
         {
           "title": "접수 송신의 완료를 기다린다",
@@ -1958,7 +2094,11 @@
               "label": "송신 잔여 참조",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W09",
+            "step": 3
+          }
         },
         {
           "title": "완료 또는 기한으로 닫기를 결정한다",
@@ -1971,7 +2111,11 @@
               "label": "소켓 닫기",
               "kind": "call"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W09",
+            "step": 4
+          }
         },
         {
           "title": "닫힘 통지 뒤에도 참조를 확인한다",
@@ -1984,7 +2128,11 @@
               "label": "OnClosed",
               "kind": "callback"
             }
-          ]
+          ],
+          "walkthrough": {
+            "id": "W09",
+            "step": 6
+          }
         }
       ],
       "caption": "peer drain 기한과 서버 전체 Stop 예산은 다른 값이다. 실제 시각 비율은 생략했다."
@@ -2014,7 +2162,11 @@
         {
           "title": "두 선행 이벤트가 링을 채웠다",
           "text": "payload는 큐의 자체 슬롯에 복사되어 있다. 앱의 로직 워커가 순서대로 소비한다.",
-          "evidence": "queue.push"
+          "evidence": "queue.push",
+          "walkthrough": {
+            "id": "W11",
+            "step": 0
+          }
         },
         {
           "title": "close가 가득 찬 링 밖에 보류된다",
@@ -2027,6 +2179,10 @@
                 "parked": true
               }
             ]
+          },
+          "walkthrough": {
+            "id": "W11",
+            "step": 2
           }
         },
         {
@@ -2051,6 +2207,10 @@
                 "parked": false
               }
             ]
+          },
+          "walkthrough": {
+            "id": "W11",
+            "step": 4
           }
         }
       ],
@@ -2389,7 +2549,11 @@
         {
           "title": "처음 4바이트 요청이 진행 중이다",
           "text": "원래 요청 구간 전체를 완료 전까지 유지한다.",
-          "evidence": "send.partial_completion"
+          "evidence": "send.partial_completion",
+          "walkthrough": {
+            "id": "W08",
+            "step": 0
+          }
         },
         {
           "title": "앞의 2바이트만 소비한다",
@@ -2400,6 +2564,10 @@
             "marks": [
               "offset 2 · remaining 2 · 새 요청 1"
             ]
+          },
+          "walkthrough": {
+            "id": "W08",
+            "step": 1
           }
         },
         {
@@ -2411,6 +2579,10 @@
             "marks": [
               "offset 4 · remaining 0"
             ]
+          },
+          "walkthrough": {
+            "id": "W08",
+            "step": 2
           }
         }
       ],

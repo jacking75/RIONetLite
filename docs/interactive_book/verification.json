@@ -2,266 +2,295 @@
   "schemaVersion": 1,
   "edition": "rionetlite-book-1",
   "date": "2026-10-28",
-  "checks": [
-    {
-      "name": "x64 Debug 전체 재빌드·실제 RIO",
-      "status": "passed",
-      "result": "2026-10-27 로컬 실행: 경고·오류 0, 단위 63개와 RIO 통합 25개 통과. .artifacts/logs/book-debug-build.log"
-    },
-    {
-      "name": "x64 Release 전체 재빌드·실제 RIO",
-      "status": "passed",
-      "result": "2026-10-27 로컬 실행: 경고·오류 0, 단위 62개 통과·Debug allocation hook 1개 제외, RIO 통합 25개 통과. .artifacts/logs/book-release-build.log"
-    },
-    {
-      "name": "Echo Debug·Release 실제 왕복",
-      "status": "passed",
-      "result": "2+3+2 분할, 두 패킷 합침, 잘못된 길이 종료, stop-file 정상 종료. 두 구성 exit 0, 강제 종료 없음. .artifacts/book/echo/"
-    },
-    {
-      "name": "Chat 실제 C# 프로토콜·종료",
-      "status": "passed",
-      "result": "Release·로직 샤드 1/2/4: 공용 fixture 8개, 각 broadcast 수신 21회·malformed 종료 5개, active/queue/inbox 0·exit 0. logs/book_chat/"
-    },
-    {
-      "name": "설정 계산 C++ 대조",
-      "status": "passed",
-      "result": "실제 src/config.cpp를 /W4 /WX로 컴파일·실행한 16개 경계 사례와 JavaScript를 대조했다. tools/book/fixtures/configuration.json"
-    },
-    {
-      "name": "책 내용·출처·이관",
-      "status": "passed",
-      "result": "내용 회귀 19개, 원고 33개·검토한 출처 64개·API 28개·이관 493개와 링크·consumer 예제 일치 검사 통과. .artifacts/logs/book-content-final.log"
-    },
-    {
-      "name": "20개 순수 모델",
-      "status": "passed",
-      "result": "정상·경계·실패와 각 공개 시나리오의 모든 prefix·초기화·불변성·bounded JSON 검사를 포함해 56개 통과. .artifacts/logs/book-final-check-0.log"
-    },
-    {
-      "name": "독립 HTML·실제 Edge",
-      "status": "passed",
-      "result": "Edge 156.0.4314.42·file://·네트워크 차단·33장·20실험·1440/1920/390px 검사 통과. 예외·외부 요청 0. 첫 렌더 288.6ms, 검색 10.0ms, 단계 최대 1.1ms. 인쇄 261쪽의 빈 페이지·페이지 밖 텍스트 0과 대표 페이지 육안 검수. .artifacts/book/reader/"
-    },
-    {
-      "name": "ZIP만 사용한 consumer",
-      "status": "passed",
-      "result": "문서 최종 기록 확정 직전 개발 후보의 정확한 source snapshot으로 fresh Release lib/PDB를 만들고 ZIP만 푼 consumer를 빌드·실행했다. exit 0. SourceDirty=true·tag 필수 아님. 최종 commit의 정식 release를 검사한 것은 아니다. .artifacts/logs/book-package-final.log"
-    },
-    {
-      "name": "이번 판에서 제외한 추가 인수",
-      "status": "not-run",
-      "result": "ASan·Verifier·PageHeap·긴/고부하·GUI 사람 조작·다른 장비/OS·고정 baseline 승인·release tag/게시·실제 게임 운영은 수행하지 않았다."
-    }
-  ],
-  "browserReceipt": {
-    "scope": "complete book browser acceptance",
-    "browser": "156.0.4314.42",
-    "offline": true,
-    "chapters": 33,
-    "labs": [
+  "previousEditionVerification": {
+    "date": "2026-10-28",
+    "checks": [
       {
-        "id": "L01",
-        "stepMs": 0.5999999046325684,
-        "actions": 6,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "x64 Debug 전체 재빌드·실제 RIO",
+        "status": "passed",
+        "result": "2026-10-27 로컬 실행: 경고·오류 0, 단위 63개와 RIO 통합 25개 통과. .artifacts/logs/book-debug-build.log"
       },
       {
-        "id": "L02",
-        "stepMs": 0.40000009536743164,
-        "actions": 2,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "x64 Release 전체 재빌드·실제 RIO",
+        "status": "passed",
+        "result": "2026-10-27 로컬 실행: 경고·오류 0, 단위 62개 통과·Debug allocation hook 1개 제외, RIO 통합 25개 통과. .artifacts/logs/book-release-build.log"
       },
       {
-        "id": "L03",
-        "stepMs": 0.6000000238418579,
-        "actions": 5,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "Echo Debug·Release 실제 왕복",
+        "status": "passed",
+        "result": "2+3+2 분할, 두 패킷 합침, 잘못된 길이 종료, stop-file 정상 종료. 두 구성 exit 0, 강제 종료 없음. .artifacts/book/echo/"
       },
       {
-        "id": "L04",
-        "stepMs": 0.5,
-        "actions": 5,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "Chat 실제 C# 프로토콜·종료",
+        "status": "passed",
+        "result": "Release·로직 샤드 1/2/4: 공용 fixture 8개, 각 broadcast 수신 21회·malformed 종료 5개, active/queue/inbox 0·exit 0. logs/book_chat/"
       },
       {
-        "id": "L05",
-        "stepMs": 0.7000000476837158,
-        "actions": 5,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "설정 계산 C++ 대조",
+        "status": "passed",
+        "result": "실제 src/config.cpp를 /W4 /WX로 컴파일·실행한 16개 경계 사례와 JavaScript를 대조했다. tools/book/fixtures/configuration.json"
       },
       {
-        "id": "L06",
-        "stepMs": 0.6000000238418579,
-        "actions": 7,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "책 내용·출처·이관",
+        "status": "passed",
+        "result": "내용 회귀 19개, 원고 33개·검토한 출처 64개·API 28개·이관 493개와 링크·consumer 예제 일치 검사 통과. .artifacts/logs/book-content-final.log"
       },
       {
-        "id": "L07",
-        "stepMs": 0.5999999046325684,
-        "actions": 8,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "20개 순수 모델",
+        "status": "passed",
+        "result": "정상·경계·실패와 각 공개 시나리오의 모든 prefix·초기화·불변성·bounded JSON 검사를 포함해 56개 통과. .artifacts/logs/book-final-check-0.log"
       },
       {
-        "id": "L08",
-        "stepMs": 0.40000009536743164,
-        "actions": 4,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "독립 HTML·실제 Edge",
+        "status": "passed",
+        "result": "Edge 156.0.4314.42·file://·네트워크 차단·33장·20실험·1440/1920/390px 검사 통과. 예외·외부 요청 0. 첫 렌더 288.6ms, 검색 10.0ms, 단계 최대 1.1ms. 인쇄 261쪽의 빈 페이지·페이지 밖 텍스트 0과 대표 페이지 육안 검수. .artifacts/book/reader/"
       },
       {
-        "id": "L09",
-        "stepMs": 0.7000000476837158,
-        "actions": 3,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "ZIP만 사용한 consumer",
+        "status": "passed",
+        "result": "문서 최종 기록 확정 직전 개발 후보의 정확한 source snapshot으로 fresh Release lib/PDB를 만들고 ZIP만 푼 consumer를 빌드·실행했다. exit 0. SourceDirty=true·tag 필수 아님. 최종 commit의 정식 release를 검사한 것은 아니다. .artifacts/logs/book-package-final.log"
       },
       {
-        "id": "L10",
-        "stepMs": 0.5,
-        "actions": 7,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L11",
-        "stepMs": 0.5,
-        "actions": 2,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L12",
-        "stepMs": 0.3999999761581421,
-        "actions": 4,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L13",
-        "stepMs": 0.7999999523162842,
-        "actions": 8,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L14",
-        "stepMs": 0.5999999046325684,
-        "actions": 6,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L15",
-        "stepMs": 1.100000023841858,
-        "actions": 8,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L16",
-        "stepMs": 0.7000000476837158,
-        "actions": 5,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L17",
-        "stepMs": 0.7999999523162842,
-        "actions": 1,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L18",
-        "stepMs": 0.5,
-        "actions": 2,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L19",
-        "stepMs": 0.5,
-        "actions": 3,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
-      },
-      {
-        "id": "L20",
-        "stepMs": 0.7000000476837158,
-        "actions": 5,
-        "jsonReplay": true,
-        "undoRedo": true,
-        "playStop": true
+        "name": "이번 판에서 제외한 추가 인수",
+        "status": "not-run",
+        "result": "ASan·Verifier·PageHeap·긴/고부하·GUI 사람 조작·다른 장비/OS·고정 baseline 승인·release tag/게시·실제 게임 운영은 수행하지 않았다."
       }
     ],
-    "viewports": [
-      1440,
-      1920,
-      390
-    ],
-    "firstRenderMs": 288.60000002384186,
-    "searchMs": 10,
-    "errors": [],
-    "externalRequests": [],
-    "checks": [
-      "canonical/legacy URL",
-      "back/forward",
-      "search and aliases",
-      "source scopes, history and focus",
-      "all 20 models: JSON replay, undo/redo, play/stop",
-      "bounded scenario JSON",
-      "persistence",
-      "storage blocked",
-      "keyboard menu",
-      "reduced motion",
-      "all-chapter print visibility and PDF",
-      "representative screenshots"
-    ]
-  },
-  "packageCandidate": {
-    "Passed": true,
-    "Zip": "C:\\github_dev\\RIONetLite\\artifacts\\RIONetLite-0.3.0.zip",
-    "ZipSHA256": "F758FA16FEE1A2A1BCD261AD47EBD76CA45F5E318891E362313A8E557D3B2367",
-    "SourceTreeSHA256": "7105E46C33A49146263699523424C359A1A9C098D3A48E948B3C697B6A8B5CAB",
-    "ConsumerExitCode": 0,
-    "scope": "Development snapshot immediately before the final documentation receipt and plan cleanup; not a tagged release or the final commit package."
-  },
-  "nativeLogHashes": {
-    "book-debug-build.log": "e5c8b918782f0d4a3a2ca8dd314b9f61c6d0aee9749ee0e8604d95c14406b0e3",
-    "book-release-build.log": "08f239eaa9cdb665c5dd51524b173a9455749621f595b3b62a9a6ebe835af93f",
-    "book-chat.log": "daed483e2cf807ce127abbf3c54686b614cd83fd9e24fa520f39eac5baa84d7e",
-    "book-final-check-0.log": "38031d321e49a239ca88dae128225d34207e9a213e7ab25db49a3e95db3eb652",
-    "book-final-check-1.log": "4dcb4edbbb4b65ba5f6dc227f7ea13f2907ee9774be4a44128ad46174f1fc3d3",
-    "book-package-final.log": "fee644a6124fad973ac49808e28fca221f66a366452fff81fadf3dfe22792f06",
-    "book-content-final.log": "921d53c091916af5da2b5899ce5f5d8e4351c5eed3d1eafedba912a42f7dc2bc",
-    "book-browser-final.log": "bc2798e919c65de6726405f3b15f487a24e82130d533dd2318e996968de86663"
+    "browserReceipt": {
+      "scope": "complete book browser acceptance",
+      "browser": "156.0.4314.42",
+      "offline": true,
+      "chapters": 33,
+      "labs": [
+        {
+          "id": "L01",
+          "stepMs": 0.5999999046325684,
+          "actions": 6,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L02",
+          "stepMs": 0.40000009536743164,
+          "actions": 2,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L03",
+          "stepMs": 0.6000000238418579,
+          "actions": 5,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L04",
+          "stepMs": 0.5,
+          "actions": 5,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L05",
+          "stepMs": 0.7000000476837158,
+          "actions": 5,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L06",
+          "stepMs": 0.6000000238418579,
+          "actions": 7,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L07",
+          "stepMs": 0.5999999046325684,
+          "actions": 8,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L08",
+          "stepMs": 0.40000009536743164,
+          "actions": 4,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L09",
+          "stepMs": 0.7000000476837158,
+          "actions": 3,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L10",
+          "stepMs": 0.5,
+          "actions": 7,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L11",
+          "stepMs": 0.5,
+          "actions": 2,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L12",
+          "stepMs": 0.3999999761581421,
+          "actions": 4,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L13",
+          "stepMs": 0.7999999523162842,
+          "actions": 8,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L14",
+          "stepMs": 0.5999999046325684,
+          "actions": 6,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L15",
+          "stepMs": 1.100000023841858,
+          "actions": 8,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L16",
+          "stepMs": 0.7000000476837158,
+          "actions": 5,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L17",
+          "stepMs": 0.7999999523162842,
+          "actions": 1,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L18",
+          "stepMs": 0.5,
+          "actions": 2,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L19",
+          "stepMs": 0.5,
+          "actions": 3,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        },
+        {
+          "id": "L20",
+          "stepMs": 0.7000000476837158,
+          "actions": 5,
+          "jsonReplay": true,
+          "undoRedo": true,
+          "playStop": true
+        }
+      ],
+      "viewports": [
+        1440,
+        1920,
+        390
+      ],
+      "firstRenderMs": 288.60000002384186,
+      "searchMs": 10,
+      "errors": [],
+      "externalRequests": [],
+      "checks": [
+        "canonical/legacy URL",
+        "back/forward",
+        "search and aliases",
+        "source scopes, history and focus",
+        "all 20 models: JSON replay, undo/redo, play/stop",
+        "bounded scenario JSON",
+        "persistence",
+        "storage blocked",
+        "keyboard menu",
+        "reduced motion",
+        "all-chapter print visibility and PDF",
+        "representative screenshots"
+      ]
+    },
+    "packageCandidate": {
+      "Passed": true,
+      "Zip": "C:\\github_dev\\RIONetLite\\artifacts\\RIONetLite-0.3.0.zip",
+      "ZipSHA256": "F758FA16FEE1A2A1BCD261AD47EBD76CA45F5E318891E362313A8E557D3B2367",
+      "SourceTreeSHA256": "7105E46C33A49146263699523424C359A1A9C098D3A48E948B3C697B6A8B5CAB",
+      "ConsumerExitCode": 0,
+      "scope": "Development snapshot immediately before the final documentation receipt and plan cleanup; not a tagged release or the final commit package."
+    },
+    "nativeLogHashes": {
+      "book-debug-build.log": "e5c8b918782f0d4a3a2ca8dd314b9f61c6d0aee9749ee0e8604d95c14406b0e3",
+      "book-release-build.log": "08f239eaa9cdb665c5dd51524b173a9455749621f595b3b62a9a6ebe835af93f",
+      "book-chat.log": "daed483e2cf807ce127abbf3c54686b614cd83fd9e24fa520f39eac5baa84d7e",
+      "book-final-check-0.log": "38031d321e49a239ca88dae128225d34207e9a213e7ab25db49a3e95db3eb652",
+      "book-final-check-1.log": "4dcb4edbbb4b65ba5f6dc227f7ea13f2907ee9774be4a44128ad46174f1fc3d3",
+      "book-package-final.log": "fee644a6124fad973ac49808e28fca221f66a366452fff81fadf3dfe22792f06",
+      "book-content-final.log": "921d53c091916af5da2b5899ce5f5d8e4351c5eed3d1eafedba912a42f7dc2bc",
+      "book-browser-final.log": "bc2798e919c65de6726405f3b15f487a24e82130d533dd2318e996968de86663"
+    },
+    "printReview": {
+      "pages": 261,
+      "emptyPages": [],
+      "outsidePage": [],
+      "selectedPages": {
+        "cover": 1,
+        "echo": 25,
+        "framing": 97,
+        "partial": 106,
+        "shutdown": 117,
+        "api": 230,
+        "history": 244,
+        "maintenance": 259,
+        "last": 261
+      },
+      "fonts": [
+        "AAAAAA+Consolas",
+        "BAAAAA+GulimChe",
+        "CAAAAA+MalgunGothicBold",
+        "DAAAAA+SegoeUI-Bold",
+        "EAAAAA+MalgunGothic",
+        "FAAAAA+SegoeUI",
+        "GAAAAA+MalgunGothicBold",
+        "HAAAAA+SegoeUI-Bold"
+      ]
+    }
   },
   "stages": [
     {
@@ -317,30 +346,544 @@
       "status": "complete"
     }
   ],
-  "printReview": {
-    "pages": 261,
-    "emptyPages": [],
-    "outsidePage": [],
-    "selectedPages": {
-      "cover": 1,
-      "echo": 25,
-      "framing": 97,
-      "partial": 106,
-      "shutdown": 117,
-      "api": 230,
-      "history": 244,
-      "maintenance": 259,
-      "last": 261
+  "enhancementCounts": {
+    "chapters": 36,
+    "labs": 20,
+    "figures": 33,
+    "walkthroughs": 12,
+    "compares": 17,
+    "quizzes": 61,
+    "terms": 60,
+    "evidence": 83
+  },
+  "checks": [
+    {
+      "name": "2026-10-28 내용·모델·문서",
+      "status": "passed",
+      "result": "내용 회귀 21개·순수 모델/그림/시나리오 59개 통과. 36장·20실험·출처 83건·API 28개·원문 보존 493항목을 검사한다. 최종 실행 로그: .artifacts/logs/book/T16-3.log, T16-4.log와 T16.log."
     },
-    "fonts": [
-      "AAAAAA+Consolas",
-      "BAAAAA+GulimChe",
-      "CAAAAA+MalgunGothicBold",
-      "DAAAAA+SegoeUI-Bold",
-      "EAAAAA+MalgunGothic",
-      "FAAAAA+SegoeUI",
-      "GAAAAA+MalgunGothicBold",
-      "HAAAAA+SegoeUI-Bold"
-    ]
-  }
+    {
+      "name": "2026-10-28 오프라인 Edge·접근성·인쇄",
+      "status": "passed",
+      "result": "Edge 오프라인 file://에서 모든 장·컴포넌트·그림 단계·워크스루 강조 줄, 1440/1920/390px, 퀴즈·경로 저장, 스키마 2→3, C12 키보드 조작, 축소 동작·확대 복귀·인쇄를 검사했다. 최신 수치와 검사한 HTML SHA-256: .artifacts/book/reader/receipt.json."
+    },
+    {
+      "name": "인쇄 페이지 구조와 대표 화면",
+      "status": "passed",
+      "result": "기본 숨김과 보관 자료 포함 PDF를 각각 생성해 기본 인쇄본이 더 작음을 확인했다. 기본 PDF의 빈 페이지·페이지 밖 텍스트가 없고 대표 페이지를 육안 확인했다. 최신 페이지 수·선택 페이지: .artifacts/book/reader/print-review.json."
+    },
+    {
+      "name": "이번 보강에서 재실행하지 않은 범위",
+      "status": "not-run",
+      "result": "네이티브 Debug/Release·실제 RIO·Chat 프로세스·ASan·장시간/고부하·다른 PC/OS·사람/스크린리더·운영 인수는 재실행하지 않았다. 이전 판의 결과는 previousEditionVerification에 분리했다."
+    }
+  ],
+  "qualificationBrowserReceipt": {
+    "scope": "complete book browser acceptance",
+    "browser": "156.0.4314.50",
+    "offline": true,
+    "chapters": 36,
+    "labs": [
+      {
+        "id": "L01",
+        "stepMs": 0.6000000238418579,
+        "actions": 6,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L02",
+        "stepMs": 0.5,
+        "actions": 2,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L03",
+        "stepMs": 0.5,
+        "actions": 5,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L04",
+        "stepMs": 0.6000000238418579,
+        "actions": 5,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L05",
+        "stepMs": 0.5,
+        "actions": 5,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L06",
+        "stepMs": 0.5,
+        "actions": 7,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L07",
+        "stepMs": 0.7999999523162842,
+        "actions": 8,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L08",
+        "stepMs": 1,
+        "actions": 4,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L09",
+        "stepMs": 0.6000000238418579,
+        "actions": 3,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L10",
+        "stepMs": 1,
+        "actions": 7,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L11",
+        "stepMs": 0.7000000476837158,
+        "actions": 2,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L12",
+        "stepMs": 0.5,
+        "actions": 4,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L13",
+        "stepMs": 0.5,
+        "actions": 8,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L14",
+        "stepMs": 0.6000000238418579,
+        "actions": 6,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L15",
+        "stepMs": 1,
+        "actions": 8,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L16",
+        "stepMs": 0.5,
+        "actions": 5,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L17",
+        "stepMs": 0.5,
+        "actions": 1,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L18",
+        "stepMs": 0.6000000238418579,
+        "actions": 2,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L19",
+        "stepMs": 0.8000000715255737,
+        "actions": 3,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      },
+      {
+        "id": "L20",
+        "stepMs": 0.7999999523162842,
+        "actions": 5,
+        "jsonReplay": true,
+        "undoRedo": true,
+        "playStop": true
+      }
+    ],
+    "viewports": [
+      1440,
+      1920,
+      390
+    ],
+    "firstRenderMs": 318.59999990463257,
+    "searchMs": 6.899999976158142,
+    "errors": [],
+    "externalRequests": [],
+    "checks": [
+      "canonical/legacy URL",
+      "back/forward",
+      "search and aliases",
+      "source scopes, history and focus",
+      "all 20 models: JSON replay, undo/redo, play/stop",
+      "bounded scenario JSON",
+      "persistence",
+      "storage blocked",
+      "keyboard menu",
+      "reduced motion",
+      "all-chapter print visibility and PDF",
+      "representative screenshots",
+      "archive toggle, search, persistence and smaller default PDF",
+      "term keyboard focus return",
+      "figure step, playback cleanup and print steps",
+      "all walkthrough steps and highlighted source lines",
+      "system map keyboard selection and mini-map route",
+      "reading route selection, persistence and progress",
+      "quiz submission, explanation, persistence and print answers",
+      "all declared components and figure steps",
+      "schema v2 to v3 migration",
+      "C12 keyboard-only traversal",
+      "reduced-motion 1400ms and enlarged-figure focus return",
+      "4 MiB HTML budget"
+    ],
+    "printBytes": 1987508,
+    "archivePrintBytes": 3698832,
+    "figureStepMs": 0.29999999205271405,
+    "walkthroughs": [
+      {
+        "id": "W01",
+        "steps": 7,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W02",
+        "steps": 5,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W03",
+        "steps": 8,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W04",
+        "steps": 8,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W05",
+        "steps": 6,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W06",
+        "steps": 6,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W07",
+        "steps": 7,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W08",
+        "steps": 5,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W09",
+        "steps": 7,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W10",
+        "steps": 8,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W11",
+        "steps": 7,
+        "focusLinesChecked": true
+      },
+      {
+        "id": "W12",
+        "steps": 6,
+        "focusLinesChecked": true
+      }
+    ],
+    "components": [
+      {
+        "chapter": "reading-guide",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "server-basics",
+        "components": 7,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "library-overview",
+        "components": 6,
+        "missing": [],
+        "maxStepMs": 0.7000000476837158
+      },
+      {
+        "chapter": "echo-overview",
+        "components": 7,
+        "missing": [],
+        "maxStepMs": 0.5
+      },
+      {
+        "chapter": "build-and-run",
+        "components": 5,
+        "missing": [],
+        "maxStepMs": 0.5
+      },
+      {
+        "chapter": "public-api",
+        "components": 7,
+        "missing": [],
+        "maxStepMs": 0.2999999523162842
+      },
+      {
+        "chapter": "echo-walkthrough",
+        "components": 9,
+        "missing": [],
+        "maxStepMs": 0.40000009536743164
+      },
+      {
+        "chapter": "rio-requests",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "architecture",
+        "components": 5,
+        "missing": [],
+        "maxStepMs": 0.40000009536743164
+      },
+      {
+        "chapter": "threads-and-callbacks",
+        "components": 5,
+        "missing": [],
+        "maxStepMs": 0.6000000238418579
+      },
+      {
+        "chapter": "registered-memory",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.2999999523162842
+      },
+      {
+        "chapter": "ring-buffer",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.5
+      },
+      {
+        "chapter": "accept-and-session",
+        "components": 6,
+        "missing": [],
+        "maxStepMs": 0.6000000238418579
+      },
+      {
+        "chapter": "session-identity",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "receive-path",
+        "components": 9,
+        "missing": [],
+        "maxStepMs": 0.5
+      },
+      {
+        "chapter": "packet-framing",
+        "components": 8,
+        "missing": [],
+        "maxStepMs": 0.20000004768371582
+      },
+      {
+        "chapter": "send-path",
+        "components": 6,
+        "missing": [],
+        "maxStepMs": 0.40000009536743164
+      },
+      {
+        "chapter": "partial-send",
+        "components": 5,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "connection-close",
+        "components": 6,
+        "missing": [],
+        "maxStepMs": 0.20000004768371582
+      },
+      {
+        "chapter": "server-shutdown",
+        "components": 5,
+        "missing": [],
+        "maxStepMs": 0.2999999523162842
+      },
+      {
+        "chapter": "logic-queue",
+        "components": 6,
+        "missing": [],
+        "maxStepMs": 0.20000004768371582
+      },
+      {
+        "chapter": "chat-server",
+        "components": 10,
+        "missing": [],
+        "maxStepMs": 0.40000009536743164
+      },
+      {
+        "chapter": "application-design",
+        "components": 3,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "configuration",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.20000004768371582
+      },
+      {
+        "chapter": "logs-and-metrics",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "troubleshooting",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.3999999761581421
+      },
+      {
+        "chapter": "testing-and-memory",
+        "components": 4,
+        "missing": [],
+        "maxStepMs": 0.20000004768371582
+      },
+      {
+        "chapter": "benchmarking",
+        "components": 2,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "performance-tuning",
+        "components": 2,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "packaging-and-release",
+        "components": 2,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "safe-changes",
+        "components": 2,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "api-reference",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "glossary",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "design-decisions",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "historical-records",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      },
+      {
+        "chapter": "book-maintenance",
+        "components": 1,
+        "missing": [],
+        "maxStepMs": 0
+      }
+    ],
+    "htmlBytes": 2245841,
+    "htmlSha256": "ca8f4f2fd6ee475549be796c1866863580b77df771013a2781cdbda0d26ad0f6",
+    "keyboard": {
+      "chapter": "C12",
+      "tabCount": 97,
+      "checks": [
+        "mini",
+        "figure",
+        "figure-enter",
+        "walk",
+        "walk-enter",
+        "source-escape",
+        "lab",
+        "lab-action",
+        "quiz",
+        "quiz-submit",
+        "check"
+      ],
+      "scope": "agent keyboard execution, no mouse during traversal; no human/screen-reader acceptance"
+    }
+  },
+  "latestBrowserReceiptPath": ".artifacts/book/reader/receipt.json",
+  "latestPrintReviewPath": ".artifacts/book/reader/print-review.json"
 }

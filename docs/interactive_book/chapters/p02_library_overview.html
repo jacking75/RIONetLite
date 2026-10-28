@@ -20,7 +20,7 @@
 <tr><td><code>Server</code></td><td><code>server.h</code></td><td>서버 본체</td><td><code>Create</code> → <code>Start</code> → <code>Send</code>·<code>RequestClose</code> → <code>Stop</code></td></tr>
 </tbody></table></div>
 <p>세 가지를 조합한 가장 작은 골격은 다음과 같다. 오류 출력과 종료 신호 처리는 줄였다. 완전한 예제는 <a href="#chapter=echo-overview">P03</a>의 EchoServer다.</p>
-<pre><code>// 공개 API의 모양을 보여 주는 최소 골격이다. 오류 출력은 줄였다.
+<p class="small">학습용 예시 · API 모양을 설명하는 조각이며 독립 프로그램으로 컴파일 검증하지 않았다. 실제 예제는 포함 소스의 코드 탐험기로 확인한다.</p><pre><code>// 공개 API의 모양을 보여 주는 최소 골격이다. 오류 출력은 줄였다.
 #include "rionetlite/server.h"
 
 class MyHandler final : public rionetlite::EventHandler {

@@ -22,8 +22,11 @@ bin\x64\Debug\EchoServer.exe --port 32452 --duration 30
 
 Open [the offline book (Korean)](docs/interactive_book/index.html) in a browser.
 Download the HTML to read and run the interactive models; it needs no server or
-internet access. The book has 28 chapters, five appendices and 20 educational
-experiments, plus embedded source snapshots. See [first Echo](docs/interactive_book/index.html#chapter=echo-walkthrough),
+internet access. The book has 36 chapters (including five appendices), 20 educational experiments,
+33 figures, 12 code walkthroughs and 61 quiz questions, plus embedded source snapshots.
+Start with the [first-time reader route](docs/interactive_book/index.html#chapter=reading-guide&section=reading-routes).
+The system map, glossary popovers and progress connect scenes to code; archived
+material is hidden from the default reading, search and print views. See [first Echo](docs/interactive_book/index.html#chapter=echo-walkthrough),
 [API contracts](docs/interactive_book/index.html#chapter=api-reference),
 [Chat](docs/interactive_book/index.html#chapter=chat-server) and
 [build requirements](docs/interactive_book/index.html#chapter=build-and-run).

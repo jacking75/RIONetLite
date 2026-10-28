@@ -3,7 +3,7 @@
 <section id="send-overloads"><h2>헤더와 본문을 함께 받지만 자동으로 만들지는 않는다</h2>
 <p>한 span Send는 같은 내부 함수에 빈 두 번째 span을 넘긴다. 두 span Send는 앱이 이미 만든 헤더와 본문을 한 메시지로 이어 복사한다. 헤더를 자동 생성하거나 길이를 고쳐 주지 않는다. 전체 길이·버전·타입을 애플리케이션이 프로토콜에 맞게 만들어야 한다.</p>
 <p>Echo의 헤더는 4바이트이고 Chat의 헤더는 8바이트다. 두 span 오버로드를 쓴다는 이유로 이 두 프로토콜이 호환되지는 않는다. 이미 헤더가 들어 있는 전체 packet을 첫 span으로 주면서 같은 헤더를 다시 더하면 중복 헤더가 된다. C13과 C19의 wire 예를 기준으로 바이트를 확인한다.</p>
-<pre><code>// 애플리케이션의 4바이트 길이 헤더 예다. total=4+3=7이다.
+<p class="small">학습용 예시 · API 모양을 설명하는 조각이며 독립 프로그램으로 컴파일 검증하지 않았다. 실제 예제는 포함 소스의 코드 탐험기로 확인한다.</p><pre><code>// 애플리케이션의 4바이트 길이 헤더 예다. total=4+3=7이다.
 const std::array header{std::byte{0}, std::byte{0}, std::byte{0}, std::byte{7}};
 const std::array payload{std::byte{'r'}, std::byte{'i'}, std::byte{'o'}};
 const auto result = server.Send(session, header, payload);

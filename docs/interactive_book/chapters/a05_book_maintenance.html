@@ -4,7 +4,7 @@
 <p>그림은 figures.json, 코드 따라가기·비교는 walkthroughs.json, 확인 문제는 quizzes.json, 시스템 지도는 map.json에 선언한다. 원고의 data-* 선언을 생성기가 대조하며 모르는 참조, 중복 사용, 미사용 정의, 모호한 코드 강조 범위를 거절한다. 그림 엔진은 모델과 함께 포함되는 순수 SVG 함수다. 원고에는 실행 스크립트나 이벤트 속성을 넣지 않는다.</p>
 <p><code>docs/interactive_book/index.html</code>을 복사해 Edge 또는 Chromium에서 연다. 인터넷·서버·계정 없이 본문·검색·그림·실험·코드 탐험을 사용할 수 있다. Python과 Node는 읽을 때 필요하지 않다. 브라우저 저장소가 차단되면 읽기 위치·체크·화면 선택을 다음 실행에 보존하지 못하지만 현재 창의 학습 기능은 작동한다.</p>
 <p>주소의 chapter와 section은 공유 가능한 읽기 위치다. 처음 샘플의 p1~p10 주소도 대응 장으로 이동한다. 실험 JSON은 schemaVersion=1, 최대 32KiB, 동작 128개까지 재실행한다. 임의 C++ 실행이나 실제 로그 재생 기능이 아니다. 인쇄에서는 모든 장과 대표 상태·정적 설명을 보여 준다. 링크로 감춘 경고나 실험을 직접 눌러야만 얻는 필수 설명은 없다.</p>
-</section><section id="maintenance-build"><h2>저작 환경과 재현 명령을 맞춘다</h2>
+</section><section id="maintenance-build"><h2>저작 환경과 재현 명령을 맞춘다</h2><p>컴포넌트 저작 규약: figures.json의 그림은 sequence·state·ring·slots·queue·bytes·graph·layers 중 하나를 쓴다. walkthroughs.json의 focus는 evidence 구간 안에서 시작·끝 문자열이 각각 유일해야 한다. quizzes.json은 문항별 정답 하나와 모든 보기의 해설을 요구한다. map.json은 부품·장면·스레드·소유·관련 장·출처를 연결한다. 모르는 참조·미사용 정의·중복 워크스루·퀴즈·비교는 생성이 거절된다.</p><p>원고에는 data-figure·data-walkthrough·data-compare·data-quiz·data-map과 no-script 대체 문장을 선언한다. DOM id는 런타임에 rt- 접두사를 사용한다. 그림 엔진은 DOM 없는 순수 SVG 함수이며 단계 전환은 50ms, 실험·검색은 100ms, 첫 렌더는 2초, HTML은 4MiB 이내로 검사한다.</p><p>독자 기록의 저장 키는 rionetlite.book.reader.v2를 유지하고 내부 schemaVersion만 3으로 이관한다. 기존 checks·position·theme를 보존하며 quiz·route·showArchive를 추가한다. 예전 판의 기록이 사라졌는지는 새 저장소가 아니라 스키마 이관 검사로 확인한다. 실험 JSON의 스키마는 별도로 1이며 최대 128동작이다.</p>
 <p>저장소 루트에서 Python 3.10 이상, Node.js 20 이상과 npm, Windows PowerShell 5.1 이상을 사용한다. 브라우저 검사는 설치된 Microsoft Edge를 사용한다. 제품 빌드는 C02의 Visual Studio 2026·MSVC v145·Windows SDK·vcpkg가 별도로 필요하다. npm ci는 lock 파일대로 개발 검사 도구만 설치한다.</p>
 <pre><code>npm.cmd --prefix tools/book ci
 tools\generate-api-docs.ps1
@@ -25,9 +25,9 @@ tools\book\update_config_fixture.ps1 -Check</code></pre>
 <p>원래 Markdown 24개와 이후 main의 독자 문서·기술서·공유 TSV를 포함해 34개 개정본, 493개 내용 항목을 조사했다. 같은 경로의 원본과 작업 시작 당시 개정본은 별도 기록이다. 원문을 보존할 곳과 현재 설명을 대조할 곳을 각각 기록하고 SHA-256을 확인한 뒤 기존 독자 문서를 제거했다. 원래 삭제되어 있던 문서를 복구해서 다시 지우지 않았다.</p>
 <p>옛 기술서의 250개 소스 쪽은 파일별 원본 해시·행 범위와 현재 탐험기를 대조하고 고유한 독해 포인트를 보존했다. 과거 UI 버튼과 목차·페이지 번호는 현행 탐색·20개 실험으로 대체했다. 당시 그림은 보조 자료로 보존하며 새 실험의 동작을 대신하지 않는다. TSV는 C++와 C#가 함께 검증하는 기계 입력이므로 원래 위치에 남겼다.</p>
 <!-- MIGRATION_SUMMARY -->
-</section><section id="maintenance-acceptance"><h2>이번 판에서 실행한 범위를 확인한다</h2>
+</section><section id="maintenance-acceptance"><h2>이번 판에서 실행한 범위를 확인한다</h2><p>현재 보강본은 36개 장·20개 실험·그림 33개·코드 따라가기 12개·비교 17개·퀴즈 61문항·용어 60개·출처 83건이다. 브라우저 검사는 모든 컴포넌트와 그림 단계·워크스루 강조 줄, 스키마 이관, C12의 Tab·Enter·Space·Esc 조작, 축소 동작·확대 포커스 복귀·인쇄 대체물을 확인한다. 키보드 검사는 에이전트 조작이며 사람·스크린리더 인수를 대신하지 않는다. 최신 수치와 실행 HTML 해시는 .artifacts/book/reader/receipt.json에 남긴다.</p>
 <!-- VERIFICATION_SUMMARY -->
-<p>실제 RIO 검사는 집필 환경의 로컬 Windows에서 실행했다. ASan·Application Verifier·PageHeap·600초 안정성·긴 부하·고부하 검사는 이번 판에서 다시 실행하지 않았다. WinForms GUI의 사람 조작, 별도 PC 설치, 다른 Windows/provider 조합, 고정 장비 성능 baseline 승인과 실제 게임 운영 인수도 수행하지 않았다. 과거 실행 기록은 A04에 별도로 보존한다.</p>
+<p>앞선 2026-10-27 판의 실제 RIO 검사는 당시 로컬 Windows에서 실행한 과거 결과다. 이번 2026-10-28 보강에서는 C++ 코드를 바꾸지 않았으며 네이티브 빌드·RIO·Chat 프로세스를 재실행하지 않았다. ASan·Application Verifier·PageHeap·600초 안정성·긴 부하·고부하 검사는 이번 판에서 다시 실행하지 않았다. WinForms GUI의 사람 조작, 별도 PC 설치, 다른 Windows/provider 조합, 고정 장비 성능 baseline 승인과 실제 게임 운영 인수도 수행하지 않았다. 과거 실행 기록은 A04에 별도로 보존한다.</p>
 <p>브라우저 자동 검사는 입력·이동·저장·오프라인·화면 폭·인쇄 구조와 대표 화면을 확인한다. 일반 독자가 학습 목표를 달성했다는 사용자 연구를 대신하지 않는다. ZIP consumer의 로컬 실행은 배포 후보 검사이며 release tag·외부 게시·운영 승인과 구분한다.</p>
 </section><section id="maintenance-delivery"><h2>집필 단계를 완료한 결과를 남긴다</h2>
 <p>B00은 현재 코드·24개 원본·기술서의 내용 조사를, B01은 장·출처·모델·재현 가능한 개발 기반을 만들었다. B02는 독립 읽기 화면·검색·이력·테마·코드 탐험·접근성과 저장을 구현했다. B03은 Echo·프레이밍·부분 송신을 먼저 집필해 실제 검사와 연결했다.</p>
