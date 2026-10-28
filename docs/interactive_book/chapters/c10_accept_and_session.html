@@ -15,7 +15,7 @@
 <p>NewSession에서 RQ 생성이 실패하면 전용 accept 실패 사유로 슬롯을 정리한다. TcpSession::OnConnect는 주소 조회, TCP_NODELAY, 선택적인 keepalive 설정 뒤 소켓과 RQ를 소유하고 세대를 검사해 Active로 전이한다. setup 중간 실패를 성공 접속으로 통지하지 않는다. accept 실패 사유의 내부 정리는 공개 RequestClose와 다른 초기화 실패 경로다.</p>
 <p>accept 시스템 호출 실패나 슬롯 고갈은 상한 있는 backoff를 적용해 바쁜 반복과 로그 폭주를 줄인다. RQ·소켓 setup의 실패 경로는 별도로 살펴야 하며 모든 실패가 같은 대기 정책을 거친다고 뭉뚱그리지 않는다. setup 로그의 operation과 native 오류를 보존한다.</p><button class="source" data-evidence="accept.setup">실제 코드 · RQ와 세션 setup</button>
 </section>
-<section id="accept-first-receive"><h2>연결 콜백을 끝내고 첫 수신을 게시한다</h2>
+<section id="accept-first-receive"><h2>연결 콜백을 끝내고 첫 수신을 게시한다</h2><p>먼저 결론 · accept 스레드가 listen 소켓에서 접속 하나를 받는다. Stop이 listen 소켓을 닫으면 대기를 깨우고 루프 조건을 다시 본다.</p><div data-walkthrough="W03"><p class="no-script">accept에서 첫 수신 게시까지의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p>OnConnected를 호출한 뒤 세션이 여전히 연결 상태인지 확인하고 첫 수신을 게시한다. 그 마지막 접근까지 끝낸 뒤 connect callback pending을 해제한다. 종료 요청이 동시에 들어오면 소유 워커는 이 보호가 풀릴 때까지 닫힘 처리를 보류한다. 연결 콜백에서 만든 Player가 그 콜백이 반환하기도 전에 지워지는 순서를 막는다.</p>
 <p>첫 수신 게시 실패도 정상 접속처럼 방치하지 않는다. initial_receive operation을 기록하고 해당 세대의 연결 종료로 연결한다. 콜백에서 종료를 요청한 경우에는 IsConnected 검사가 후속 게시를 막을 수 있다. 이 순서는 C07의 스레드 설명과 C12의 일반 수신 완료 경로를 연결한다.</p><button class="source" data-evidence="callbacks.accept_order">실제 코드 · OnConnect와 첫 PostRecv</button>
 </section>

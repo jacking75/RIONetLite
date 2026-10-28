@@ -94,6 +94,20 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await page.goto(base+'#chapter=packet-framing&section=bad&lab=L09&scenario=%7Bbad');await page.waitForSelector('#packet-framing.active');assert.match(await page.locator('#notice').innerText(),/자료를 읽지 못했다/);
   const rendered=manifest.chapters.filter(c=>c.file);
   const labReceipts=[];
+  const walkReceipts=[];
+  const walks=await page.evaluate(()=>BOOK.walkthroughs);
+  for(const definition of walks){
+   const chapter=manifest.chapters.find(c=>c.id===(definition.chapter??(definition.id==='W01'?'P03':'C04')));await go(chapter.slug);
+   const host=page.locator(`[data-walkthrough="${definition.id}"]`);
+   for(let i=0;i<definition.steps.length;i++){
+    await host.locator('button[data-walk-step]').nth(i).click();const step=definition.steps[i];
+    assert.equal(await host.locator('.focusline').first().getAttribute('data-line'),String(step.startLine));
+    assert.equal(await host.locator('.focusline').count(),step.endLine-step.startLine+1);
+    assert.ok((await host.locator('[role="status"]').innerText()).includes(step.title));
+   }
+   walkReceipts.push({id:definition.id,steps:definition.steps.length,focusLinesChecked:true});
+   if(definition.id==='W05'){await host.scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,'c12-walkthrough.png')});}
+  }
   for(const definition of manifest.labs){
    const chapter=manifest.chapters.find(c=>c.id===definition.chapter);await go(chapter.slug);
    const host=page.locator(`[data-lab="${definition.id}"]`);
@@ -142,6 +156,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   const receipt={scope:manifest.chapters.every(c=>c.status==='complete')?'complete book browser acceptance':'reader acceptance; manuscript acceptance pending',browser:browser.version(),offline:true,chapters:rendered.length,labs:labReceipts,viewports:[1440,1920,390],firstRenderMs:firstRender,searchMs,errors,externalRequests:requests.filter(u=>!u.startsWith('file:')),checks:['canonical/legacy URL','back/forward','search and aliases','source scopes, history and focus','all 20 models: JSON replay, undo/redo, play/stop','bounded scenario JSON','persistence','storage blocked','keyboard menu','reduced motion','all-chapter print visibility and PDF','representative screenshots']};
   receipt.printBytes=printBytes;receipt.archivePrintBytes=archivePrintBytes;receipt.checks.push('archive toggle, search, persistence and smaller default PDF');
   receipt.figureStepMs=figureStepMs;receipt.checks.push('term keyboard focus return','figure step, playback cleanup and print steps');
+  receipt.walkthroughs=walkReceipts;receipt.checks.push('all walkthrough steps and highlighted source lines');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

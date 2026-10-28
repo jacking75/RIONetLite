@@ -30,7 +30,7 @@ beat:    00 00 00 08 00 01 00 04</code></pre><button class="source" data-evidenc
 <p>기본 재생은 세 플레이어를 각각 로그인하고 같은 1번 룸에 넣은 뒤 “안녕”을 보낸다. shard가 달라도 대상은 세 명이며 발신자도 받는다. 초기화한 뒤 입장을 로그인보다 먼저 시도하거나 wire의 version을 2로 바꾸면 오류를 관찰할 수 있다. 들어온 바이트가 헤더·본문에 모자라면 무조건 종료하지 않고 입력을 남긴다.</p>
 <p>모델은 실제 v1 바이트 규칙과 fixture를 사용하지만 네트워크 지연·mutex 경쟁·세션 종료 요청의 비동기 간격은 생략한다. 모델에서 Closed로 바뀐 것은 실제 서버에서 RequestClose와 OnClosed가 같은 함수 호출 안에서 동기 실행된다는 뜻이 아니다.</p>
 </section>
-<section id="chat-shard"><h2>PlayerMap과 stream 입력은 로직 shard가 소유한다</h2>
+<section id="chat-shard"><h2>PlayerMap과 stream 입력은 로직 shard가 소유한다</h2><p>먼저 결론 · 맵은 RunShard 안의 지역 변수다. 다른 샤드가 이 맵을 직접 수정하지 않도록 메시지로 일을 전달한다.</p><div data-walkthrough="W12"><p class="no-script">Chat 로직 샤드의 이벤트·방송·idle 순서의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p>RunShard는 Connected에서 Player를 만들고 Data의 소유 payload를 Player 입력 vector에 붙인다. ConsumeInput은 헤더가 모이면 길이와 버전을 검사하고 완전한 메시지마다 ProcessPacket을 호출한다. 처리한 앞부분만 지운 뒤 미완성 꼬리는 남긴다. 반환 시 남은 꼬리는 1024바이트 미만이어야 한다.</p>
 <p>한 이벤트의 복사 chunk는 최대 1024바이트이므로 이전 꼬리와 합칠 때 일시적으로 더 긴 입력이 될 수 있다. 1024는 최대 프레임 크기와 adapter chunk 크기이지 모든 수신 span의 합계 상한이 아니다. vector의 capacity가 항상 고정 1024라고 설명하지도 않는다. 실제 코드의 입력 축적과 모델 보호용 상한 2048은 구분한다.</p>
 <p>Closed는 Player의 SessionId 전체가 이벤트 ID와 같을 때만 지운다. index가 같아도 이전 세대의 close로 새 Player를 제거하지 않는다. game activity는 ProcessPacket이 갱신하고 주기적 scan이 오래된 플레이어를 idle 종료한다. 네트워크 수신 activity와 별도의 정책이다.</p><button class="source" data-evidence="application.shard">실제 코드 · RunShard와 Player 수명</button>

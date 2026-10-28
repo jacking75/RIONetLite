@@ -5,7 +5,7 @@
 <p>이 큐가 갖는 것은 완성된 게임 패킷이 아니라 raw stream chunk다. OnData 범위가 max_payload_bytes보다 크면 여러 chunk로 나누어 복사한다. 하나의 TCP coalesce가 메시지 한도보다 크다고 바로 큰 패킷 오류로 오판하지 않는다. 게임 워커는 순서대로 받은 chunk를 자기 입력 버퍼에 붙여 길이 헤더를 해석한다.</p>
 <p>생성자의 모든 차원은 양수이며 kDisconnect 정책에는 CloseRequest가 필요하다. 잘못된 구성은 std::invalid_argument를 던진다. Server::Create의 expected 오류 계약과 같은 것으로 설명하지 않는다. 앱은 adapter 생성 실패와 기동 시 메모리 확보 실패를 자기 초기화 경로에서 처리한다.</p><button class="source" data-evidence="queue.push">실제 코드 · gate와 소유 payload 복사</button>
 </section>
-<section id="queue-consumption"><h2>TryPop의 반환값을 모두 처리한다</h2>
+<section id="queue-consumption"><h2>TryPop의 반환값을 모두 처리한다</h2><p>먼저 결론 · payload 크기와 세션 인덱스를 먼저 검사한다. 인덱스로 담당 샤드를 고른 뒤 잠금 안에서 세대 게이트를 확인한다.</p><div data-walkthrough="W11"><p class="no-script">복사된 이벤트와 parked close를 소비한다의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p>소비자는 재사용하는 destination 버퍼를 준비하고 TryPop을 반복한다. kEvent면 header.payload_bytes만큼의 복사본을 처리한다. kDestinationTooSmall이면 이벤트를 제거하지 않으므로 header의 크기 이상 버퍼를 준비한 뒤 같은 이벤트를 다시 읽는다. kEmpty는 현재 시점에 읽을 이벤트가 없다는 뜻이다. producer가 살아 있다면 전체 처리가 끝났다는 뜻은 아니다.</p>
 <p>shard 접근에는 짧은 mutex가 있다. 이 API를 lock-free라고 설명하지 않는다. 한 shard의 게임 상태를 한 소비자가 소유하면 PlayerMap의 일반 처리를 별도 전역 잠금 없이 구성할 수 있지만, 여러 소비자를 붙이는 것으로 같은 Player의 순서까지 자동 보장되는 것은 아니다.</p><button class="source" data-evidence="queue.pop">실제 코드 · TryPop과 작은 목적지 버퍼</button>
 </section>

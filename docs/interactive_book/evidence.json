@@ -1048,6 +1048,282 @@
       "label": "공개 오류 정의",
       "reviewedSourceSha256": "3eb794921625614d7e81dc422d2d4386e816791a1c9ec3c4f119b7eb97691125",
       "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559"
+    },
+    {
+      "id": "accept.run",
+      "chapter": "C10",
+      "section": "accept-first-receive",
+      "source": "RIONetLite/impl/server_net_accepter.h",
+      "selector": {
+        "start": "  void Run(const SOCKET listen_handle,",
+        "end": "  void Stop()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.RejectsConnectionsWhenSessionPoolIsFull",
+      "label": "RQ와 소켓 setup",
+      "reviewedSourceSha256": "a72af93febd793fd5d1d7b9f5f3651a77dd53200dc4d3ff901cc3ffac0f01785",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.RejectsConnectionsWhenSessionPoolIsFull의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "worker.loop",
+      "chapter": "C12",
+      "section": "receive-validation",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "  void IoWorkerThread(",
+        "end": "  void ProcessRIOCQ("
+      },
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback",
+      "kind": "implementation",
+      "label": "RIO 완료 분기",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "receive.complete",
+      "chapter": "C12",
+      "section": "receive-posting",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  bool RecvCompletion(",
+        "end": "  std::tuple<std::uint32_t, char*> ReadRecvBuffer()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.AcceptsMaximumFrameAndRejectsOneByteOverMaximum",
+      "label": "수신 게시와 완료",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.AcceptsMaximumFrameAndRejectsOneByteOverMaximum의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "receive.consume",
+      "chapter": "C12",
+      "section": "receive-callback",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  bool ConsumeRecvBuffer(",
+        "end": "  bool Disconnect("
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.ClosesWhenCallbackConsumesBeyondReadableBytes",
+      "label": "읽기 범위와 소비량",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.ClosesWhenCallbackConsumesBeyondReadableBytes의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "close.begin_peer",
+      "chapter": "C16",
+      "section": "close-peer-drain",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  void BeginPeerClose()",
+        "end": "  bool ReadyForPeerClose()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.GracefulHalfCloseDrainsEchoThenReportsPeerClose",
+      "label": "연결 소켓 종료와 통지",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.GracefulHalfCloseDrainsEchoThenReportsPeerClose의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "send.session",
+      "chapter": "C14",
+      "section": "send-admission",
+      "source": "RIONetLite/impl/tcp_session.h",
+      "selector": {
+        "start": "  NetErrorCode PostSend(const std::uint64_t expected_uid,\n                        const UINT32 data_size, const char* p_data) {",
+        "end": "  NetErrorCode PostSend(const std::uint64_t expected_uid,\n                        const std::uint32_t header_size"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes",
+      "label": "송신 전체 접수와 용량 검사",
+      "reviewedSourceSha256": "a87832ddc050b363e45d9973afd59acfbccd0b4c71cf7bd2f06e3fb4172b23b6",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "chat.consume",
+      "chapter": "C19",
+      "section": "chat-shard",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool ConsumeInput(",
+        "end": "  void RunShard("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "패킷 상태·UTF-8 검사",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "연결 GTest는 공통 wire fixture만 검사한다. 샤드 소유·종료·방송 순서는 구현을 직접 검토했으며 실제 프로세스 검증은 tools/test-chat.ps1의 별도 범위다. 이번 문서 보강에서는 native 검사를 재실행하지 않았다.",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "chat.pop_broadcast",
+      "chapter": "C19",
+      "section": "chat-broadcast",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool PopBroadcast(",
+        "end": "  void RequestClose("
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "모든 shard의 유계 fanout",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "연결 GTest는 공통 wire fixture만 검사한다. 샤드 소유·종료·방송 순서는 구현을 직접 검토했으며 실제 프로세스 검증은 tools/test-chat.ps1의 별도 범위다. 이번 문서 보강에서는 native 검사를 재실행하지 않았다.",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "chat.drain_logic",
+      "chapter": "C19",
+      "section": "chat-stop",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  bool StopAfterDrain()",
+        "end": " private:"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "게임 작업·방송·Player 배출",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "연결 GTest는 공통 wire fixture만 검사한다. 샤드 소유·종료·방송 순서는 구현을 직접 검토했으며 실제 프로세스 검증은 tools/test-chat.ps1의 별도 범위다. 이번 문서 보강에서는 native 검사를 재실행하지 않았다.",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "worker.fin",
+      "chapter": "C16",
+      "section": "close-peer-drain",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "    if (transferred == 0) {",
+        "end": "    } else if (IOType::kRECV == p_context->io_type_) {"
+      },
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback",
+      "kind": "implementation",
+      "label": "RIO 완료 분기",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "queue.park_close",
+      "chapter": "C18",
+      "section": "parked-close",
+      "source": "src/queued_event_adapter.cpp",
+      "selector": {
+        "start": "    if (shard.count == shard.slots.size()) {",
+        "end": "    Slot& slot = shard.slots[shard.tail];"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership",
+      "label": "소유 payload·gate·포화",
+      "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "send.copy",
+      "chapter": "C14",
+      "section": "send-coalescing",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "      if (first_size != 0 &&",
+        "end": "      // 이미 요청이 진행 중이면 완료 처리가 이어서 게시한다."
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes",
+      "label": "송신 전체 접수와 용량 검사",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "receive.repost",
+      "chapter": "C12",
+      "section": "receive-callback",
+      "source": "RIONetLite/impl/server_net_io_worker.h",
+      "selector": {
+        "start": "      bool posted = false;",
+        "end": "    } else if (IOType::kSEND == p_context->io_type_) {"
+      },
+      "testSource": "tests/integration/smoke_test.cpp",
+      "testName": "IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback",
+      "kind": "implementation",
+      "label": "RIO 완료 분기",
+      "reviewedSourceSha256": "2740c439bbe7bc61eb5d94942c1543e3916861175090fb7ae7bd045742430a3e",
+      "reviewedTestSha256": "3c6dc5cc575da9d8970e116c956ccfa142c1c4d0de96d75757f73585495bad8a",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 IntegrationSmokeTest.NeverDeliversDataAfterCloseWhenClosingFromCallback의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "send.failure",
+      "chapter": "C15",
+      "section": "repost-remainder",
+      "source": "RIONetLite/impl/send_immediately.h",
+      "selector": {
+        "start": "  void FailUnlocked() noexcept {",
+        "end": "  void FinishPost() noexcept {"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/rio_request_test.cpp",
+      "testName": "SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes",
+      "label": "송신 전체 접수와 용량 검사",
+      "reviewedSourceSha256": "dc89e7a24831d7d597ea598bd3b1a6ed90228416b10495a3016ef4342889d962",
+      "reviewedTestSha256": "fbccce1655c6dcd1a36b79b7d832024098d12b95fe954181b7fdd117c33d7488",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 SendQueueTest.AppliesByteBackpressureWithoutOverwritingOutstandingBytes의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "chat.player_state",
+      "chapter": "C19",
+      "section": "chat-shard",
+      "source": "samples/chat_server/main.cpp",
+      "selector": {
+        "start": "  enum class Phase : std::uint8_t",
+        "end": "  struct Broadcast final {"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/chat_protocol_test.cpp",
+      "testName": "ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures",
+      "label": "패킷 상태·UTF-8 검사",
+      "reviewedSourceSha256": "680a896f6ff90270461191ed0440663fb321dd57c0e06248c23ee79e53b72daf",
+      "reviewedTestSha256": "927bd4861ab8d94b87f1852ac7721aba6e76e2a904aaaff4fd3bec0272a9df83",
+      "testScope": "연결 GTest는 공통 wire fixture만 검사한다. 샤드 소유·종료·방송 순서는 구현을 직접 검토했으며 실제 프로세스 검증은 tools/test-chat.ps1의 별도 범위다. 이번 문서 보강에서는 native 검사를 재실행하지 않았다.",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 ChatProtocolTest.MatchesSharedCppAndCsharpGoldenFixtures의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
+    },
+    {
+      "id": "queue.copy_payload",
+      "chapter": "C18",
+      "section": "queue-consumption",
+      "source": "src/queued_event_adapter.cpp",
+      "selector": {
+        "start": "    Slot& slot = shard.slots[shard.tail];",
+        "end": "  void AddDepth()"
+      },
+      "kind": "implementation",
+      "testSource": "tests/unit/public_helpers_test.cpp",
+      "testName": "QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership",
+      "label": "소유 payload·gate·포화",
+      "reviewedSourceSha256": "0ba8c39b98c7b02b976a2ebf1cf466535e179a0ed2805e3b021b525237e566c2",
+      "reviewedTestSha256": "544835241b7cbb32417c7b7e47221ae7893453a6b7de5e4abb0691f275a4f559",
+      "reviewNote": "2026-10-28 18:48:19 +09:00ST · 함수의 정상·실패 분기와 QueuedEventAdapterTest.PreservesPerShardOrderAndPayloadOwnership의 관련 계약을 대조했다. 테스트 선언 연결이며 이번 문서 작업에서 native 실행 통과를 새로 주장하지 않는다."
     }
   ]
 }

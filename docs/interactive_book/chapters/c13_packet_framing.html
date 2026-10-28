@@ -16,7 +16,7 @@
 <div class="table-wrap"><table><thead><tr><th>이번 도착</th><th>다시 해석하는 범위</th><th>이번 소비량</th><th>이유</th></tr></thead><tbody><tr><td>2바이트</td><td>처음 2바이트</td><td>0</td><td>4바이트 헤더가 없다.</td></tr><tr><td>3바이트</td><td>이전 2 + 새 3 = 5바이트</td><td>0</td><td>전체 길이 7은 알지만 본문이 덜 왔다.</td></tr><tr><td>2바이트</td><td>이전 5 + 새 2 = 7바이트</td><td>7</td><td>완전한 패킷이므로 콜백을 한 번 호출한다.</td></tr></tbody></table></div>
 <p>첫 콜백에서 두 바이트를 소비했다고 반환하면 다음 콜백에는 헤더의 뒷부분부터 남는다. 디코더가 잘못 읽는 것이 아니라 호출자가 경계를 버린 것이다. 반대로 정상 패킷 뒤의 불완전한 꼬리까지 소비하면 이후 패킷을 복구할 수 없다. 소비량은 “본 바이트”가 아니라 다시 볼 필요가 없어진 앞부분의 길이다.</p>
 </section>
-<section id="framing-decoder"><h2>반복문은 완전한 패킷만 앞에서부터 처리한다</h2>
+<section id="framing-decoder"><h2>반복문은 완전한 패킷만 앞에서부터 처리한다</h2><p>먼저 결론 · 반복 조건은 이번 입력의 남은 앞부분에 헤더 전체가 있는지 본다. 헤더가 덜 왔으면 소비하지 않고 호출자에게 돌아간다.</p><div data-walkthrough="W06"><p class="no-script">길이 접두 프레임을 손실 없이 자른다의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p><code>Decode</code>는 먼저 남은 길이가 헤더 네 바이트 이상인지 확인한다. 충분하면 <code>data.subspan(result.consumed_bytes, kHeaderBytes)</code>에서 전체 길이를 읽는다. 헤더 자체보다 작으면 오류를 반환하고, 최대값보다 크면 다른 오류를 반환한다. 길이는 정상인데 전체 패킷이 아직 안 왔다면 오류 없이 현재 결과를 반환한다.</p>
 <p>패킷 전체가 있으면 <code>handler(data.subspan(..., packet_size))</code>를 호출한 뒤 소비량과 패킷 수를 증가시킨다. 다음 반복은 바로 뒤 바이트부터 시작한다. 따라서 두 완전한 패킷이 함께 들어오면 같은 <code>Decode</code> 호출에서 두 번 처리된다. 중간에 완전하지 않은 마지막 패킷을 만나면 앞에서 처리한 패킷만 소비한 결과를 돌려준다.</p>
 <button class="source" data-evidence="framing.decode">실제 코드 · LengthPrefixedDecoder::Decode 전체</button>

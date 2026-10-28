@@ -9,7 +9,7 @@
 <p>실험에서 일반 요청이나 오류 종료를 선택한 뒤 닫힘을 통지해도 미완료 참조가 남을 수 있다. 소켓을 닫으면 취소 완료가 나중에 도착할 수 있기 때문이다. 참조가 남은 슬롯은 quarantine에 두고 새 연결에 바로 주지 않는다. 닫힌 뒤의 지연 수신은 OnData를 만들지 않고 요청 참조만 정리한다.</p>
 <p>통지 횟수는 TryNotifyClose로 최대 한 번으로 제한한다. 중복 종료 요청이 와도 Player 제거를 반복하거나 active 연결 수를 여러 번 줄이지 않는다. 다만 아직 보류 중인 FIN은 이미 확정한 오류 종료와 같지 않으므로 아래 우선순위를 함께 읽는다.</p>
 </section>
-<section id="close-peer-drain"><h2>peer FIN 뒤에는 접수한 송신을 기다린다</h2>
+<section id="close-peer-drain"><h2>peer FIN 뒤에는 접수한 송신을 기다린다</h2><p>먼저 결론 · 수신 0바이트는 상대의 송신 종료다. 이 수신 요청의 참조를 정리하지만 이미 접수된 응답 송신은 아직 남아 있을 수 있다.</p><div data-walkthrough="W09"><p class="no-script">peer FIN부터 닫힘·격리까지 추적한다의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p>0바이트 수신 완료가 오면 수신 참조를 정리하고 새 애플리케이션 송신 접수를 막는다. 기존 송신기의 완료·재게시 경로는 이미 접수한 링 데이터를 처리할 수 있다. 지연 종료 관리자는 ReadyForPeerClose, 즉 SendOutstanding이 0인지 확인한다. 정상 완료가 모두 끝나면 send 방향을 shutdown하고 소켓을 닫는 경로로 진행한다.</p>
 <p>peer_close_drain_timeout_ms는 이 대기의 상한이다. 제한 시간에 닿으면 보류 이유를 SEND_ERROR로 바꾸고 abortive close로 전환한다. “FIN을 받았으니 상대가 응답까지 다 읽었다”거나 “무조건 무기한 송신을 기다린다”라고 설명하지 않는다. 이 연결 기한은 서버 Stop의 공유 예산과 별개다.</p><button class="source" data-evidence="close.peer_wait">실제 코드 · peer drain 기한과 mailbox 처리</button>
 </section>

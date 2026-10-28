@@ -5,7 +5,7 @@
 <p>현재 구현은 완료된 두 바이트만 링에서 소비하고 나머지를 새 요청으로 게시한다. 그 사이에 애플리케이션이 더 보낸 데이터가 있다면 나머지와 새 데이터를 함께 게시할 수 있다. 이번 실험은 새 메시지 추가를 생략한 가장 작은 사례다. 새 데이터와의 병합은 <a href="#chapter=send-path">C14</a>에서 다룬다.</p>
 <div data-lab="L11"></div>
 </section>
-<section id="repost-remainder"><h2>컨텍스트 정리와 링의 진행 위치를 나눈다</h2>
+<section id="repost-remainder"><h2>컨텍스트 정리와 링의 진행 위치를 나눈다</h2><p>먼저 결론 · 이 송신의 컨텍스트인지와 완료 길이가 유효한지를 먼저 확인한다. 잘못된 완료를 링에서 소비한 것으로 만들지 않는다.</p><div data-walkthrough="W08"><p class="no-script">부분 송신 완료 뒤 남은 구간을 다시 게시한다의 순서는 이어지는 본문과 실제 코드에서 확인한다.</p></div>
 <p><code>SendImmediately::Completed</code>는 lock 안에서 전달받은 포인터가 자신의 <code>send_context_</code>인지 확인하고 <code>CompleteSend(transferred)</code>로 크기를 검사한다. 정상 크기라면 컨텍스트의 Offset과 Length를 일단 완료된 만큼 조정한다. 그 뒤 <code>Retire</code>로 이 요청을 idle 상태로 되돌리고 등록 버퍼의 outstanding 참조를 하나 줄인다.</p>
 <p>진행 상태의 원본은 컨텍스트에 남겨 둔 이전 요청 길이가 아니라 <strong>송신 링의 읽기 위치와 미소비 바이트</strong>다. 완료 크기만큼 <code>IncremantReadPos</code>를 호출한 뒤 데이터가 남아 있고 게시를 허용하면 <code>PreparePostLocked</code>가 현재 링 전체의 미소비 범위로 새 컨텍스트를 만든다. 따라서 Retire 직후 Offset이 0으로 초기화되더라도 나머지를 처음부터 잘못 보내는 것은 아니다.</p>
 <button class="source" data-evidence="send.partial_completion">실제 코드 · Completed의 retire와 재게시</button><button class="source" data-evidence="send.context_retire">실제 코드 · RioIoContext의 Retire</button>
