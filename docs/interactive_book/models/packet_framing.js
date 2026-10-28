@@ -51,7 +51,7 @@
     return {state: next, events, explanationId: next.error ? 'framing.invalid' : next.lastConsumed ? 'framing.packet' : 'framing.wait'};
   }
   function view(s) {
-    return {values:[{label:'누적 수신 바이트',value:s.arrived},{label:'누적 소비 바이트',value:s.consumed},
+    return {visual:{kind:"bytes",bytes:s.bytes,headerBytes:4,arrived:s.arrived,consumed:s.consumed},values:[{label:'누적 수신 바이트',value:s.arrived},{label:'누적 소비 바이트',value:s.consumed},
       {label:'완성된 패킷',value:s.packetCount},{label:'이번 소비 바이트',value:s.lastConsumed},
       {label:'길이 오류',value:s.error??'없음'}],
       nodes:[{label:'수신 조각',value:`${s.chunk}/${s.chunks.length}`,active:!s.error&&s.chunk<s.chunks.length},

@@ -44,7 +44,7 @@
     const next=calculate(config);return {state:next,events:[{type:next.valid?'validated':'invalid',field:next.field}],explanationId:next.valid?'config.valid':'config.invalid',message:next.reason};
   }
   const model={createInitialState:calculate,transition,validateState:s=>s.valid!==Boolean(s.budgets)?['검증 결과와 예산 불일치']:[],
-    view(s){return {values:[{label:'설정 판정',value:s.valid?'설명용 계산: 범위 통과':'설명용 계산: 거절'},{label:'오류 필드',value:s.field||'없음'},
+    view(s){return {budget:s.budgets,values:[{label:'설정 판정',value:s.valid?'설명용 계산: 범위 통과':'설명용 계산: 거절'},{label:'오류 필드',value:s.field||'없음'},
       {label:'page 크기 가정',value:s.config.pageSize},...Object.entries(s.budgets??{}).map(([label,value])=>({label,value}))],
       nodes:[{label:'설정 범위',value:s.valid?'통과':'거절',active:!s.valid},{label:'등록·예약',value:s.budgets?.registered??'계산 안 함'},{label:'backing commit',value:s.budgets?.committed??'계산 안 함'},{label:'실제 자원 확보',value:'별도 실행'}],message:s.reason};},
     serializeScenario(config,actions){return models.core.serialize(model,'configuration',config,actions);},parseScenario(text){return models.core.parse(text,model,'configuration');},defaults};

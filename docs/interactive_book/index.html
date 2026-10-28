@@ -17,6 +17,8 @@
 .figure,.walkthrough,.compare,.quiz,.map{min-width:0;max-width:100%;margin:26px 0;padding:20px;border:1px solid var(--line);background:var(--paper)}.figure-controls{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.figure-controls [aria-pressed="true"]{background:var(--soft);border-color:var(--accent)}.term{cursor:pointer;border-bottom:1px dotted var(--accent);font-style:normal}.predict,.recap,.mistake{padding:16px 20px;background:var(--soft)}#termPopover{position:fixed;z-index:8;width:min(460px,calc(100vw - 32px));padding:20px;background:var(--paper);border:1px solid var(--accent);box-shadow:0 8px 30px var(--line)}#termPopover[hidden]{display:none}.walkthrough-grid,.compare-grid,.map-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}.walkthrough pre{max-height:440px}.walkthrough pre span{display:block;white-space:pre}.walkthrough pre em{display:inline-block;width:55px;font-style:normal;color:var(--muted)}.walkthrough .focusline{background:var(--soft);color:var(--ink)}.quiz label{display:flex;gap:10px;align-items:baseline;margin:12px 0}.quiz fieldset{min-width:0;border:0;padding:0}.quiz legend{font-weight:700}.quiz-feedback{padding:14px;background:var(--soft)}@media(max-width:720px){.figure,.walkthrough,.compare,.quiz,.map{padding:14px}.walkthrough-grid,.compare-grid,.map-grid{grid-template-columns:1fr}#termPopover{left:16px!important;top:auto!important;bottom:16px}}@media print{#termPopover{display:none!important}#printBook .figure-controls,#printBook .quiz input{display:none!important}#printBook .term{border:0}#printBook .walkthrough-grid,#printBook .compare-grid,#printBook .map-grid{display:block}#printBook .walkthrough pre{max-height:none}#printBook .walkthrough pre span{white-space:pre-wrap}}
 
 .book-figure{display:block;width:100%;min-width:640px;height:auto}.book-figure text{fill:var(--ink);font:14px 'Segoe UI','Malgun Gothic',sans-serif}.book-figure .figure-sub{fill:var(--muted);font-size:12px}.figure-node[role="button"]{cursor:pointer}.figure-node:focus rect{stroke:var(--gold)!important;stroke-width:3!important}.figure>h3{margin-top:0}#figureContent .book-figure{min-width:900px}@media print{#printBook .book-figure{min-width:0;width:100%}#printBook .figure{break-inside:auto}}
+
+.budget-bars p{font:13px Consolas,monospace}.budget-bars span{display:block;min-height:10px;background:var(--accent)}
 </style></head>
 <body>
 <a class="skip" href="#main">본문으로 바로 이동</a>
@@ -3076,7 +3078,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = BookModels
     return {state: next, events, explanationId: next.error ? 'framing.invalid' : next.lastConsumed ? 'framing.packet' : 'framing.wait'};
   }
   function view(s) {
-    return {values:[{label:'누적 수신 바이트',value:s.arrived},{label:'누적 소비 바이트',value:s.consumed},
+    return {visual:{kind:"bytes",bytes:s.bytes,headerBytes:4,arrived:s.arrived,consumed:s.consumed},values:[{label:'누적 수신 바이트',value:s.arrived},{label:'누적 소비 바이트',value:s.consumed},
       {label:'완성된 패킷',value:s.packetCount},{label:'이번 소비 바이트',value:s.lastConsumed},
       {label:'길이 오류',value:s.error??'없음'}],
       nodes:[{label:'수신 조각',value:`${s.chunk}/${s.chunks.length}`,active:!s.error&&s.chunk<s.chunks.length},
@@ -3164,7 +3166,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = require('.
       ...(explanationId === 'send.free_blocked' ? {message: '차단: 미완료 송신 요청이 등록 메모리를 참조한다. 먼저 완료를 처리해야 한다.'} : {})};
   }
   function view(s) {
-    return {values:[{label:'링 읽기 위치',value:s.offset},{label:'게시된 길이',value:s.length},
+    return {visual:{kind:"bytes",bytes:Array.from({length:s.messageBytes},(_,i)=>i),headerBytes:0,arrived:s.messageBytes,consumed:s.offset,marks:["offset="+s.offset+" / posted="+s.length]},values:[{label:'링 읽기 위치',value:s.offset},{label:'게시된 길이',value:s.length},
       {label:'미완료 송신',value:s.outstanding},{label:'링에 남은 바이트',value:s.remaining},
       {label:'게시 준비 횟수',value:s.requestNumber},{label:'오류',value:s.error??'없음'}],
       nodes:[{label:'송신 링',value:`${s.remaining}바이트`},{label:'진행 요청',value:s.length,active:s.outstanding===1},
@@ -3227,7 +3229,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = require('.
     const next=calculate(config);return {state:next,events:[{type:next.valid?'validated':'invalid',field:next.field}],explanationId:next.valid?'config.valid':'config.invalid',message:next.reason};
   }
   const model={createInitialState:calculate,transition,validateState:s=>s.valid!==Boolean(s.budgets)?['검증 결과와 예산 불일치']:[],
-    view(s){return {values:[{label:'설정 판정',value:s.valid?'설명용 계산: 범위 통과':'설명용 계산: 거절'},{label:'오류 필드',value:s.field||'없음'},
+    view(s){return {budget:s.budgets,values:[{label:'설정 판정',value:s.valid?'설명용 계산: 범위 통과':'설명용 계산: 거절'},{label:'오류 필드',value:s.field||'없음'},
       {label:'page 크기 가정',value:s.config.pageSize},...Object.entries(s.budgets??{}).map(([label,value])=>({label,value}))],
       nodes:[{label:'설정 범위',value:s.valid?'통과':'거절',active:!s.valid},{label:'등록·예약',value:s.budgets?.registered??'계산 안 함'},{label:'backing commit',value:s.budgets?.committed??'계산 안 함'},{label:'실제 자원 확보',value:'별도 실행'}],message:s.reason};},
     serializeScenario(config,actions){return models.core.serialize(model,'configuration',config,actions);},parseScenario(text){return models.core.parse(text,model,'configuration');},defaults};
@@ -3244,9 +3246,38 @@ if(typeof module!=='undefined'&&module.exports)module.exports=require('./core.js
   const values=entries=>entries.map(([label,value])=>({label,value}));
   const blocked=(state,message)=>({state,events:[],blocked:true,message,explanationId:'blocked'});
   const result=(state,message,events=[])=>({state,events,message,explanationId:'transition'});
+  const lane=(id,label)=>({id,label});
+  const message=(from,to,label,kind='call')=>({from,to,label,kind});
+  const sequence=(lanes,steps,step)=>({kind:'sequence',lanes,steps,step});
+  const queueVisual=(capacity,items,parked=false)=>({kind:'queue',shards:[{slots:Array.from({length:capacity},(_,i)=>items[i]??'·'),capacity,head:0,count:items.length}],gates:[{session:'현재 세션',parked}]});
+  const visualizers={
+    echoRoundtrip:s=>sequence([lane('client','클라이언트'),lane('kernel','Windows RIO'),lane('worker','I/O 워커'),lane('app','EchoHandler')],[
+      {title:'연결 준비',messages:[]},
+      {title:'수신 게시',messages:[message('worker','kernel','RIOReceive')]},
+      {title:'수신 완료·다음 게시',messages:[message('client','kernel','7바이트','data'),message('kernel','worker','완료(7)','completion')]},
+      {title:'프레임 해석',messages:[message('worker','app','OnData → Decode','callback')]},
+      {title:'송신 접수',messages:[message('app','worker','Send → kQueued')]},
+      {title:'송신 게시',messages:[message('worker','kernel','RIOSend')]},
+      {title:'송신 완료',messages:[message('kernel','worker','완료(7)','completion')]}],s.step),
+    rioRequests:s=>sequence([lane('worker','워커'),lane('kernel','운영체제')],[{title:'게시 전',messages:[]},{title:'게시 결과',messages:[message('worker','kernel',s.status==='failed'?'게시 실패·롤백':'요청 게시',s.status==='failed'?'blocked':'call')]},{title:'완료 처리',messages:[message('kernel','worker','완료 기록','completion')]}],s.status==='idle'?0:s.completions?2:1),
+    callbackOrder:s=>sequence([lane('wa','워커 A'),lane('sa','세션 A'),lane('wb','워커 B'),lane('sb','세션 B')],s.order.length?s.order.map(value=>{const [id,event]=value.split(':');return {title:value,messages:[message(id==='A'?'wa':'wb',id==='A'?'sa':'sb',event,'callback')]};}):[{title:'콜백 전',messages:[]}],Math.max(0,s.order.length-1)),
+    registeredMemory:s=>({kind:'graph',nodes:[{id:'posts',label:'신규 게시 '+(s.postsBlocked?'차단':'허용'),state:s.postsBlocked?'done':'blocked'},{id:'send',label:'송신 참조 '+s.send,state:s.send?'active':'done'},{id:'recv',label:'수신 참조 '+s.receive,state:s.receive?'active':'done'},{id:'registration',label:'등록 '+(s.registered?'유지':'해제'),state:s.registered?'waiting':'done'},{id:'memory',label:'저장소 '+(s.freed?'해제':'유지'),state:s.freed?'done':'waiting'}],edges:[{from:'posts',to:'registration'},{from:'send',to:'registration'},{from:'recv',to:'registration'},{from:'registration',to:'memory'}]}),
+    ringBuffer:s=>({kind:'ring',...s,postFrom:'read'}),
+    acceptSession:s=>({kind:'slots',workers:s.workers,slots:s.slots.map(slot=>({...slot,state:slot.active?'active':'free'})),free:s.free}),
+    sessionIdentity:s=>({kind:'slots',workers:1,slots:[{index:s.index,owner:0,generation:s.generation,state:s.state}],free:s.state==='Free'?[s.index]:[],note:`지연 작업 ${s.index}:${s.oldGeneration} · 판정 ${s.decision}`}),
+    receivePath:s=>({kind:'ring',capacity:s.capacity,read:s.read,write:s.write,used:s.used,posted:s.posted}),
+    sendPath:s=>({kind:'ring',capacity:s.capacity,read:s.completed%s.capacity,write:(s.completed+s.used)%s.capacity,used:s.used,posted:s.posted,postFrom:'read',inFlight:s.posted}),
+    connectionClose:s=>({kind:'state',states:['Active','Peer drain','Closing','Quarantined','Free'].map(id=>({id,label:id})),active:s.phase,note:s.reason,steps:[{active:s.phase}],transitions:[]}),
+    serverShutdown:s=>{const labels=['accept 중지','앱 진입 차단','송신 완료 회수','소켓 닫기','수신 취소 회수','워커 join','버퍼 해제','CQ 해제'];const done=[!s.accept,!s.posts,!s.send,!s.sockets,!s.receive,!s.workers,!s.buffers,!s.cq];return {kind:'graph',nodes:labels.map((label,i)=>({id:'stop'+i,label,state:done[i]?'done':s.preserved?'blocked':'waiting'})),edges:labels.slice(1).map((_,i)=>({from:'stop'+i,to:'stop'+(i+1)}))};},
+    logicQueue:s=>queueVisual(s.capacity,s.queue.map(e=>e.type),s.parked),
+    chatServer:s=>({kind:'queue',shards:s.inboxes.map(box=>({slots:Array.from({length:s.capacity},(_,i)=>box[i]?'룸 '+box[i].room:'·'),capacity:s.capacity,head:0,count:box.length})),extra:[sequence([lane('sender','발신자'),lane('shards','샤드 inbox'),lane('room','같은 룸 Player')],[{title:'로그인·입장',messages:[]},{title:'방송 복사',messages:[message('sender','shards','룸 메시지','data')]},{title:'샤드별 전달',messages:[message('shards','room','소속 확인 후 Send','data')]}],s.delivered?2:s.broadcasts?1:0)]}),
+    applicationQueue:s=>queueVisual(s.capacity,Array.from({length:s.used},()=> '작업')),
+    failureRollback:s=>{const resources=['session0.send','session0.recv','session1.send','session1.recv'];return {kind:'graph',nodes:resources.map((id,i)=>({id,label:id,state:s.acquired.includes(id)?'active':s.released.includes(id)?'done':s.failed&&i===s.call-1?'blocked':'waiting'})),edges:resources.slice(1).map((id,i)=>({from:resources[i],to:id,label:s.released.includes(id)?'역순 정리 '+(s.released.indexOf(id)+1):'확보 순서'}))};}
+  };
+
   function define(name,id,create,step,validate,view){
     const model={createInitialState(config={}){object(config);const state=create(config);check(validate(state).length===0,'초기 모델 상태가 유효하지 않다.');return state;},
-      transition(state,action){object(action);check(typeof action.type==='string','동작 종류가 필요하다.');const next=step(copy(state),copy(action));check(validate(next.state).length===0,'모델의 안전 조건을 위반했다.');return next;},validateState:validate,view,
+      transition(state,action){object(action);check(typeof action.type==='string','동작 종류가 필요하다.');const next=step(copy(state),copy(action));check(validate(next.state).length===0,'모델의 안전 조건을 위반했다.');return next;},validateState:validate,view:s=>({...view(s),...(visualizers[name]?{visual:visualizers[name](s)}:{})}),
       serializeScenario(config,actions){return models.core.serialize(model,id,config,actions);},parseScenario(text){return models.core.parse(text,model,id);}};
     models[name]=model;
   }
@@ -3537,7 +3568,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=require('./core.js
     const cells=Math.min(capacity,64),stride=capacity/cells,activeIds=[];let body='';const cx=165,cy=177,r=100;
     for(let i=0;i<cells;i++){
       const index=Math.floor(i*stride);const occupied=(index-read+capacity)%capacity<used;
-      const reserved=(index-write+capacity)%capacity<posted;const a=i*2*Math.PI/cells-Math.PI/2,b=(i+1)*2*Math.PI/cells-Math.PI/2;
+      const reserved=(index-(spec.postFrom==='read'?read:write)+capacity)%capacity<posted;const a=i*2*Math.PI/cells-Math.PI/2,b=(i+1)*2*Math.PI/cells-Math.PI/2;
       const point=(radius,angle)=>[cx+radius*Math.cos(angle),cy+radius*Math.sin(angle)];
       const [x1,y1]=point(r,a),[x2,y2]=point(r,b),[x3,y3]=point(r-25,b),[x4,y4]=point(r-25,a);
       body+=`<path data-ring-index="${index}" class="${occupied?'occupied':reserved?'posted':'empty'}" d="M${x1} ${y1} A${r} ${r} 0 ${b-a>Math.PI?1:0} 1 ${x2} ${y2} L${x3} ${y3} A${r-25} ${r-25} 0 ${b-a>Math.PI?1:0} 0 ${x4} ${y4} Z" style="fill:var(${occupied?'--soft':reserved?'--bg':'--paper'});stroke:var(${reserved?'--gold':'--accent'});stroke-width:${reserved?3:1}"/>`;
@@ -3936,6 +3967,13 @@ function resetLab(session,config=session.config){const state=session.model.creat
 function initialView(model,state){return model.view?model.view(state):{values:Object.entries(state).filter(([,v])=>!v||typeof v!=='object').map(([label,value])=>({label,value})),message:'다음 동작을 선택해 상태 변화를 관찰한다.'};}
 function visualState(host,session,state){
   const view=initialView(session.model,state);const diagram=document.createElement('div');diagram.className='diagram-scroll';
+  if(view.visual){
+    for(const visual of [view.visual,...(view.visual.extra??[])]){
+      const frame=BookFigures.render(visual.kind,visual,visual.step??0);const block=document.createElement('div');block.className='diagram-scroll';block.innerHTML=frame.svg;
+      for(const node of all('[data-step]',block)){const select=()=>{const i=Number(node.dataset.step);if(session.definition.stepSequence){session.actions=session.definition.stepSequence.slice(0,i);restoreLab(session,i);}};node.onclick=select;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select();}};}
+      host.append(block);
+    }
+  }else{
   const nodes=view.nodes??view.values.slice(0,5).map(item=>({label:item.label,value:item.value}));
   const width=Math.max(620,nodes.length*155);const row=nodes.map((node,i)=>{
     const x=12+i*(width/nodes.length);const w=width/nodes.length-22;
@@ -3948,12 +3986,12 @@ function visualState(host,session,state){
     node.onclick=select;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select();}};
   });
   host.append(diagram);
-  if(session.definition.id==='L09'){
-    const bytes=document.createElement('div');bytes.className='bytes';bytes.innerHTML=state.bytes.map((b,i)=>`<span class="byte ${i<4?'header':''} ${i<state.arrived?'arrived':''} ${i<state.consumed?'done':''}">${b.toString(16).padStart(2,'0').toUpperCase()}<small>${i}</small></span>`).join('');host.append(bytes);
   }
-  if(session.definition.id==='L11'){
-    const memory=document.createElement('div');memory.className='memory';memory.innerHTML=Array.from({length:state.messageBytes},(_,i)=>`<span class="${i<state.offset?'done':'pending'}">${i}</span>`).join('');host.append(memory);
+  if(view.budget){
+    const budget=document.createElement('div');budget.className='budget-bars';const max=Math.max(...['registered','reserved','committed','control'].map(k=>Number(view.budget[k])));
+    for(const key of ['registered','reserved','committed','control']){const row=document.createElement('p');row.textContent=key+' '+view.budget[key]+' bytes';const bar=document.createElement('span');bar.style.width=(100*Number(view.budget[key])/max)+'%';row.append(bar);budget.append(row);}host.append(budget);
   }
+  if(state.ticks!==undefined){const table=document.createElement('table');const row=document.createElement('tr');for(const value of ['틱 '+state.ticks,'유입 '+state.incoming,'처리 상한 '+state.outgoing,'대기 '+state.used]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}table.append(row);host.append(table);}
   const details=document.createElement('div');details.className='lab-state';const dl=document.createElement('dl');
   for(const item of view.values){const pair=document.createElement('div');const dt=document.createElement('dt');dt.textContent=item.label;const dd=document.createElement('dd');dd.textContent=String(item.value??'—');pair.append(dt,dd);dl.append(pair);}details.append(dl);host.append(details);
   return view;

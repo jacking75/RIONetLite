@@ -292,6 +292,13 @@ function resetLab(session,config=session.config){const state=session.model.creat
 function initialView(model,state){return model.view?model.view(state):{values:Object.entries(state).filter(([,v])=>!v||typeof v!=='object').map(([label,value])=>({label,value})),message:'다음 동작을 선택해 상태 변화를 관찰한다.'};}
 function visualState(host,session,state){
   const view=initialView(session.model,state);const diagram=document.createElement('div');diagram.className='diagram-scroll';
+  if(view.visual){
+    for(const visual of [view.visual,...(view.visual.extra??[])]){
+      const frame=BookFigures.render(visual.kind,visual,visual.step??0);const block=document.createElement('div');block.className='diagram-scroll';block.innerHTML=frame.svg;
+      for(const node of all('[data-step]',block)){const select=()=>{const i=Number(node.dataset.step);if(session.definition.stepSequence){session.actions=session.definition.stepSequence.slice(0,i);restoreLab(session,i);}};node.onclick=select;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select();}};}
+      host.append(block);
+    }
+  }else{
   const nodes=view.nodes??view.values.slice(0,5).map(item=>({label:item.label,value:item.value}));
   const width=Math.max(620,nodes.length*155);const row=nodes.map((node,i)=>{
     const x=12+i*(width/nodes.length);const w=width/nodes.length-22;
@@ -304,12 +311,12 @@ function visualState(host,session,state){
     node.onclick=select;node.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select();}};
   });
   host.append(diagram);
-  if(session.definition.id==='L09'){
-    const bytes=document.createElement('div');bytes.className='bytes';bytes.innerHTML=state.bytes.map((b,i)=>`<span class="byte ${i<4?'header':''} ${i<state.arrived?'arrived':''} ${i<state.consumed?'done':''}">${b.toString(16).padStart(2,'0').toUpperCase()}<small>${i}</small></span>`).join('');host.append(bytes);
   }
-  if(session.definition.id==='L11'){
-    const memory=document.createElement('div');memory.className='memory';memory.innerHTML=Array.from({length:state.messageBytes},(_,i)=>`<span class="${i<state.offset?'done':'pending'}">${i}</span>`).join('');host.append(memory);
+  if(view.budget){
+    const budget=document.createElement('div');budget.className='budget-bars';const max=Math.max(...['registered','reserved','committed','control'].map(k=>Number(view.budget[k])));
+    for(const key of ['registered','reserved','committed','control']){const row=document.createElement('p');row.textContent=key+' '+view.budget[key]+' bytes';const bar=document.createElement('span');bar.style.width=(100*Number(view.budget[key])/max)+'%';row.append(bar);budget.append(row);}host.append(budget);
   }
+  if(state.ticks!==undefined){const table=document.createElement('table');const row=document.createElement('tr');for(const value of ['틱 '+state.ticks,'유입 '+state.incoming,'처리 상한 '+state.outgoing,'대기 '+state.used]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}table.append(row);host.append(table);}
   const details=document.createElement('div');details.className='lab-state';const dl=document.createElement('dl');
   for(const item of view.values){const pair=document.createElement('div');const dt=document.createElement('dt');dt.textContent=item.label;const dd=document.createElement('dd');dd.textContent=String(item.value??'—');pair.append(dt,dd);dl.append(pair);}details.append(dl);host.append(details);
   return view;

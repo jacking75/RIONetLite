@@ -52,7 +52,7 @@
     const cells=Math.min(capacity,64),stride=capacity/cells,activeIds=[];let body='';const cx=165,cy=177,r=100;
     for(let i=0;i<cells;i++){
       const index=Math.floor(i*stride);const occupied=(index-read+capacity)%capacity<used;
-      const reserved=(index-write+capacity)%capacity<posted;const a=i*2*Math.PI/cells-Math.PI/2,b=(i+1)*2*Math.PI/cells-Math.PI/2;
+      const reserved=(index-(spec.postFrom==='read'?read:write)+capacity)%capacity<posted;const a=i*2*Math.PI/cells-Math.PI/2,b=(i+1)*2*Math.PI/cells-Math.PI/2;
       const point=(radius,angle)=>[cx+radius*Math.cos(angle),cy+radius*Math.sin(angle)];
       const [x1,y1]=point(r,a),[x2,y2]=point(r,b),[x3,y3]=point(r-25,b),[x4,y4]=point(r-25,a);
       body+=`<path data-ring-index="${index}" class="${occupied?'occupied':reserved?'posted':'empty'}" d="M${x1} ${y1} A${r} ${r} 0 ${b-a>Math.PI?1:0} 1 ${x2} ${y2} L${x3} ${y3} A${r-25} ${r-25} 0 ${b-a>Math.PI?1:0} 0 ${x4} ${y4} Z" style="fill:var(${occupied?'--soft':reserved?'--bg':'--paper'});stroke:var(${reserved?'--gold':'--accent'});stroke-width:${reserved?3:1}"/>`;

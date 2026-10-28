@@ -7,9 +7,38 @@
   const values=entries=>entries.map(([label,value])=>({label,value}));
   const blocked=(state,message)=>({state,events:[],blocked:true,message,explanationId:'blocked'});
   const result=(state,message,events=[])=>({state,events,message,explanationId:'transition'});
+  const lane=(id,label)=>({id,label});
+  const message=(from,to,label,kind='call')=>({from,to,label,kind});
+  const sequence=(lanes,steps,step)=>({kind:'sequence',lanes,steps,step});
+  const queueVisual=(capacity,items,parked=false)=>({kind:'queue',shards:[{slots:Array.from({length:capacity},(_,i)=>items[i]??'·'),capacity,head:0,count:items.length}],gates:[{session:'현재 세션',parked}]});
+  const visualizers={
+    echoRoundtrip:s=>sequence([lane('client','클라이언트'),lane('kernel','Windows RIO'),lane('worker','I/O 워커'),lane('app','EchoHandler')],[
+      {title:'연결 준비',messages:[]},
+      {title:'수신 게시',messages:[message('worker','kernel','RIOReceive')]},
+      {title:'수신 완료·다음 게시',messages:[message('client','kernel','7바이트','data'),message('kernel','worker','완료(7)','completion')]},
+      {title:'프레임 해석',messages:[message('worker','app','OnData → Decode','callback')]},
+      {title:'송신 접수',messages:[message('app','worker','Send → kQueued')]},
+      {title:'송신 게시',messages:[message('worker','kernel','RIOSend')]},
+      {title:'송신 완료',messages:[message('kernel','worker','완료(7)','completion')]}],s.step),
+    rioRequests:s=>sequence([lane('worker','워커'),lane('kernel','운영체제')],[{title:'게시 전',messages:[]},{title:'게시 결과',messages:[message('worker','kernel',s.status==='failed'?'게시 실패·롤백':'요청 게시',s.status==='failed'?'blocked':'call')]},{title:'완료 처리',messages:[message('kernel','worker','완료 기록','completion')]}],s.status==='idle'?0:s.completions?2:1),
+    callbackOrder:s=>sequence([lane('wa','워커 A'),lane('sa','세션 A'),lane('wb','워커 B'),lane('sb','세션 B')],s.order.length?s.order.map(value=>{const [id,event]=value.split(':');return {title:value,messages:[message(id==='A'?'wa':'wb',id==='A'?'sa':'sb',event,'callback')]};}):[{title:'콜백 전',messages:[]}],Math.max(0,s.order.length-1)),
+    registeredMemory:s=>({kind:'graph',nodes:[{id:'posts',label:'신규 게시 '+(s.postsBlocked?'차단':'허용'),state:s.postsBlocked?'done':'blocked'},{id:'send',label:'송신 참조 '+s.send,state:s.send?'active':'done'},{id:'recv',label:'수신 참조 '+s.receive,state:s.receive?'active':'done'},{id:'registration',label:'등록 '+(s.registered?'유지':'해제'),state:s.registered?'waiting':'done'},{id:'memory',label:'저장소 '+(s.freed?'해제':'유지'),state:s.freed?'done':'waiting'}],edges:[{from:'posts',to:'registration'},{from:'send',to:'registration'},{from:'recv',to:'registration'},{from:'registration',to:'memory'}]}),
+    ringBuffer:s=>({kind:'ring',...s,postFrom:'read'}),
+    acceptSession:s=>({kind:'slots',workers:s.workers,slots:s.slots.map(slot=>({...slot,state:slot.active?'active':'free'})),free:s.free}),
+    sessionIdentity:s=>({kind:'slots',workers:1,slots:[{index:s.index,owner:0,generation:s.generation,state:s.state}],free:s.state==='Free'?[s.index]:[],note:`지연 작업 ${s.index}:${s.oldGeneration} · 판정 ${s.decision}`}),
+    receivePath:s=>({kind:'ring',capacity:s.capacity,read:s.read,write:s.write,used:s.used,posted:s.posted}),
+    sendPath:s=>({kind:'ring',capacity:s.capacity,read:s.completed%s.capacity,write:(s.completed+s.used)%s.capacity,used:s.used,posted:s.posted,postFrom:'read',inFlight:s.posted}),
+    connectionClose:s=>({kind:'state',states:['Active','Peer drain','Closing','Quarantined','Free'].map(id=>({id,label:id})),active:s.phase,note:s.reason,steps:[{active:s.phase}],transitions:[]}),
+    serverShutdown:s=>{const labels=['accept 중지','앱 진입 차단','송신 완료 회수','소켓 닫기','수신 취소 회수','워커 join','버퍼 해제','CQ 해제'];const done=[!s.accept,!s.posts,!s.send,!s.sockets,!s.receive,!s.workers,!s.buffers,!s.cq];return {kind:'graph',nodes:labels.map((label,i)=>({id:'stop'+i,label,state:done[i]?'done':s.preserved?'blocked':'waiting'})),edges:labels.slice(1).map((_,i)=>({from:'stop'+i,to:'stop'+(i+1)}))};},
+    logicQueue:s=>queueVisual(s.capacity,s.queue.map(e=>e.type),s.parked),
+    chatServer:s=>({kind:'queue',shards:s.inboxes.map(box=>({slots:Array.from({length:s.capacity},(_,i)=>box[i]?'룸 '+box[i].room:'·'),capacity:s.capacity,head:0,count:box.length})),extra:[sequence([lane('sender','발신자'),lane('shards','샤드 inbox'),lane('room','같은 룸 Player')],[{title:'로그인·입장',messages:[]},{title:'방송 복사',messages:[message('sender','shards','룸 메시지','data')]},{title:'샤드별 전달',messages:[message('shards','room','소속 확인 후 Send','data')]}],s.delivered?2:s.broadcasts?1:0)]}),
+    applicationQueue:s=>queueVisual(s.capacity,Array.from({length:s.used},()=> '작업')),
+    failureRollback:s=>{const resources=['session0.send','session0.recv','session1.send','session1.recv'];return {kind:'graph',nodes:resources.map((id,i)=>({id,label:id,state:s.acquired.includes(id)?'active':s.released.includes(id)?'done':s.failed&&i===s.call-1?'blocked':'waiting'})),edges:resources.slice(1).map((id,i)=>({from:resources[i],to:id,label:s.released.includes(id)?'역순 정리 '+(s.released.indexOf(id)+1):'확보 순서'}))};}
+  };
+
   function define(name,id,create,step,validate,view){
     const model={createInitialState(config={}){object(config);const state=create(config);check(validate(state).length===0,'초기 모델 상태가 유효하지 않다.');return state;},
-      transition(state,action){object(action);check(typeof action.type==='string','동작 종류가 필요하다.');const next=step(copy(state),copy(action));check(validate(next.state).length===0,'모델의 안전 조건을 위반했다.');return next;},validateState:validate,view,
+      transition(state,action){object(action);check(typeof action.type==='string','동작 종류가 필요하다.');const next=step(copy(state),copy(action));check(validate(next.state).length===0,'모델의 안전 조건을 위반했다.');return next;},validateState:validate,view:s=>({...view(s),...(visualizers[name]?{visual:visualizers[name](s)}:{})}),
       serializeScenario(config,actions){return models.core.serialize(model,id,config,actions);},parseScenario(text){return models.core.parse(text,model,id);}};
     models[name]=model;
   }

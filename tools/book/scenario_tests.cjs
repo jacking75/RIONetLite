@@ -21,6 +21,7 @@ for(const definition of manifest.labs){
    assert.equal(model.validateState(state).length,0);
    assert.equal(JSON.stringify(context.BookModels.core.replay(model,config,actions.slice(0,i+1))),JSON.stringify(state));
    const view=model.view(state);assert.ok(Array.isArray(view.values)&&view.values.length);assert.ok(typeof view.message==='string');
+   if(view.visual){assert.ok(context.BookFigures.kinds.includes(view.visual.kind));for(const visual of [view.visual,...(view.visual.extra??[])])assert.ok(context.BookFigures.render(visual.kind,visual,visual.step??0).svg);}
   }
   const serialized=model.serializeScenario(config,actions);const parsed=model.parseScenario(serialized);
   assert.equal(JSON.stringify(parsed.state),JSON.stringify(state));

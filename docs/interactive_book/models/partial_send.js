@@ -69,7 +69,7 @@
       ...(explanationId === 'send.free_blocked' ? {message: '차단: 미완료 송신 요청이 등록 메모리를 참조한다. 먼저 완료를 처리해야 한다.'} : {})};
   }
   function view(s) {
-    return {values:[{label:'링 읽기 위치',value:s.offset},{label:'게시된 길이',value:s.length},
+    return {visual:{kind:"bytes",bytes:Array.from({length:s.messageBytes},(_,i)=>i),headerBytes:0,arrived:s.messageBytes,consumed:s.offset,marks:["offset="+s.offset+" / posted="+s.length]},values:[{label:'링 읽기 위치',value:s.offset},{label:'게시된 길이',value:s.length},
       {label:'미완료 송신',value:s.outstanding},{label:'링에 남은 바이트',value:s.remaining},
       {label:'게시 준비 횟수',value:s.requestNumber},{label:'오류',value:s.error??'없음'}],
       nodes:[{label:'송신 링',value:`${s.remaining}바이트`},{label:'진행 요청',value:s.length,active:s.outstanding===1},
