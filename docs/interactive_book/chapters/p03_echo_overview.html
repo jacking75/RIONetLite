@@ -75,7 +75,7 @@ int main() {
 <button class="source" data-evidence="echo.main">실제 코드 · main의 생성·시작·정지 순서</button><button class="source" data-evidence="echo.on_data">실제 코드 · EchoHandler::OnData</button>
 </section>
 <section id="echo-ov-flow"><h2>패킷 하나가 왕복하는 길</h2>
-<p>그림으로 보기 · 단계 버튼으로 요청과 상태가 바뀌는 순서를 확인한다. 다음 코드 설명은 이 그림의 해당 단계를 구체적으로 읽는다.</p><figure data-figure="F-P03-1"><p class="no-script">단계별 그림은 JavaScript를 켜면 보인다. 동작 순서와 제약은 이어지는 본문에도 적었다.</p></figure>
+<p>그림으로 보기 · 단계 버튼으로 요청과 상태가 바뀌는 순서를 확인한다. 다음 코드 설명은 이 그림의 해당 단계를 구체적으로 읽는다.</p><details class="predict"><summary>먼저 예측해 보기 · Create가 오류를 반환했다. 다음 단계는 무엇인가?</summary><p>오류를 기록하고 Start를 호출하지 않는다 — W01은 create failed를 출력하고 종료 코드 3으로 반환한다.</p></details><figure data-figure="F-P03-1"><p class="no-script">단계별 그림은 JavaScript를 켜면 보인다. 동작 순서와 제약은 이어지는 본문에도 적었다.</p></figure>
 <p>클라이언트가 <code>rio</code> 메시지(7바이트)를 보내고 같은 7바이트를 돌려받기까지를 네 참여자로 나누어 그렸다. 세로선은 각 참여자이고, 위에서 아래로 시간이 흐른다.</p>
 <div class="diagram diagram-scroll"><svg viewBox="0 0 820 590" role="img" aria-label="클라이언트, Windows 커널, RIONetLite I/O 워커, EchoHandler 사이의 메시지 순서도"><g>
 <rect x="20" y="10" width="140" height="44" rx="6"/><text x="90" y="38" text-anchor="middle">클라이언트</text>
@@ -133,4 +133,4 @@ bin\x64\Release\LoadClient.exe --port 32452 --connections 4 --duration 10 --scen
 <tr><td>Echo에 게임 로직과 DB를 붙이고 싶다.</td><td><a href="#chapter=logic-queue">C18 게임 로직 큐</a>, <a href="#chapter=chat-server">C19 ChatServer</a></td></tr>
 </tbody></table></div>
 <label class="check"><input type="checkbox" data-check="P03-understood"><span>EchoHandler와 main의 역할, 7바이트 패킷이 응답이 되기까지의 단계, 쪼개진 패킷이 처리되는 방식을 설명할 수 있다.</span></label>
-</section></article>
+</section><section id="echo-overview-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-P03-1"><p class="no-script">Create가 오류를 반환했다. 다음 단계는 무엇인가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P03-2"><p class="no-script">서버 실행 문구가 보였다. Echo 왕복까지 검증됐는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P03-3"><p class="no-script">Ctrl+C가 들어오면 누가 Stop을 실행하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P03-4"><p class="no-script">Send가 kQueued를 반환했다. 무엇을 뜻하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section></article>

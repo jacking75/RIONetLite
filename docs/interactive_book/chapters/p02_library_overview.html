@@ -59,7 +59,7 @@ int main() {
 </ol>
 <button class="source" data-evidence="api.server_contract">실제 코드 · Server 공개 계약</button><button class="source" data-evidence="api.callback_contract">실제 코드 · EventHandler 콜백 계약</button>
 </section>
-<section id="overview-inside"><h2>안쪽은 다섯 부품으로 움직인다</h2><div data-map="system" data-focus="handler"><p class="no-script">애플리케이션·Server·transport·Windows 계층의 역할은 아래 표를 따른다.</p></div>
+<section id="overview-inside"><h2>안쪽은 다섯 부품으로 움직인다</h2><details class="predict"><summary>먼저 예측해 보기 · Chat에서 PlayerMap을 어느 쪽에 두는가?</summary><p>게임 로직 샤드가 소유한다 — RunShard의 지역 PlayerMap을 확인한다. 네트워크 이벤트는 복사 큐를 건넌다.</p></details><div data-map="system" data-focus="handler"><p class="no-script">애플리케이션·Server·transport·Windows 계층의 역할은 아래 표를 따른다.</p></div>
 <p>공개 API 아래에는 다음 부품들이 있다. 이름을 외우기보다 “누가 무엇을 소유하고, 누가 무엇을 부르는가”를 본다.</p>
 <div class="diagram"><svg viewBox="0 0 820 420" role="img" aria-label="애플리케이션 아래에 공개 Server가 있고, 그 아래 RIONetLite 내부에 accept 스레드, 세션 풀, I/O 워커가 있으며, 가장 아래 Windows RIO가 있는 구조"><g>
 <rect x="210" y="10" width="400" height="56" rx="6" class="accent-box"/><text x="410" y="36" text-anchor="middle">애플리케이션</text><text x="410" y="56" text-anchor="middle" font-size="13" class="muted-text">EventHandler 구현 · 게임 로직 · main</text>
@@ -137,4 +137,4 @@ int main() {
 </tbody></table></div>
 <label class="check"><input type="checkbox" data-check="P02-understood"><span>공개 API 세 가지와 연결의 여섯 장면을 그리고, 각 장면에서 일하는 스레드를 말할 수 있다.</span></label>
 <p>다음 <a href="#chapter=echo-overview">P03</a>에서는 이 그림 위에 실제 EchoServer 코드를 올려 놓고, 패킷 하나가 왕복하는 길을 따라간다.</p>
-</section></article>
+</section><section id="library-overview-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-P02-1"><p class="no-script">Chat에서 PlayerMap을 어느 쪽에 두는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P02-2"><p class="no-script">EventHandler 객체가 먼저 사라져도 Server는 안전한가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P02-3"><p class="no-script">DB 응답을 기다리는 작업은 어디서 수행하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section></article>

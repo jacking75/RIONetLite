@@ -1,1 +1,1341 @@
-{"schemaVersion": 1, "quizzes": []}
+{
+  "schemaVersion": 1,
+  "quizzes": [
+    {
+      "id": "Q-P01-1",
+      "chapter": "P01",
+      "question": "7바이트 메시지가 2+3+2로 도착했다. 무엇이 정상인가?",
+      "options": [
+        {
+          "text": "세 번 도착했으므로 세 메시지다",
+          "explain": "수신 콜백 횟수와 메시지 개수는 다른 값이다."
+        },
+        {
+          "text": "완성될 때까지 꼬리를 보존한다",
+          "explain": "TCP는 메시지 경계를 보장하지 않는다. L09에서 소비량 0·0·7을 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "첫 조각을 버리고 다시 보낸다",
+          "explain": "앞부분을 버리면 길이 헤더를 잃는다."
+        }
+      ],
+      "evidence": "framing.decode",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-P01-2",
+      "chapter": "P01",
+      "question": "RIOReceive가 성공 반환했다. 버퍼를 언제 회수하는가?",
+      "options": [
+        {
+          "text": "완료 참조까지 정리된 뒤 회수한다",
+          "explain": "게시 성공 뒤에도 커널이 메모리를 참조한다. L04에서 해제 차단을 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "다음 Send 전에만 해제한다",
+          "explain": "다른 방향의 수신 참조도 확인해야 한다."
+        },
+        {
+          "text": "성공 반환 직후 해제한다",
+          "explain": "게시 성공은 완료가 아니다."
+        }
+      ],
+      "evidence": "memory.registration",
+      "lab": "L04"
+    },
+    {
+      "id": "Q-P01-3",
+      "chapter": "P01",
+      "question": "연결이 5,000개가 되었다. 스레드도 5,000개여야 하는가?",
+      "options": [
+        {
+          "text": "워커 하나면 지연이 늘지 않는다",
+          "explain": "오래 걸리는 콜백은 같은 워커의 다른 세션도 늦춘다."
+        },
+        {
+          "text": "각 세션은 전용 스레드를 요구한다",
+          "explain": "비동기 완료 처리는 연결별 대기 스레드를 요구하지 않는다."
+        },
+        {
+          "text": "적은 워커가 여러 세션의 완료를 처리할 수 있다",
+          "explain": "세션은 연결 상태이고 워커는 실행 주체다. C07의 담당 CQ 설명으로 이어진다.",
+          "correct": true
+        }
+      ],
+      "evidence": "worker.loop",
+      "lab": "L03"
+    },
+    {
+      "id": "Q-P02-1",
+      "chapter": "P02",
+      "question": "Chat에서 PlayerMap을 어느 쪽에 두는가?",
+      "options": [
+        {
+          "text": "I/O 콜백들이 같은 맵을 자유롭게 수정한다",
+          "explain": "세션 간 콜백이 병행되어 게임 상태의 소유 규칙이 필요하다."
+        },
+        {
+          "text": "게임 로직 샤드가 소유한다",
+          "explain": "RunShard의 지역 PlayerMap을 확인한다. 네트워크 이벤트는 복사 큐를 건넌다.",
+          "correct": true
+        },
+        {
+          "text": "Windows 커널이 Player를 보관한다",
+          "explain": "커널은 게임의 룸·Player 상태를 알지 못한다."
+        }
+      ],
+      "evidence": "application.shard",
+      "lab": "L15"
+    },
+    {
+      "id": "Q-P02-2",
+      "chapter": "P02",
+      "question": "EventHandler 객체가 먼저 사라져도 Server는 안전한가?",
+      "options": [
+        {
+          "text": "Server의 정리 뒤까지 핸들러를 유지한다",
+          "explain": "Server는 핸들러를 빌려 쓴다. W01의 지역 객체 선언 순서를 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "Start가 성공하면 핸들러는 필요 없다",
+          "explain": "시작 뒤에 연결·데이터·종료 콜백이 실행된다."
+        },
+        {
+          "text": "Server가 자동으로 핸들러 복사본을 소유한다",
+          "explain": "공개 계약은 빌린 객체의 수명을 요구한다."
+        }
+      ],
+      "evidence": "api.server_contract"
+    },
+    {
+      "id": "Q-P02-3",
+      "chapter": "P02",
+      "question": "DB 응답을 기다리는 작업은 어디서 수행하는가?",
+      "options": [
+        {
+          "text": "RIO 완료 큐에 DB 함수를 넣는다",
+          "explain": "CQ는 네트워크 완료 결과를 다루는 구조다."
+        },
+        {
+          "text": "OnData에서 응답이 올 때까지 기다린다",
+          "explain": "같은 I/O 워커가 맡은 다른 세션도 기다린다."
+        },
+        {
+          "text": "로직 큐와 별도 작업 실행 주체로 넘긴다",
+          "explain": "콜백은 짧게 복사·전달하고 대기는 앱의 실행 구조에서 관리한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "api.callback_contract",
+      "lab": "L14"
+    },
+    {
+      "id": "Q-P03-1",
+      "chapter": "P03",
+      "question": "Create가 오류를 반환했다. 다음 단계는 무엇인가?",
+      "options": [
+        {
+          "text": "오류를 무시하고 Start를 시도한다",
+          "explain": "expected에 성공 Server가 없으면 정상 사용을 할 수 없다."
+        },
+        {
+          "text": "오류를 기록하고 Start를 호출하지 않는다",
+          "explain": "W01은 create failed를 출력하고 종료 코드 3으로 반환한다.",
+          "correct": true
+        },
+        {
+          "text": "클라이언트가 오면 초기화가 끝난다",
+          "explain": "접속 대기는 초기화와 Start 성공 뒤에 가능하다."
+        }
+      ],
+      "evidence": "echo.main"
+    },
+    {
+      "id": "Q-P03-2",
+      "chapter": "P03",
+      "question": "서버 실행 문구가 보였다. Echo 왕복까지 검증됐는가?",
+      "options": [
+        {
+          "text": "실제 클라이언트로 프레임과 응답을 확인해야 한다",
+          "explain": "listen 문구는 시작 경로의 증거다. 전송·프레이밍·종료는 별도 확인이다.",
+          "correct": true
+        },
+        {
+          "text": "그림 재생으로 실제 RIO도 검증된다",
+          "explain": "브라우저 실험은 Windows API를 호출하지 않는다."
+        },
+        {
+          "text": "문구 하나로 모든 전송을 통과한 것이다",
+          "explain": "대기 상태와 데이터 왕복은 서로 다른 실행 경로다."
+        }
+      ],
+      "evidence": "echo.main",
+      "lab": "L01"
+    },
+    {
+      "id": "Q-P03-3",
+      "chapter": "P03",
+      "question": "Ctrl+C가 들어오면 누가 Stop을 실행하는가?",
+      "options": [
+        {
+          "text": "커널이 C++ 객체를 모두 파괴한다",
+          "explain": "애플리케이션이 자원 수명과 종료 결과를 관리한다."
+        },
+        {
+          "text": "OnData에서 즉시 Stop한다",
+          "explain": "같은 서버의 콜백 안 Stop은 거절된다."
+        },
+        {
+          "text": "main의 종료 대기 루프가 빠져나와 실행한다",
+          "explain": "신호 처리기는 플래그를 바꾸고 소유 스레드가 정리를 수행한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "echo.main"
+    },
+    {
+      "id": "Q-P03-4",
+      "chapter": "P03",
+      "question": "Send가 kQueued를 반환했다. 무엇을 뜻하는가?",
+      "options": [
+        {
+          "text": "상대가 게임 명령을 실행했다",
+          "explain": "라이브러리 접수 결과로 상대 앱의 실행을 알 수 없다."
+        },
+        {
+          "text": "내부 링으로 송신을 접수했다",
+          "explain": "상대의 수신이나 게임 로직 처리가 끝났다는 뜻은 아니다. L10의 완료량을 따로 본다.",
+          "correct": true
+        },
+        {
+          "text": "모든 송신 바이트의 RIO 완료가 끝났다",
+          "explain": "접수와 실제 게시·완료는 다른 시점이다."
+        }
+      ],
+      "evidence": "api.send",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C02-1",
+      "chapter": "C02",
+      "question": "헤더는 찾았지만 링크에서 심볼을 못 찾는다. 어디부터 보는가?",
+      "options": [
+        {
+          "text": "같은 구성의 정적 라이브러리와 링크 설정을 확인한다",
+          "explain": "컴파일과 링크는 다른 단계다. Debug/Release와 x64 산출물 구성을 맞춘다.",
+          "correct": true
+        },
+        {
+          "text": "수신 버퍼만 늘린다",
+          "explain": "실행 전 심볼 해석 오류를 버퍼 설정으로 고칠 수 없다."
+        },
+        {
+          "text": "네트워크 포트만 바꾼다",
+          "explain": "링크 오류는 listen 이전의 개발 환경 문제다."
+        }
+      ],
+      "evidence": "build.script"
+    },
+    {
+      "id": "Q-C02-2",
+      "chapter": "C02",
+      "question": "Debug 빌드가 통과했다. Release도 통과한 것인가?",
+      "options": [
+        {
+          "text": "exe 이름이 같으면 같은 구성이다",
+          "explain": "구성별 출력 경로와 실제 바이너리를 확인해야 한다."
+        },
+        {
+          "text": "Debug 결과를 Release에 복사한다",
+          "explain": "다른 구성을 실행하지 않은 결과까지 통과로 표시할 수 없다."
+        },
+        {
+          "text": "Release 구성도 별도로 확인한다",
+          "explain": "최적화와 구성별 의존성은 각각 검사한다. 빌드와 테스트 실행 결과도 구분한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "build.script"
+    },
+    {
+      "id": "Q-C03-1",
+      "chapter": "C03",
+      "question": "Start 이전의 Send가 거절됐다. 무엇이 정상인가?",
+      "options": [
+        {
+          "text": "Create 성공이면 즉시 접수해야 한다",
+          "explain": "Create와 Start는 서로 다른 수명 단계다."
+        },
+        {
+          "text": "Running 상태에서만 송신을 접수한다",
+          "explain": "공개 Send의 상태 검사와 kClosing 반환을 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "오류가 나면 내부 세션 포인터로 보낸다",
+          "explain": "공개 상태 검사와 세대 검증을 우회하면 수명 계약이 깨진다."
+        }
+      ],
+      "evidence": "api.send",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C03-2",
+      "chapter": "C03",
+      "question": "콜백 안에서 Stop을 불렀더니 kInvalidState가 왔다. 어떻게 하는가?",
+      "options": [
+        {
+          "text": "소유 스레드에 종료 요청을 전달한다",
+          "explain": "콜백 실행 워커를 자기 스택에서 join하지 않도록 한 계약이다.",
+          "correct": true
+        },
+        {
+          "text": "서버 객체를 즉시 delete한다",
+          "explain": "콜백과 다른 호출자가 참조하는 객체를 먼저 없앨 수 없다."
+        },
+        {
+          "text": "성공할 때까지 콜백 안에서 반복한다",
+          "explain": "같은 잘못된 상태를 반복하면 워커를 계속 붙잡는다."
+        }
+      ],
+      "evidence": "api.stop",
+      "lab": "L13"
+    },
+    {
+      "id": "Q-C03-3",
+      "chapter": "C03",
+      "question": "Server를 move한 뒤 원래 객체를 계속 호출해도 되는가?",
+      "options": [
+        {
+          "text": "핸들러도 자동 복제된다",
+          "explain": "핸들러는 빌린 객체이며 복제·수명은 앱 책임이다."
+        },
+        {
+          "text": "두 객체가 독립 서버로 작동한다",
+          "explain": "소유권 이동은 내부 transport를 복제하지 않는다."
+        },
+        {
+          "text": "이동된 객체의 상태를 확인하고 새 소유자만 사용한다",
+          "explain": "move-only 수명과 moved-from 오류를 공개 계약에서 확인한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "api.server_contract"
+    },
+    {
+      "id": "Q-C04-1",
+      "chapter": "C04",
+      "question": "Echo의 OnData가 빌린 span을 비동기 큐에 넣으려 한다. 무엇을 저장하는가?",
+      "options": [
+        {
+          "text": "span 포인터만 저장한다",
+          "explain": "콜백 뒤 수신 링이 재사용되어 다른 바이트를 볼 수 있다."
+        },
+        {
+          "text": "소유하는 바이트 복사본을 저장한다",
+          "explain": "QueuedEventAdapter의 memcpy가 실제 복사 지점이다.",
+          "correct": true
+        },
+        {
+          "text": "소비량을 크게 반환하면 span 수명이 늘어난다",
+          "explain": "소비량은 읽기 위치를 옮기는 값이며 수명 연장 장치가 아니다."
+        }
+      ],
+      "evidence": "queue.push",
+      "lab": "L14"
+    },
+    {
+      "id": "Q-C04-2",
+      "chapter": "C04",
+      "question": "Echo에서 kWouldBlock이 왔다. 현재 예제는 어떻게 처리하는가?",
+      "options": [
+        {
+          "text": "overload 종료를 요청한다",
+          "explain": "OnData는 kWouldBlock과 kUnavailable에 RequestClose를 수행한다.",
+          "correct": true
+        },
+        {
+          "text": "그 메시지만 버리고 TCP를 계속 해석한다",
+          "explain": "프로토콜의 응답 손실 정책을 정하지 않고 무시하면 앱 상태가 어긋난다."
+        },
+        {
+          "text": "같은 콜백에서 성공할 때까지 재시도한다",
+          "explain": "송신 완료를 처리할 워커를 막아 상황을 악화시킬 수 있다."
+        }
+      ],
+      "evidence": "echo.on_data",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C04-3",
+      "chapter": "C04",
+      "question": "완성 프레임 7바이트와 꼬리 2바이트를 보았다. 정상 소비량은 얼마인가?",
+      "options": [
+        {
+          "text": "항상 0이다",
+          "explain": "완성 프레임도 소비하지 않으면 버퍼가 영구히 찰 수 있다."
+        },
+        {
+          "text": "이번에 보이는 9바이트 전부다",
+          "explain": "미완성 꼬리를 소비하면 다음 헤더를 잃는다."
+        },
+        {
+          "text": "완성한 앞부분 7바이트다",
+          "explain": "정상 DecodeResult의 consumed_bytes를 반환한다. 꼬리는 다음 입력과 합쳐 읽는다.",
+          "correct": true
+        }
+      ],
+      "evidence": "echo.on_data",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-C04-4",
+      "chapter": "C04",
+      "question": "길이 필드가 헤더보다 작았다. Echo는 어떻게 하는가?",
+      "options": [
+        {
+          "text": "같은 헤더를 계속 기다린다",
+          "explain": "잘못된 길이는 추가 바이트로 정상 길이가 되지 않는다."
+        },
+        {
+          "text": "프로토콜 오류로 연결 종료를 요청한다",
+          "explain": "정상 미완성과 잘못된 길이를 구분한다. W02 오류 분기를 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "데이터를 임의로 잘라 길이를 보정한다",
+          "explain": "오류를 숨기면 다음 프레임 경계를 신뢰할 수 없다."
+        }
+      ],
+      "evidence": "echo.on_data",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-C05-1",
+      "chapter": "C05",
+      "question": "RIO 게시가 실패했다. outstanding은 어떻게 되는가?",
+      "options": [
+        {
+          "text": "게시 전에 늘린 참조를 롤백한다",
+          "explain": "실패한 요청은 완료를 만들지 않는다. L02에서 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "완료를 가상으로 한 번 만든다",
+          "explain": "커널 결과를 조작해 정상 완료로 기록할 수 없다."
+        },
+        {
+          "text": "완료가 올 때까지 영구히 유지한다",
+          "explain": "게시 실패에는 해당 요청의 완료를 기대할 수 없다."
+        }
+      ],
+      "evidence": "rio.post_rollback",
+      "lab": "L02"
+    },
+    {
+      "id": "Q-C05-2",
+      "chapter": "C05",
+      "question": "RQ와 CQ를 같은 큐로 생각해도 되는가?",
+      "options": [
+        {
+          "text": "CQ를 먼저 비우면 등록 버퍼가 불필요하다",
+          "explain": "등록과 요청 참조의 수명은 별도로 유지한다."
+        },
+        {
+          "text": "둘 다 앱 게임 작업을 담는다",
+          "explain": "게임 작업은 별도 로직 큐의 책임이다."
+        },
+        {
+          "text": "요청과 완료의 역할을 분리한다",
+          "explain": "RQ는 소켓 요청, CQ는 끝난 결과다. C05의 함수 표와 L02를 연결한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "rio.api",
+      "lab": "L02"
+    },
+    {
+      "id": "Q-C06-1",
+      "chapter": "C06",
+      "question": "Echo와 Chat의 OnData 뒤 경로는 어떻게 다른가?",
+      "options": [
+        {
+          "text": "둘 다 커널이 룸 방송을 처리한다",
+          "explain": "룸 상태는 애플리케이션 로직이다."
+        },
+        {
+          "text": "Chat은 복사 큐 뒤 로직 샤드가 처리한다",
+          "explain": "큰 지도에서 Chat 경로를 선택해 경계를 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "Chat의 모든 작업도 I/O 콜백에서 수행한다",
+          "explain": "실제 RunShard가 입력·Player·방송을 처리한다."
+        }
+      ],
+      "evidence": "architecture.chat_path",
+      "lab": "L15"
+    },
+    {
+      "id": "Q-C06-2",
+      "chapter": "C06",
+      "question": "같은 워커가 여러 세션을 담당한다. 긴 콜백은 누구에게 영향을 주는가?",
+      "options": [
+        {
+          "text": "같은 워커의 다른 세션도 늦어진다",
+          "explain": "클래스 경계와 실행 스레드 경계는 같지 않다. L03의 교차 순서를 본다.",
+          "correct": true
+        },
+        {
+          "text": "모든 세션이 전용 스레드로 분리된다",
+          "explain": "슬롯은 담당 워커 파티션을 공유한다."
+        },
+        {
+          "text": "현재 세션만 느려진다",
+          "explain": "해당 워커가 다음 완료를 꺼내지 못한다."
+        }
+      ],
+      "evidence": "worker.loop",
+      "lab": "L03"
+    },
+    {
+      "id": "Q-C07-1",
+      "chapter": "C07",
+      "question": "세션 A와 B의 콜백이 교차했다. 오류인가?",
+      "options": [
+        {
+          "text": "같은 세션의 close 뒤 data도 허용된다",
+          "explain": "닫힘 통지 뒤 OnData를 다시 전달하지 않는다."
+        },
+        {
+          "text": "항상 전체 서버 순서가 하나다",
+          "explain": "같은 세션의 보장과 전역 직렬화는 다르다."
+        },
+        {
+          "text": "세션별 순서가 맞으면 교차할 수 있다",
+          "explain": "서로 다른 세션의 전역 순서를 약속하지 않는다. L03에서 A·B를 번갈아 실행한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "api.callback_contract",
+      "lab": "L03"
+    },
+    {
+      "id": "Q-C07-2",
+      "chapter": "C07",
+      "question": "OnData에서 파일을 읽느라 오래 멈췄다. 무엇을 바꾸는가?",
+      "options": [
+        {
+          "text": "콜백 함수 이름만 async로 바꾼다",
+          "explain": "이름은 실행 스레드나 대기를 바꾸지 않는다."
+        },
+        {
+          "text": "소유 데이터로 복사해 별도 큐에 전달한다",
+          "explain": "핵심은 대기를 I/O 워커 밖으로 옮기고 데이터 수명을 확보하는 것이다.",
+          "correct": true
+        },
+        {
+          "text": "수신 span을 백그라운드에 그대로 넘긴다",
+          "explain": "콜백 뒤 빌린 주소의 유효성을 보장하지 않는다."
+        }
+      ],
+      "evidence": "queue.push",
+      "lab": "L14"
+    },
+    {
+      "id": "Q-C08-1",
+      "chapter": "C08",
+      "question": "송신 참조는 0인데 수신 참조가 남았다. 등록 해제가 가능한가?",
+      "options": [
+        {
+          "text": "수신까지 끝날 때까지 등록을 유지한다",
+          "explain": "같은 등록 메모리를 참조하는 모든 요청을 확인한다. L04에서 수신 완료를 남겨 본다.",
+          "correct": true
+        },
+        {
+          "text": "일정 시간 sleep하면 참조 수가 필요 없다",
+          "explain": "시간 경과로 실제 완료 여부를 대체할 수 없다."
+        },
+        {
+          "text": "송신만 끝나면 해제해도 된다",
+          "explain": "수신이 커널 쓰기 주소를 계속 참조할 수 있다."
+        }
+      ],
+      "evidence": "memory.registration",
+      "lab": "L04"
+    },
+    {
+      "id": "Q-C08-2",
+      "chapter": "C08",
+      "question": "등록된 저장소를 다른 주소로 재할당하려 한다. 무엇을 먼저 하는가?",
+      "options": [
+        {
+          "text": "포인터 값을 새 주소로 덮어쓴다",
+          "explain": "이미 게시한 커널 요청은 원래 구간을 참조한다."
+        },
+        {
+          "text": "벡터 크기만 늘리면 등록 ID가 따라온다",
+          "explain": "메모리 주소가 바뀌어도 기존 등록은 자동 갱신되지 않는다."
+        },
+        {
+          "text": "게시 차단·모든 완료·등록 해제를 확인한다",
+          "explain": "운영체제에 알려 준 주소는 참조가 끝날 때까지 안정적이어야 한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "memory.mapping",
+      "lab": "L04"
+    },
+    {
+      "id": "Q-C09-1",
+      "chapter": "C09",
+      "question": "read와 write가 같다. 링이 비었다고 단정할 수 있는가?",
+      "options": [
+        {
+          "text": "언제나 비어 있다",
+          "explain": "가득 찬 링도 두 포인터가 같을 수 있다."
+        },
+        {
+          "text": "used를 함께 확인한다",
+          "explain": "used=0과 used=capacity가 같은 포인터 위치를 가질 수 있다. L05로 비교한다.",
+          "correct": true
+        },
+        {
+          "text": "언제나 가득 차 있다",
+          "explain": "초기 빈 링도 같은 포인터다."
+        }
+      ],
+      "evidence": "ring.operations",
+      "lab": "L05"
+    },
+    {
+      "id": "Q-C09-2",
+      "chapter": "C09",
+      "question": "두 번째 매핑 뷰가 생겼다. 실제 용량도 두 배인가?",
+      "options": [
+        {
+          "text": "같은 저장소의 주소 별칭이 늘어난 것이다",
+          "explain": "wrap을 주소상 연속으로 읽기 위한 매핑이다. backing 용량은 한 벌이다.",
+          "correct": true
+        },
+        {
+          "text": "두 뷰의 바이트를 따로 수정해도 된다",
+          "explain": "별칭이므로 한쪽 수정은 같은 저장소에 반영된다."
+        },
+        {
+          "text": "저장 용량이 두 배다",
+          "explain": "같은 물리 구간을 다른 가상 주소에서 본다."
+        }
+      ],
+      "evidence": "memory.mapping",
+      "lab": "L05"
+    },
+    {
+      "id": "Q-C10-1",
+      "chapter": "C10",
+      "question": "세션 풀에 빈 슬롯이 없다. 새 연결을 어떻게 다루는가?",
+      "options": [
+        {
+          "text": "기존 활성 슬롯을 덮어쓴다",
+          "explain": "다른 연결의 수명과 완료 참조를 파괴한다."
+        },
+        {
+          "text": "임시 세션을 무한히 추가한다",
+          "explain": "설정한 최대 세션 수와 자원 예산을 우회한다."
+        },
+        {
+          "text": "연결을 거절하고 받은 소켓을 정리한다",
+          "explain": "accept는 WSAENOBUFS를 기록하고 백오프한다. L06에서 슬롯을 모두 사용해 본다.",
+          "correct": true
+        }
+      ],
+      "evidence": "accept.run",
+      "lab": "L06"
+    },
+    {
+      "id": "Q-C10-2",
+      "chapter": "C10",
+      "question": "첫 수신 전에 연결 콜백 보호를 풀어도 되는가?",
+      "options": [
+        {
+          "text": "콜백 시작 직후 풀면 된다",
+          "explain": "다른 워커가 슬롯을 재사용할 수 있다."
+        },
+        {
+          "text": "accept의 마지막 접근 뒤 보호를 푼다",
+          "explain": "CompleteConnectCallback 위치가 재사용 경쟁을 막는다. W03의 마지막 두 단계를 비교한다.",
+          "correct": true
+        },
+        {
+          "text": "슬롯 인덱스만 같으면 안전하다",
+          "explain": "세대와 수명 보호 조건도 필요하다."
+        }
+      ],
+      "evidence": "accept.run",
+      "lab": "L06"
+    },
+    {
+      "id": "Q-C11-1",
+      "chapter": "C11",
+      "question": "같은 index에 세대가 다른 지연 작업이 왔다. 무엇을 하는가?",
+      "options": [
+        {
+          "text": "현재 ID 전체와 비교해 오래된 작업을 거절한다",
+          "explain": "세션 식별은 index와 generation의 조합이다. L07에서 재사용 뒤 이전 작업을 전달한다.",
+          "correct": true
+        },
+        {
+          "text": "현재 활성 상태만 확인한다",
+          "explain": "활성인 새 연결에도 오래된 작업은 잘못된 대상이다."
+        },
+        {
+          "text": "index만 같으면 실행한다",
+          "explain": "새 플레이어의 연결을 이전 작업이 건드린다."
+        }
+      ],
+      "evidence": "session.generation",
+      "lab": "L07"
+    },
+    {
+      "id": "Q-C11-2",
+      "chapter": "C11",
+      "question": "OnClosed를 보냈지만 I/O 참조가 남았다. 슬롯을 재사용하는가?",
+      "options": [
+        {
+          "text": "소켓 번호가 달라졌으면 무관하다",
+          "explain": "슬롯과 등록 메모리의 수명은 별도 조건이다."
+        },
+        {
+          "text": "닫힘 통지 하나면 즉시 재사용한다",
+          "explain": "지연 완료가 이전 세대의 저장소를 참조할 수 있다."
+        },
+        {
+          "text": "남은 참조와 이벤트 조건도 확인한다",
+          "explain": "TryRecycle은 통지뿐 아니라 outstanding과 pending_events를 검사한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "session.lifecycle",
+      "lab": "L07"
+    },
+    {
+      "id": "Q-C12-1",
+      "chapter": "C12",
+      "question": "완료 길이가 게시 길이보다 크다. 어떻게 처리하는가?",
+      "options": [
+        {
+          "text": "게시 길이에 맞춰 잘라 성공시킨다",
+          "explain": "잘못된 완료를 숨겨 참조와 링 상태가 어긋날 수 있다."
+        },
+        {
+          "text": "프로토콜 오류로 거절하고 종료한다",
+          "explain": "컨텍스트와 링의 범위를 먼저 검증한다. L08에서 과대 완료를 넣어 본다.",
+          "correct": true
+        },
+        {
+          "text": "used에 무조건 더한다",
+          "explain": "메모리 범위 밖을 읽을 수 있다."
+        }
+      ],
+      "evidence": "receive.complete",
+      "lab": "L08"
+    },
+    {
+      "id": "Q-C12-2",
+      "chapter": "C12",
+      "question": "다음 수신을 콜백보다 먼저 게시해도 되는 조건은 무엇인가?",
+      "options": [
+        {
+          "text": "커널 쓰기와 콜백 읽기 구간이 겹치지 않는다",
+          "explain": "빈 공간만 게시하고 완료 길이·소비량을 따로 반영한다.",
+          "correct": true
+        },
+        {
+          "text": "미소비 데이터를 먼저 덮어쓴다",
+          "explain": "콜백이 읽는 입력을 커널이 수정하게 된다."
+        },
+        {
+          "text": "콜백이 빨리 끝나기만 하면 된다",
+          "explain": "빠르다는 추측으로 메모리 경쟁을 막을 수 없다."
+        }
+      ],
+      "evidence": "receive.repost",
+      "lab": "L08"
+    },
+    {
+      "id": "Q-C12-3",
+      "chapter": "C12",
+      "question": "OnClosed 뒤 수신 완료가 늦게 왔다. 앱에 데이터를 주는가?",
+      "options": [
+        {
+          "text": "완료 자체를 무시하고 참조도 남긴다",
+          "explain": "수명 회수가 끝나지 않아 자원 정리가 막힌다."
+        },
+        {
+          "text": "수신 데이터는 언제나 OnData로 준다",
+          "explain": "이미 제거된 게임 상태에 데이터가 전달될 수 있다."
+        },
+        {
+          "text": "콜백 없이 요청 참조만 정리한다",
+          "explain": "현재 연결 상태와 세대를 검사한다. W05의 첫 분기를 확인한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "worker.dispatch",
+      "lab": "L08"
+    },
+    {
+      "id": "Q-C13-1",
+      "chapter": "C13",
+      "question": "헤더가 2바이트만 왔다. 소비량은 얼마인가?",
+      "options": [
+        {
+          "text": "2를 반환한다",
+          "explain": "앞부분을 지우면 다음 입력에서 헤더를 복원할 수 없다."
+        },
+        {
+          "text": "0을 반환하고 그대로 남긴다",
+          "explain": "길이 필드 전체가 모이지 않았다. L09 첫 동작에서 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "임의 길이를 추정해 패킷을 만든다",
+          "explain": "아직 없는 바이트를 읽는 동작은 유효하지 않다."
+        }
+      ],
+      "evidence": "framing.decode",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-C13-2",
+      "chapter": "C13",
+      "question": "00 00 00 07 헤더는 어떤 길이인가?",
+      "options": [
+        {
+          "text": "헤더를 포함한 전체 7바이트다",
+          "explain": "Echo는 빅 엔디언 4바이트 전체 길이를 쓴다. 본문은 3바이트다.",
+          "correct": true
+        },
+        {
+          "text": "문자 7개를 뜻한다",
+          "explain": "길이는 문자열 글자 수가 아닌 바이트 수다."
+        },
+        {
+          "text": "본문만 7바이트다",
+          "explain": "그렇게 읽으면 실제 프레임 뒤의 바이트까지 기다리게 된다."
+        }
+      ],
+      "evidence": "framing.decode",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-C13-3",
+      "chapter": "C13",
+      "question": "정상 프레임 뒤에 잘못된 길이 헤더가 붙었다. 이미 처리한 앞부분은 어떻게 되는가?",
+      "options": [
+        {
+          "text": "모든 소비량을 무조건 0으로 돌린다",
+          "explain": "처리한 앞 프레임을 다시 처리할 위험이 있다."
+        },
+        {
+          "text": "전체 입력이 정상 처리된 것으로 만든다",
+          "explain": "잘못된 뒤쪽 길이는 오류로 알려야 한다."
+        },
+        {
+          "text": "정상 앞부분 소비량과 뒤의 오류를 함께 반환한다",
+          "explain": "DecodeResult는 consumed_bytes와 error를 구분한다. 앞 프레임을 처리한 사실을 지우지 않는다.",
+          "correct": true
+        }
+      ],
+      "evidence": "framing.decode",
+      "lab": "L09"
+    },
+    {
+      "id": "Q-C14-1",
+      "chapter": "C14",
+      "question": "송신 링이 가득 찼다. kWouldBlock은 무엇을 뜻하는가?",
+      "options": [
+        {
+          "text": "상대가 받은 데이터를 취소했다",
+          "explain": "상대 처리 상태를 알리는 결과가 아니다."
+        },
+        {
+          "text": "현재 데이터를 접수하지 못했다",
+          "explain": "기존 링을 덮지 않는 바이트 기준 배압이다. 앱이 유계 대기·종료 정책을 정한다.",
+          "correct": true
+        },
+        {
+          "text": "일부 바이트만 접수했다",
+          "explain": "공개 결과를 부분 접수로 해석하면 앱의 메시지 경계가 어긋난다."
+        }
+      ],
+      "evidence": "send.enqueue",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C14-2",
+      "chapter": "C14",
+      "question": "Send 호출이 3번인데 RIO 게시가 1번이었다. 가능한가?",
+      "options": [
+        {
+          "text": "진행 요청 뒤 링에 병합되어 가능하다",
+          "explain": "접수 호출 수와 실제 syscall 수는 다른 지표다. L10에서 게시·완료를 비교한다.",
+          "correct": true
+        },
+        {
+          "text": "나머지 데이터는 모두 버린 것이다",
+          "explain": "kQueued이면 내부 복사가 끝났으며 아직 대기할 수 있다."
+        },
+        {
+          "text": "항상 1회 Send는 1회 syscall이다",
+          "explain": "진행 중 요청이 있으면 완료 처리가 남은 링을 게시한다."
+        }
+      ],
+      "evidence": "send.prepare_post",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C15-1",
+      "chapter": "C15",
+      "question": "4바이트 요청에서 2바이트만 완료됐다. 무엇을 하는가?",
+      "options": [
+        {
+          "text": "원래 4바이트를 다시 보낸다",
+          "explain": "이미 완료된 앞부분을 중복 전송할 수 있다."
+        },
+        {
+          "text": "4바이트 전부 소비한다",
+          "explain": "아직 안 보낸 나머지를 잃는다."
+        },
+        {
+          "text": "2바이트를 소비하고 남은 구간을 재게시한다",
+          "explain": "offset·remaining·outstanding을 함께 본다. L11에서 2+2 완료를 실행한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "send.partial_completion",
+      "lab": "L11"
+    },
+    {
+      "id": "Q-C15-2",
+      "chapter": "C15",
+      "question": "부분 완료 뒤 재게시가 실패했다. 성공 송신으로 기록하는가?",
+      "options": [
+        {
+          "text": "남은 바이트도 완료된 것으로 센다",
+          "explain": "실제 완료 증거가 없다."
+        },
+        {
+          "text": "참조를 정리하고 실패를 알린다",
+          "explain": "링에 미전송 바이트가 남을 수 있다. L11의 재게시 실패를 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "outstanding을 영원히 남긴다",
+          "explain": "실패한 게시의 완료는 오지 않는다."
+        }
+      ],
+      "evidence": "send.failure",
+      "lab": "L11"
+    },
+    {
+      "id": "Q-C16-1",
+      "chapter": "C16",
+      "question": "peer FIN을 받았는데 응답 송신이 남았다. 어떻게 하는가?",
+      "options": [
+        {
+          "text": "새 Send를 막고 접수 송신을 기한 안에서 기다린다",
+          "explain": "수신 종료와 양방향 연결 정리는 다른 시점이다. L12의 peer drain을 본다.",
+          "correct": true
+        },
+        {
+          "text": "새 메시지를 무한히 계속 접수한다",
+          "explain": "FIN 뒤 배출 종료 조건이 끝나지 않는다."
+        },
+        {
+          "text": "모든 버퍼를 먼저 해제한다",
+          "explain": "커널이 남은 송신 메모리를 참조할 수 있다."
+        }
+      ],
+      "evidence": "close.begin_peer",
+      "lab": "L12"
+    },
+    {
+      "id": "Q-C16-2",
+      "chapter": "C16",
+      "question": "동시에 같은 세션의 종료 요청이 왔다. 닫힘 통지는 몇 번인가?",
+      "options": [
+        {
+          "text": "오류 원인이 다르면 각각 전달한다",
+          "explain": "원인 정책과 통지 횟수는 별개다."
+        },
+        {
+          "text": "요청 수만큼 전달한다",
+          "explain": "게임 상태의 제거를 중복 실행하게 된다."
+        },
+        {
+          "text": "한 번만 전달한다",
+          "explain": "전체 UID와 종료 승자를 검사한다. 소켓 close와 통지·격리 시점을 나눠 읽는다.",
+          "correct": true
+        }
+      ],
+      "evidence": "close.session",
+      "lab": "L12"
+    },
+    {
+      "id": "Q-C17-1",
+      "chapter": "C17",
+      "question": "워커를 먼저 join한 뒤 outstanding이 0이 되기를 기다려도 되는가?",
+      "options": [
+        {
+          "text": "워커가 없어져도 앱이 자동으로 완료를 받는다",
+          "explain": "완료를 실제로 꺼내 정리할 실행 주체가 필요하다."
+        },
+        {
+          "text": "완료 처리 주체를 남겨 둔 채 참조를 배출한다",
+          "explain": "L13에서 잘못된 순서를 선택하면 차단된다.",
+          "correct": true
+        },
+        {
+          "text": "CQ를 먼저 없애면 빨리 끝난다",
+          "explain": "남은 완료와 요청 수명 추적을 잃는다."
+        }
+      ],
+      "evidence": "shutdown.end",
+      "lab": "L13"
+    },
+    {
+      "id": "Q-C17-2",
+      "chapter": "C17",
+      "question": "immediate 종료면 등록 메모리부터 바로 해제하는가?",
+      "options": [
+        {
+          "text": "소켓 취소·완료 회수·워커 종료는 여전히 확인한다",
+          "explain": "immediate는 graceful 송신 대기를 생략하는 정책이다. 안전한 회수를 생략하지 않는다.",
+          "correct": true
+        },
+        {
+          "text": "기한 초과 자원 보존도 정상 해제로 기록한다",
+          "explain": "실패로 보존한 사실과 성공적 회수는 다르다."
+        },
+        {
+          "text": "이름대로 모든 자원을 바로 delete한다",
+          "explain": "커널 참조가 남으면 use-after-free가 된다."
+        }
+      ],
+      "evidence": "shutdown.force",
+      "lab": "L13"
+    },
+    {
+      "id": "Q-C18-1",
+      "chapter": "C18",
+      "question": "이벤트 링이 가득 찬 순간 close가 왔다. 어떻게 하는가?",
+      "options": [
+        {
+          "text": "이전 data를 건너뛰고 먼저 전달한다",
+          "explain": "같은 세션의 수신·종료 순서가 뒤집힌다."
+        },
+        {
+          "text": "데이터와 똑같이 무조건 드롭한다",
+          "explain": "게임 상태가 종료를 보지 못해 남을 수 있다."
+        },
+        {
+          "text": "세션 게이트에 보류해 선행 이벤트 뒤 전달한다",
+          "explain": "parked close는 종료 유실을 막는다. L14에서 depth와 링 용량을 비교한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "queue.park_close",
+      "lab": "L14"
+    },
+    {
+      "id": "Q-C18-2",
+      "chapter": "C18",
+      "question": "TryPop 목적지가 너무 작다. 이벤트가 사라지는가?",
+      "options": [
+        {
+          "text": "항상 이벤트를 버린다",
+          "explain": "실제 구현은 크기 검사 전에 head를 움직이지 않는다."
+        },
+        {
+          "text": "소비하지 않고 필요한 헤더 정보를 돌려준다",
+          "explain": "kDestinationTooSmall과 kEmpty는 다르다. 더 큰 목적지로 재시도한다.",
+          "correct": true
+        },
+        {
+          "text": "메모리 범위를 넘어 복사한다",
+          "explain": "목적지 길이를 먼저 검사한다."
+        }
+      ],
+      "evidence": "queue.pop",
+      "lab": "L14"
+    },
+    {
+      "id": "Q-C19-1",
+      "chapter": "C19",
+      "question": "다른 룸의 Player도 같은 샤드에 있다. 방송을 받는가?",
+      "options": [
+        {
+          "text": "룸 상태와 번호가 맞는 Player만 받는다",
+          "explain": "RunShard의 peer.phase와 peer.room 조건을 확인한다.",
+          "correct": true
+        },
+        {
+          "text": "발신자만 받고 나머지는 받지 않는다",
+          "explain": "같은 룸의 모든 대상에게 보내는 방송이다."
+        },
+        {
+          "text": "같은 샤드면 모두 받는다",
+          "explain": "샤드 배정과 룸 소속은 다른 구분이다."
+        }
+      ],
+      "evidence": "application.shard",
+      "lab": "L15"
+    },
+    {
+      "id": "Q-C19-2",
+      "chapter": "C19",
+      "question": "방송 inbox 중 하나만 가득 찼다. 일부 샤드에만 먼저 넣는가?",
+      "options": [
+        {
+          "text": "무한히 기다리며 I/O 콜백을 붙잡는다",
+          "explain": "유계 inbox의 실패는 앱 정책으로 처리해야 한다."
+        },
+        {
+          "text": "빈 샤드에만 보내고 성공 처리한다",
+          "explain": "같은 방송이 일부 Player에게만 전달되는 상태가 된다."
+        },
+        {
+          "text": "모든 목적지의 공간을 함께 확인한다",
+          "explain": "QueueBroadcast는 전부 검사한 뒤 동일 순서로 복사한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "chat.broadcast",
+      "lab": "L15"
+    },
+    {
+      "id": "Q-C20-1",
+      "chapter": "C20",
+      "question": "매 틱 유입이 처리량보다 크다. 큐만 키우면 해결되는가?",
+      "options": [
+        {
+          "text": "한 번 크게 키우면 영구 해결된다",
+          "explain": "차이가 계속 누적되면 어느 유한 용량도 찬다."
+        },
+        {
+          "text": "지속되면 다시 포화하므로 유입·처리·거절 정책을 함께 정한다",
+          "explain": "L16에서 큐 크기와 틱당 유입을 바꿔 본다.",
+          "correct": true
+        },
+        {
+          "text": "TCP 조각을 임의로 버린다",
+          "explain": "바이트 스트림의 중간 조각 손실은 프레이밍을 깨뜨린다."
+        }
+      ],
+      "evidence": "queue.push",
+      "lab": "L16"
+    },
+    {
+      "id": "Q-C20-2",
+      "chapter": "C20",
+      "question": "게임 작업에 SessionId를 저장한다. 어떤 값을 남기는가?",
+      "options": [
+        {
+          "text": "인덱스와 세대 전체를 남긴다",
+          "explain": "지연 작업이 이전 연결의 것인지 다시 확인한다. 재사용 실험 L07을 함께 본다.",
+          "correct": true
+        },
+        {
+          "text": "닉네임만 남긴다",
+          "explain": "표시 이름은 transport의 수명 식별자가 아니다."
+        },
+        {
+          "text": "인덱스만 남긴다",
+          "explain": "슬롯을 새 연결이 쓰면 잘못된 대상을 처리한다."
+        }
+      ],
+      "evidence": "session.generation",
+      "lab": "L07"
+    },
+    {
+      "id": "Q-C21-1",
+      "chapter": "C21",
+      "question": "max_message_bytes가 수신 버퍼보다 크다. 어떻게 하는가?",
+      "options": [
+        {
+          "text": "콜백에서 버퍼 밖 바이트를 읽는다",
+          "explain": "범위 검사를 우회할 수 없다."
+        },
+        {
+          "text": "포트가 맞으면 무조건 시작한다",
+          "explain": "포트 검사는 버퍼 관계를 보장하지 않는다."
+        },
+        {
+          "text": "시작 전에 설정 관계를 거절한다",
+          "explain": "프레임을 수신 링에 완성할 수 있어야 한다. L17의 오류 필드를 확인한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "config.validation",
+      "lab": "L17"
+    },
+    {
+      "id": "Q-C21-2",
+      "chapter": "C21",
+      "question": "이중 매핑의 예약량과 backing commit은 같은가?",
+      "options": [
+        {
+          "text": "모두 연결 수만 세면 된다",
+          "explain": "방향별 버퍼와 워커 제어 메모리도 반영해야 한다."
+        },
+        {
+          "text": "가상 주소 예약과 실제 저장소 비용을 구분한다",
+          "explain": "L17은 registered·reserved·committed·control을 따로 계산한다.",
+          "correct": true
+        },
+        {
+          "text": "뷰가 두 개면 모든 물리 비용도 두 배다",
+          "explain": "두 뷰는 같은 저장소의 별칭이다."
+        }
+      ],
+      "evidence": "config.validation",
+      "lab": "L17"
+    },
+    {
+      "id": "Q-C22-1",
+      "chapter": "C22",
+      "question": "송신 접수 바이트가 완료 바이트보다 크다. 즉시 손실인가?",
+      "options": [
+        {
+          "text": "같은 구간의 대기·오류·상대 소비를 함께 조사한다",
+          "explain": "접수와 완료 시점이 다르므로 단일 차이만으로 원인을 확정하지 않는다.",
+          "correct": true
+        },
+        {
+          "text": "접수 바이트를 완료 바이트로 복사한다",
+          "explain": "측정값을 바꿔 실제 진행을 숨길 수 없다."
+        },
+        {
+          "text": "차이는 항상 패킷 손실이다",
+          "explain": "정상적인 미완료 송신도 차이를 만든다."
+        }
+      ],
+      "evidence": "metrics.snapshot",
+      "lab": "L10"
+    },
+    {
+      "id": "Q-C22-2",
+      "chapter": "C22",
+      "question": "누적 counter가 증가했다. 초당 처리량인가?",
+      "options": [
+        {
+          "text": "서로 다른 PC의 counter를 더해 지연을 구한다",
+          "explain": "지연과 개수·환경의 단위가 맞지 않는다."
+        },
+        {
+          "text": "최종 counter 값 자체가 초당 처리량이다",
+          "explain": "시작 시점과 경과 시간을 모르면 속도를 알 수 없다."
+        },
+        {
+          "text": "동일한 시간 구간의 차이와 단위를 계산한다",
+          "explain": "counter와 순간 depth·대기 시간은 다른 지표다. 측정 구간을 함께 기록한다.",
+          "correct": true
+        }
+      ],
+      "evidence": "metrics.snapshot",
+      "lab": "L20"
+    },
+    {
+      "id": "Q-C23-1",
+      "chapter": "C23",
+      "question": "bind_failed와 native 10048을 보았다. 첫 조치는 무엇인가?",
+      "options": [
+        {
+          "text": "아무 프로세스나 종료한다",
+          "explain": "실제 소유자와 서비스 영향을 확인하지 않았다."
+        },
+        {
+          "text": "포트 소유 PID와 설정을 확인한다",
+          "explain": "다른 서비스일 수 있으므로 먼저 관찰한다. L18의 안전한 확인 선택을 본다.",
+          "correct": true
+        },
+        {
+          "text": "등록 버퍼부터 해제한다",
+          "explain": "bind 실패의 원인 계층과 무관한 추측이다."
+        }
+      ],
+      "evidence": "diagnostics.errors",
+      "lab": "L18"
+    },
+    {
+      "id": "Q-C23-2",
+      "chapter": "C23",
+      "question": "Stop 오류에 remaining_outstanding이 남았다. 무엇을 조사하는가?",
+      "options": [
+        {
+          "text": "막힌 콜백·취소 완료·잔여 참조를 확인한다",
+          "explain": "실패를 정상 종료로 바꾸지 않고 원인을 좁힌다. L13·L18과 연결한다.",
+          "correct": true
+        },
+        {
+          "text": "바로 모든 등록 메모리를 free한다",
+          "explain": "수명 조건을 확인하지 않아 use-after-free가 될 수 있다."
+        },
+        {
+          "text": "숫자를 0으로 출력해 성공 처리한다",
+          "explain": "커널 참조가 실제로 정리되는 것은 아니다."
+        }
+      ],
+      "evidence": "shutdown.force",
+      "lab": "L18"
+    },
+    {
+      "id": "Q-C24-1",
+      "chapter": "C24",
+      "question": "fake API 테스트가 통과했다. 실제 Winsock도 통과했는가?",
+      "options": [
+        {
+          "text": "브라우저 모델이 네이티브를 대신한다",
+          "explain": "설명용 모델은 Windows API를 호출하지 않는다."
+        },
+        {
+          "text": "fake 성공이 모든 OS를 증명한다",
+          "explain": "실제 provider의 완료·취소·accept 경로를 실행하지 않았다."
+        },
+        {
+          "text": "실제 RIO 통합 검사를 별도로 실행한다",
+          "explain": "순수·fake·Win32·실제 통합은 증거 범위가 다르다.",
+          "correct": true
+        }
+      ],
+      "evidence": "testing.worker",
+      "lab": "L19"
+    },
+    {
+      "id": "Q-C24-2",
+      "chapter": "C24",
+      "question": "N번째 등록 실패를 주입했다. 무엇을 해제하는가?",
+      "options": [
+        {
+          "text": "실패한 자원도 확보됐다고 가정한다",
+          "explain": "없는 등록 ID를 해제하면 별도 오류를 만들 수 있다."
+        },
+        {
+          "text": "성공적으로 확보한 자원만 역순으로 해제한다",
+          "explain": "미확보 자원의 가짜 해제와 이중 해제를 구분한다. L19에서 실패 위치를 바꾼다.",
+          "correct": true
+        },
+        {
+          "text": "이전 성공 자원은 모두 버린다",
+          "explain": "실패 경로에서도 확보한 수명을 정리해야 한다."
+        }
+      ],
+      "evidence": "failure.register",
+      "lab": "L19"
+    }
+  ]
+}

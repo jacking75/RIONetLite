@@ -134,7 +134,28 @@ function initCompare(host){
   const why=document.createElement('p');why.textContent=spec.why;host.append(title,grid,why,makeButton('근거 코드',()=>openEvidence(spec.evidence)));
 }
 
-function initQuiz(host){componentStub(host);}
+function initQuiz(host,printing=false){
+  const spec=BOOK.quizzes.find(q=>q.id===host.dataset.quiz);host.classList.add('quiz');host.replaceChildren();
+  const fieldset=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=spec.question;fieldset.append(legend);
+  const feedback=document.createElement('div');feedback.className='quiz-feedback';feedback.hidden=true;feedback.setAttribute('role','status');
+  if(printing){const list=document.createElement('ol');for(const option of spec.options){const li=document.createElement('li');li.textContent=option.text;list.append(li);}const answer=document.createElement('p');const correct=spec.options.find(o=>o.correct);answer.textContent='정답: '+correct.text+' — '+correct.explain;host.append(legend,list,answer);return;}
+  const choices=[];
+  for(const [i,option]of spec.options.entries()){
+    const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');input.type='radio';input.name='rt-'+spec.id;input.id='rt-'+spec.id+'-'+i;input.value=i;label.htmlFor=input.id;text.textContent=option.text;label.append(input,text);fieldset.append(label);choices.push(input);
+  }
+  const show=index=>{
+    const option=spec.options[index];feedback.replaceChildren();feedback.hidden=false;
+    if(!option){feedback.textContent='보기를 고른 뒤 확인한다.';return;}
+    const p=document.createElement('p');p.textContent=(option.correct?'정답이다. ':'다시 생각해 본다. ')+option.explain;feedback.append(p);
+    if(!option.correct){const correct=spec.options.find(o=>o.correct);const answer=document.createElement('p');answer.textContent='정답: '+correct.text+' — '+correct.explain;feedback.append(answer);}
+    feedback.append(makeButton('실제 코드',()=>openEvidence(spec.evidence)));
+    if(spec.lab)feedback.append(makeButton('실험에서 확인',()=>navigateLab(spec.lab)));
+  };
+  const controls=document.createElement('div');controls.className='controls';controls.append(makeButton('확인',()=>{const index=choices.findIndex(n=>n.checked);show(index);if(index>=0){persisted.quiz[spec.id]=index;save();updateRoute();}}),makeButton('다시 풀기',()=>{delete persisted.quiz[spec.id];for(const input of choices)input.checked=false;feedback.hidden=true;save();updateRoute();choices[0].focus();}));
+  host.append(fieldset,controls,feedback);
+  const index=persisted.quiz[spec.id];if(Number.isInteger(index)&&choices[index]){choices[index].checked=true;show(index);}
+}
+
 function navigateLab(id){const definition=BOOK.manifest.labs.find(l=>l.id===id);const chapter=chapters.find(c=>c.id===definition.chapter);navigate(chapter);requestAnimationFrame(()=>document.querySelector(`[data-lab="${id}"]`)?.scrollIntoView({block:'start'}));}
 function initMap(host,printing=false){
   const system=BOOK.map,mini=host.hasAttribute('data-mini');host.classList.add('map',...(mini?['map-mini']:[]));host.replaceChildren();
@@ -178,6 +199,7 @@ function printComponents(clone){for(const kind of Object.keys(components))for(co
   }else if(kind==='walkthrough')initWalkthrough(host,true);
   else if(kind==='compare')initCompare(host);
   else if(kind==='map')initMap(host,true);
+  else if(kind==='quiz')initQuiz(host,true);
   else host.textContent='인쇄판에서는 생략한다.';
 }}
 function makeButton(text,fn,className=''){const b=document.createElement('button');b.type='button';b.textContent=text;b.className=className;b.onclick=fn;return b;}

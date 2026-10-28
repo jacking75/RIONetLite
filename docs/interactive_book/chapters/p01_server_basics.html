@@ -1,7 +1,7 @@
 <article class="chapter" id="server-basics" data-title="네트워크 서버 기초"><div class="eyebrow">0부 · P01</div><h1>서버 프로그램이 하는 일부터 본다</h1><div data-map="system" data-mini data-focus="kernel-socket,rio"><p class="no-script">지도에서의 위치는 이 장의 쉽게 말하면 상자에서 설명한다.</p></div>
 <p class="lead">RIONetLite를 열기 전에 네트워크 서버의 기본 동작 네 가지와 이 책에서 계속 나오는 말을 먼저 익힌다. C++ 클래스와 람다를 읽을 수 있다면 네트워크 프로그래밍 경험이 없어도 이 장부터 시작할 수 있다.</p>
 <aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>“연결·수신·송신·종료”, “TCP는 <dfn data-term="byte-stream">바이트 스트림</dfn>이다”, “요청을 게시하고 <dfn data-term="completion">완료를 처리한다</dfn>”, “RIO의 <dfn data-term="registered-buffer">등록 버퍼</dfn>·RQ·CQ”를 각각 한 문장으로 설명할 수 있다. 이미 아는 내용이면 <a href="#chapter=library-overview">P02 RIONetLite 한눈에 보기</a>로 바로 넘어간다.</p></aside>
-<section id="basics-server-job"><h2>게임 서버는 연결을 받고, 읽고, 쓰고, 닫는다</h2>
+<details class="predict"><summary>먼저 예측해 보기 · 7바이트 메시지가 2+3+2로 도착했다. 무엇이 정상인가?</summary><p>완성될 때까지 꼬리를 보존한다 — TCP는 메시지 경계를 보장하지 않는다. L09에서 소비량 0·0·7을 확인한다.</p></details><section id="basics-server-job"><h2>게임 서버는 연결을 받고, 읽고, 쓰고, 닫는다</h2>
 <p>게임 클라이언트가 서버에 접속하면 둘 사이에 TCP 연결이 하나 생긴다. 서버는 정해진 <dfn data-term="port">포트 번호</dfn>에서 접속을 기다리고(listen) 들어온 접속을 받아들인다(accept). 받아들인 연결마다 “이 플레이어와 이어진 통로”의 정보를 따로 관리하는데, 이 책은 그것을 <strong><dfn data-term="session">세션</dfn>(session)</strong>이라고 부른다.</p>
 <p>연결이 생긴 뒤 서버가 하는 일은 결국 다음 네 가지의 반복이다.</p>
 <div class="table-wrap"><table><thead><tr><th>동작</th><th>뜻</th><th>게임에서의 예</th><th>RIONetLite에서 만나는 이름</th></tr></thead><tbody>
@@ -63,4 +63,4 @@
 </tbody></table></div>
 <label class="check"><input type="checkbox" data-check="P01-understood"><span>TCP에 길이 헤더가 필요한 이유와 “게시한 요청이 완료되기 전에는 그 메모리를 건드리지 않는다”는 규칙을 설명할 수 있다.</span></label>
 <p>다음 <a href="#chapter=library-overview">P02</a>에서는 이 개념들이 RIONetLite 안에서 어떤 부품으로 묶여 있는지 한 장의 그림으로 본다.</p>
-</section></article>
+</section><section id="server-basics-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-P01-1"><p class="no-script">7바이트 메시지가 2+3+2로 도착했다. 무엇이 정상인가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-2"><p class="no-script">RIOReceive가 성공 반환했다. 버퍼를 언제 회수하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-P01-3"><p class="no-script">연결이 5,000개가 되었다. 스레드도 5,000개여야 하는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section></article>

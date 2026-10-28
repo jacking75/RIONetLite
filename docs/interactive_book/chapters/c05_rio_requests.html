@@ -6,7 +6,7 @@
 <div class="table-wrap"><table><thead><tr><th>구성 요소</th><th>없거나 잘못되면</th><th>검사 위치</th></tr></thead><tbody><tr><td>등록 범위</td><td>유효하지 않은 구간을 커널에 전달할 수 있다.</td><td>BeginRequest의 offset·length 검사</td></tr><tr><td>요청 컨텍스트</td><td>이전 연결의 완료를 새 연결에 적용할 수 있다.</td><td>워커의 세대·index·방향 검사</td></tr><tr><td>CQ 수명</td><td>완료를 회수할 곳을 잃는다.</td><td>종료의 drain·워커 join 이후 해제</td></tr><tr><td>RQ 수명</td><td>동시에 진행 중인 게시 호출이 무효 자원을 사용할 수 있다.</td><td>posts_in_flight와 BeginClose</td></tr></tbody></table></div>
 <button class="source" data-evidence="rio.api">실제 코드 · RioApi 접점</button>
 </section>
-<section id="rio-posting"><h2>게시 성공은 완료 이벤트와 다르다</h2><div data-lab="L02"></div>
+<section id="rio-posting"><h2>게시 성공은 완료 이벤트와 다르다</h2><details class="predict"><summary>먼저 예측해 보기 · RIO 게시가 실패했다. outstanding은 어떻게 되는가?</summary><p>게시 전에 늘린 참조를 롤백한다 — 실패한 요청은 완료를 만들지 않는다. L02에서 확인한다.</p></details><div data-lab="L02"></div>
 <p>게시 전에 컨텍스트와 참조 카운트를 준비한다. 호출이 성공하면 나중의 완료까지 메모리를 유지한다. 호출이 실패하면 방금 준비한 참조를 롤백한다. 실패한 게시에도 완료가 올 것이라고 기다리면 카운터가 끝나지 않아 종료가 막힐 수 있다. 반대로 성공 반환을 완료라고 처리하면 커널이 쓰는 메모리를 먼저 해제할 수 있다.</p>
 <p>이 수명 규칙은 수신과 송신에서 공통이다. 그러나 0바이트 결과의 의미는 같지 않다. 수신에서는 원격의 정상 종료를 관찰하는 경로이고 송신에서는 실패 처리로 이어진다. 방향을 잃은 공통 completion 함수 하나로 의미까지 같다고 취급하지 않는다.</p>
 </section>
@@ -21,7 +21,7 @@
 <section id="rio-verification"><h2>fake와 실제 provider를 둘 다 확인한다</h2>
 <p>FakeRioApi는 게시 실패, N번째 초기화 실패와 손상된 CQ 같은 분기를 결정적으로 재현한다. 실제 provider의 동작이나 OS 자원 수명을 전부 재현하는 대체품은 아니다. 단위 검사 뒤 실제 통합 검사를 실행해 두 층을 연결한다.</p><pre><code>bin\tests\x64\Debug\RIONetLite.UnitTests.exe --gtest_filter=RioRequestTest.*:RioApiTest.*:WorkerControlTest.*
 bin\tests\x64\Release\RIONetLite.IntegrationTests.exe</code></pre>
-<label class="check"><input type="checkbox" data-check="C05-understood"><span>게시 실패의 롤백과 성공 뒤 완료 지연이 왜 다른 수명 경로인지 설명할 수 있다.</span></label></section><section id="rio-requests-prior-notes" data-archive><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d27-i2"><summary>통합한 기존 안내 · docs/getting-started.md · TCP와 RIO 입문</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-37-70</p><div class="archive-body"><h3>TCP와 RIO 입문</h3>
+<label class="check"><input type="checkbox" data-check="C05-understood"><span>게시 실패의 롤백과 성공 뒤 완료 지연이 왜 다른 수명 경로인지 설명할 수 있다.</span></label></section><section id="rio-requests-quiz"><h2>확인 퀴즈</h2><div data-quiz="Q-C05-1"><p class="no-script">RIO 게시가 실패했다. outstanding은 어떻게 되는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div><div data-quiz="Q-C05-2"><p class="no-script">RQ와 CQ를 같은 큐로 생각해도 되는가? 정답과 근거는 본문과 실제 코드에서 확인한다.</p></div></section><section id="rio-requests-prior-notes" data-archive><h2>이전 안내의 설명과 독해 포인트를 대조한다</h2><p>다음은 이 주제에 연결한 기존 문서와 이전 판의 보조 자료다. 먼저 위 본문과 현재 실험을 읽고, 과거 문구·표·코드를 대조할 때 펼친다.</p><details class="archive" id="migration-d27-i2"><summary>통합한 기존 안내 · docs/getting-started.md · TCP와 RIO 입문</summary><p class="archive-context">기존 안내의 표·명령·제한을 보존했다. 로컬 링크는 현재 책의 해당 주제로 전환했다. 출처 revision: worktree · 항목: lines-37-70</p><div class="archive-body"><h3>TCP와 RIO 입문</h3>
 <p>TCP는 바이트 순서를 지키는 stream이다. Send 두 번이 OnData 두 번이라는 뜻은 아니다. 메시지 하나가 여러 callback으로 나뉘거나 여러 메시지가 합쳐질 수 있다. 길이 header로 경계를 찾는 약속이 framing이다.</p>
 <div class="table-scroll"><table>
 <tr><th>용어</th><th>의미</th></tr>

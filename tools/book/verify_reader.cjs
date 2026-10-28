@@ -58,6 +58,10 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   await go('packet-framing');const routeCheck=page.locator('#packet-framing [data-check="C13-understood"]');await routeCheck.uncheck();
   const routeBefore=await page.evaluate(()=>routeProgress(selectedRoute()));await routeCheck.check();
   assert.equal(await page.evaluate(()=>routeProgress(selectedRoute())),routeBefore+1);assert.match(await page.locator('#routeNext').innerText(),/C03/);
+  const quiz=page.locator('[data-quiz="Q-C13-1"]');await quiz.locator('input').first().check();await quiz.getByRole('button',{name:'확인',exact:true}).click();
+  assert.match(await quiz.locator('[role="status"]').innerText(),/정답|다시 생각/);await page.reload();
+  assert.equal(await quiz.locator('input').first().isChecked(),true);assert.equal(await quiz.locator('.quiz-feedback').isVisible(),true);
+  await quiz.scrollIntoViewIfNeeded();await page.screenshot({path:path.join(output,'quiz-result.png')});
   await page.goto(base+'#p4');await page.waitForSelector('#packet-framing.active');assert.match(page.url(),/chapter=packet-framing/);
   let lab=page.locator('[data-lab="L09"]');
   for(const expected of ['0','0','7']){await lab.getByRole('button',{name:'다음 수신 전달',exact:true}).click();assert.equal(await value(lab,'이번 소비 바이트'),expected);}
@@ -168,6 +172,7 @@ const value=async(lab,label)=>lab.locator('dt').filter({hasText:new RegExp('^'+l
   receipt.walkthroughs=walkReceipts;receipt.checks.push('all walkthrough steps and highlighted source lines');
   receipt.checks.push('system map keyboard selection and mini-map route');
   receipt.checks.push('reading route selection, persistence and progress');
+  receipt.checks.push('quiz submission, explanation, persistence and print answers');
   fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
