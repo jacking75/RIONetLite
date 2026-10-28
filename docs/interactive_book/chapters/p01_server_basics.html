@@ -1,0 +1,66 @@
+<article class="chapter" id="server-basics" data-title="네트워크 서버 기초"><div class="eyebrow">0부 · P01</div><h1>서버 프로그램이 하는 일부터 본다</h1>
+<p class="lead">RIONetLite를 열기 전에 네트워크 서버의 기본 동작 네 가지와 이 책에서 계속 나오는 말을 먼저 익힌다. C++ 클래스와 람다를 읽을 수 있다면 네트워크 프로그래밍 경험이 없어도 이 장부터 시작할 수 있다.</p>
+<aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>“연결·수신·송신·종료”, “TCP는 바이트 스트림이다”, “요청을 게시하고 완료를 처리한다”, “RIO의 등록 버퍼·RQ·CQ”를 각각 한 문장으로 설명할 수 있다. 이미 아는 내용이면 <a href="#chapter=library-overview">P02 RIONetLite 한눈에 보기</a>로 바로 넘어간다.</p></aside>
+<section id="basics-server-job"><h2>게임 서버는 연결을 받고, 읽고, 쓰고, 닫는다</h2>
+<p>게임 클라이언트가 서버에 접속하면 둘 사이에 TCP 연결이 하나 생긴다. 서버는 정해진 포트 번호에서 접속을 기다리고(listen) 들어온 접속을 받아들인다(accept). 받아들인 연결마다 “이 플레이어와 이어진 통로”의 정보를 따로 관리하는데, 이 책은 그것을 <strong>세션(session)</strong>이라고 부른다.</p>
+<p>연결이 생긴 뒤 서버가 하는 일은 결국 다음 네 가지의 반복이다.</p>
+<div class="table-wrap"><table><thead><tr><th>동작</th><th>뜻</th><th>게임에서의 예</th><th>RIONetLite에서 만나는 이름</th></tr></thead><tbody>
+<tr><td>연결 수락</td><td>새 클라이언트를 받아 세션을 만든다.</td><td>클라이언트에서 “접속” 버튼을 눌렀다.</td><td><code>OnConnected</code> 콜백</td></tr>
+<tr><td>수신</td><td>클라이언트가 보낸 바이트를 읽는다.</td><td>“앞으로 이동” 입력이 도착했다.</td><td><code>OnData</code> 콜백</td></tr>
+<tr><td>송신</td><td>클라이언트에게 바이트를 보낸다.</td><td>주변 플레이어의 위치를 알려 준다.</td><td><code>Server::Send</code> 함수</td></tr>
+<tr><td>종료</td><td>연결을 닫고 세션을 정리한다.</td><td>게임을 껐거나 네트워크가 끊겼다.</td><td><code>OnClosed</code> 콜백, <code>RequestClose</code> 함수</td></tr>
+</tbody></table></div>
+<p>동시 접속자가 수천 명이면 이 네 동작이 수천 개 세션에서 동시에 일어난다. 네트워크 라이브러리가 하는 일은 이 많은 연결을 적은 수의 스레드로 빠르고 안전하게 처리하는 것이다. 애플리케이션은 표의 오른쪽 이름들만 사용하고, 그 아래의 소켓과 운영체제 호출은 라이브러리에 맡긴다.</p>
+</section>
+<section id="basics-tcp-stream"><h2>TCP는 편지가 아니라 물줄기다</h2>
+<p>네트워크 코드를 처음 짤 때 가장 흔한 오해는 “클라이언트가 한 번 보낸 것을 서버가 한 번에 받는다”는 생각이다. TCP는 바이트의 순서와 내용을 보장하지만 <strong>보낸 단위</strong>는 보장하지 않는다.</p>
+<div class="analogy"><p><strong>비유</strong> 편지는 봉투 단위로 도착한다. TCP는 수도관의 물줄기에 가깝다. 컵 세 잔 분량을 흘려보내도 받는 쪽은 한 번에 받을 수도, 다섯 번에 나눠 받을 수도 있다. 물의 순서는 바뀌지 않지만 “어디까지가 한 잔인지”는 물에 적혀 있지 않다.</p></div>
+<p>그래서 애플리케이션이 메시지의 경계를 직접 표시해야 한다. 가장 흔한 방법은 메시지 앞에 길이를 적는 것이다. 이 책의 Echo 예제는 4바이트 길이 헤더를 붙인다. 문자열 <code>rio</code>를 보내면 실제로 흐르는 바이트는 다음과 같다.</p>
+<div class="bytes" role="img" aria-label="길이 헤더 4바이트 00 00 00 07과 본문 3바이트 72 69 6F"><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">07<small>길이</small></span><span class="byte">72<small>r</small></span><span class="byte">69<small>i</small></span><span class="byte">6F<small>o</small></span></div>
+<p>맨 앞 네 바이트 <code>00 00 00 07</code>은 “헤더를 포함한 이 메시지 전체가 7바이트”라는 뜻이다. 서버는 일곱 바이트가 모두 모일 때까지 기다렸다가 메시지 하나로 처리한다. 2바이트, 3바이트, 2바이트로 쪼개져 와도, 다음 메시지와 붙어서 와도 같은 규칙으로 잘라 낸다. 이 작업을 <strong>프레이밍(framing)</strong>이라고 하며 <a href="#chapter=packet-framing">C13</a>에서 직접 실험한다.</p>
+<p>이 책에서 “패킷”은 대부분 이렇게 애플리케이션이 길이로 구분한 메시지 하나를 말한다. 네트워크 장비가 다루는 IP 패킷과는 다른 단위다.</p>
+</section>
+<section id="basics-async"><h2>기다리지 않고 주문서를 맡긴다</h2>
+<p>가장 단순한 서버는 연결마다 스레드를 하나 두고, 데이터가 올 때까지 <code>recv</code> 함수 안에서 멈춰 기다린다. 이를 블로킹(blocking) 방식이라고 한다. 이해하기 쉽지만 접속자가 5,000명이면 대부분 잠들어 있는 스레드 5,000개가 필요하다. 스레드마다 스택 메모리가 들고, 스레드를 오가는 전환 비용도 커진다.</p>
+<p>게임 서버는 보통 비동기(asynchronous) 방식을 쓴다. “이 버퍼에 데이터가 오면 채워 달라”는 <strong>요청</strong>을 운영체제에 맡겨 두고 스레드는 다른 일을 한다. 운영체제가 일을 끝내면 <strong>완료(completion)</strong> 기록을 남기고, 적은 수의 워커 스레드가 그 기록을 꺼내 처리한다.</p>
+<div class="analogy"><p><strong>비유</strong> 블로킹 방식은 손님 한 명마다 직원 한 명이 붙어 음식이 나올 때까지 주방 앞에서 기다리는 식당이다. 비동기 방식은 주문서를 주방에 넣고 진동벨을 받는 식당이다. 직원 몇 명이 진동벨이 울린 주문만 골라 손님에게 가져다준다.</p></div>
+<p>여기서 꼭 구분할 두 순간이 있다. 요청을 <strong>맡긴(게시한) 순간</strong>과 요청이 <strong>끝난(완료된) 순간</strong>이다. 맡긴 뒤 완료되기 전까지 운영체제는 우리가 넘긴 메모리를 계속 사용한다. 그 사이에 메모리를 지우거나 옮기면 운영체제가 엉뚱한 곳을 읽거나 쓰게 된다. 이 책의 중급·심화 장 대부분은 결국 “맡긴 요청이 끝나기 전에 무엇을 건드리면 안 되는가”를 다룬다.</p>
+</section>
+<section id="basics-rio"><h2>RIO는 미리 등록한 그릇으로 주문을 받는다</h2>
+<p>Windows의 대표적인 비동기 소켓 방식은 IOCP(I/O Completion Port)다. <strong>RIO(Registered I/O)</strong>는 Windows 8과 Windows Server 2012부터 제공되는 더 가벼운 방식이다. 이름처럼 데이터를 담을 메모리를 미리 <em>등록</em>해 두고, 요청할 때는 그 메모리의 한 구간을 가리키기만 한다. 요청마다 메모리를 준비하던 비용을 줄여 처리량과 지연 시간을 개선한다.</p>
+<div class="diagram"><svg viewBox="0 0 820 300" role="img" aria-label="I/O 워커가 RQ에 요청을 게시하고, 커널이 등록 버퍼에 읽고 쓴 뒤 CQ에 완료를 남기며, 워커가 CQ에서 완료를 꺼내는 흐름"><g>
+<rect x="10" y="40" width="160" height="70" rx="6" class="accent-box"/><text x="90" y="70" text-anchor="middle">I/O 워커 스레드</text><text x="90" y="94" text-anchor="middle" font-size="13" class="muted-text">라이브러리 안</text>
+<rect x="225" y="40" width="160" height="70" rx="6"/><text x="305" y="70" text-anchor="middle">RQ 요청 큐</text><text x="305" y="94" text-anchor="middle" font-size="13" class="muted-text">소켓마다 1개</text>
+<rect x="440" y="40" width="160" height="70" rx="6"/><text x="520" y="70" text-anchor="middle">Windows 커널</text><text x="520" y="94" text-anchor="middle" font-size="13" class="muted-text">네트워크 송수신</text>
+<rect x="650" y="40" width="160" height="70" rx="6"/><text x="730" y="70" text-anchor="middle">CQ 완료 큐</text><text x="730" y="94" text-anchor="middle" font-size="13" class="muted-text">이 책에서는 워커마다 1개</text>
+<path class="arrow" d="M170 75 H218"/><polygon class="head" points="225,75 215,70 215,80"/>
+<path class="arrow" d="M385 75 H433"/><polygon class="head" points="440,75 430,70 430,80"/>
+<path class="arrow" d="M600 75 H643"/><polygon class="head" points="650,75 640,70 640,80"/>
+<text x="197" y="30" text-anchor="middle" font-size="13">① 게시</text><text x="625" y="30" text-anchor="middle" font-size="13">② 완료 기록</text>
+<path class="arrow-back" d="M730 110 V150 H90 V117"/><polygon class="head-back" points="90,110 85,120 95,120"/><text x="410" y="142" text-anchor="middle" font-size="13">③ 워커가 완료를 꺼내 처리한다</text>
+<rect x="300" y="200" width="300" height="70" rx="6" class="accent-box"/><text x="450" y="230" text-anchor="middle">등록 버퍼</text><text x="450" y="254" text-anchor="middle" font-size="13" class="muted-text">미리 등록한 메모리 · 요청은 이 안의 구간을 가리킨다</text>
+<path class="lifeline" d="M520 110 V200"/><text x="532" y="185" font-size="13" class="muted-text">커널이 직접 읽고 쓴다</text>
+</g></svg><figcaption>요청은 등록 버퍼의 구간을 가리킨다. 완료가 오기 전까지 그 구간은 커널이 쓰는 중이다.</figcaption></div>
+<div class="table-wrap"><table><thead><tr><th>RIO 부품</th><th>쉬운 설명</th><th>식당 비유</th></tr></thead><tbody>
+<tr><td>등록 버퍼</td><td><code>RIORegisterBuffer</code>로 미리 등록한 메모리. 등록하면 번호(버퍼 ID)를 받는다.</td><td>주방에 미리 맡겨 둔 그릇 묶음</td></tr>
+<tr><td><code>RIO_BUF</code></td><td>“몇 번 등록 버퍼의 몇 번째 바이트부터 몇 바이트”라는 구간 표시</td><td>“3번 그릇 묶음의 둘째 칸”</td></tr>
+<tr><td>RQ(요청 큐)</td><td>소켓 하나에 붙는 요청 투입구. <code>RIOReceive</code>·<code>RIOSend</code>로 요청을 넣는다.</td><td>테이블마다 있는 주문 투입구</td></tr>
+<tr><td>CQ(완료 큐)</td><td>끝난 요청의 결과가 쌓이는 곳. <code>RIODequeueCompletion</code>으로 꺼낸다.</td><td>음식이 나왔다고 알려 주는 알림판</td></tr>
+</tbody></table></div>
+<p>RIONetLite는 이 부품들을 모두 내부에 숨긴다. 애플리케이션 코드에서 <code>RIOReceive</code>를 직접 부를 일은 없다. 다만 라이브러리가 왜 “완료 전에는 버퍼를 건드리지 않는다”를 그토록 지키는지 이해하려면 이 그림을 기억해 두는 것이 좋다. 실제 함수 표 초기화와 요청 수명은 심화 장인 <a href="#chapter=rio-requests">C05</a>에서 다룬다.</p>
+</section>
+<section id="basics-words"><h2>이 책에서 자주 만나는 말</h2>
+<p>다음 단어들은 거의 모든 장에 나온다. 지금 모두 외울 필요는 없고, 낯선 단어가 나오면 이 표나 <a href="#chapter=glossary">A02 용어</a>로 돌아온다.</p>
+<div class="table-wrap"><table><thead><tr><th>말</th><th>뜻</th><th>처음 자세히 다루는 곳</th></tr></thead><tbody>
+<tr><td>세션, <code>SessionId</code></td><td>연결 하나를 가리키는 표. 슬롯 번호(<code>index</code>)와 그 슬롯을 몇 번째로 쓰는지(<code>generation</code>, 세대)를 함께 담는다. 끊긴 플레이어의 슬롯을 새 플레이어가 받아도 둘을 구분할 수 있다.</td><td><a href="#chapter=session-identity">C11</a></td></tr>
+<tr><td>콜백</td><td>라이브러리가 “이런 일이 생겼다”고 애플리케이션 함수를 불러 주는 것. <code>OnConnected</code>·<code>OnData</code>·<code>OnClosed</code>가 있다.</td><td><a href="#chapter=threads-and-callbacks">C07</a></td></tr>
+<tr><td>I/O 워커</td><td>완료 큐에서 결과를 꺼내 처리하는 라이브러리 스레드. 세션마다 담당 워커가 정해져 있다.</td><td><a href="#chapter=architecture">C06</a></td></tr>
+<tr><td>게시(post)와 완료</td><td>운영체제에 요청을 맡기는 것과 그 요청이 끝난 결과를 받는 것. 둘 사이에는 시간 차가 있다.</td><td><a href="#chapter=rio-requests">C05</a></td></tr>
+<tr><td>링 버퍼</td><td>끝까지 쓰면 다시 처음으로 돌아가는 원형 버퍼. 세션마다 수신용 하나와 송신용 하나가 있다.</td><td><a href="#chapter=ring-buffer">C09</a></td></tr>
+<tr><td>소비량</td><td><code>OnData</code>가 돌려주는 값. “앞에서부터 몇 바이트는 처리가 끝났다”는 뜻이며 남은 바이트는 다음에 다시 전달된다.</td><td><a href="#chapter=packet-framing">C13</a></td></tr>
+<tr><td>배압(backpressure)</td><td>상대가 느려 송신 버퍼가 가득 찼을 때 “지금은 더 못 받는다”고 알리는 것. <code>Send</code>가 <code>kWouldBlock</code>을 돌려준다.</td><td><a href="#chapter=send-path">C14</a></td></tr>
+<tr><td>graceful 종료</td><td>새 일은 막고 이미 맡은 송신은 끝낼 기회를 준 뒤 멈추는 정지 방식</td><td><a href="#chapter=server-shutdown">C17</a></td></tr>
+</tbody></table></div>
+<label class="check"><input type="checkbox" data-check="P01-understood"><span>TCP에 길이 헤더가 필요한 이유와 “게시한 요청이 완료되기 전에는 그 메모리를 건드리지 않는다”는 규칙을 설명할 수 있다.</span></label>
+<p>다음 <a href="#chapter=library-overview">P02</a>에서는 이 개념들이 RIONetLite 안에서 어떤 부품으로 묶여 있는지 한 장의 그림으로 본다.</p>
+</section></article>

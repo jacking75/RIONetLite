@@ -34,7 +34,7 @@ def main():
         raise ValueError('Generated HTML is stale; run python docs/interactive_book/build_book.py')
     manifest = builder.read_json(BOOK / 'manifest.json')
     if any(c['status'] != 'complete' or not c['technicalReviewed'] or not c['editorialReviewed'] for c in manifest['chapters']):
-        raise ValueError('All 33 manuscripts must be reviewed')
+        raise ValueError(f'All {builder.CHAPTER_COUNT} manuscripts must be reviewed')
     ids = {c['slug']: builder.Fragment((BOOK/c['file']).read_text(encoding='utf-8')).ids for c in manifest['chapters']}
     migration = builder.read_json(BOOK / 'migration.json')
     if any(not i['reviewed'] or not i['destination'] for d in migration['documents'] for i in d['items']):
@@ -72,7 +72,7 @@ def main():
         for record in migration['documents']:
             if record['status'] == 'removed' and record['source'] in text:
                 raise ValueError(f'Stale tool dependency: {path.name}: {record["source"]}')
-    print(f'Managed documentation verified: {len(files)} root files, 33 chapters, 20 labs, '
+    print(f'Managed documentation verified: {len(files)} root files, {builder.CHAPTER_COUNT} chapters, 20 labs, '
           f'{sum(len(d["items"]) for d in migration["documents"])} reviewed migration items; links and consumer snippet match')
 
 

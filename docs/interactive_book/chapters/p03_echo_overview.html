@@ -1,0 +1,135 @@
+<article class="chapter" id="echo-overview" data-title="EchoServer 한눈에 보기"><div class="eyebrow">0부 · P03</div><h1>EchoServer 전체를 먼저 읽는다</h1>
+<p class="lead">EchoServer는 받은 메시지를 그대로 돌려보내는 가장 작은 예제다. 코드 전체의 모양, 실행 순서, 패킷 하나가 서버를 지나가는 길을 먼저 보고 나서 세부 장으로 들어간다.</p>
+<aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>EchoServer의 <code>main</code>과 <code>EchoHandler</code>가 각각 무슨 일을 하는지 설명하고, 클라이언트가 보낸 7바이트가 응답으로 돌아가기까지 거치는 단계를 순서대로 말할 수 있다. 같은 흐름을 한 단계씩 실행하는 실험은 <a href="#chapter=echo-walkthrough">C04</a>에 있다.</p></aside>
+<section id="echo-ov-goal"><h2>받은 패킷을 그대로 돌려준다</h2>
+<p>EchoServer는 네트워크 라이브러리의 “Hello, World”다. 게임 규칙은 없고, 클라이언트가 보낸 메시지를 같은 모양 그대로 돌려준다. 소스는 <code>samples/echo_server/main.cpp</code> 한 파일이며 공개 헤더만 사용한다.</p>
+<p>메시지 형식은 <a href="#chapter=server-basics&amp;section=basics-tcp-stream">P01</a>에서 본 길이 헤더 방식이다. 앞의 4바이트는 헤더를 포함한 전체 길이이고, 큰 자리부터 적는다(big-endian). 길이는 최소 4(본문 없음)이고 최대는 <code>max_message_bytes</code>(기본 16KiB)다. 이 범위를 벗어난 길이가 오면 서버는 그 연결을 닫는다.</p>
+<div class="bytes" role="img" aria-label="요청과 응답이 같은 7바이트 00 00 00 07 72 69 6F"><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">00<small>길이</small></span><span class="byte header">07<small>길이</small></span><span class="byte">72<small>r</small></span><span class="byte">69<small>i</small></span><span class="byte">6F<small>o</small></span></div>
+<p class="small">클라이언트가 보낸 바이트와 서버가 돌려주는 바이트가 똑같다. 헤더까지 그대로 돌려주므로 클라이언트는 같은 규칙으로 응답을 읽을 수 있다.</p>
+</section>
+<section id="echo-ov-code"><h2>전체 코드는 두 덩어리다</h2>
+<p><code>main.cpp</code>는 약 220줄이지만 절반 가까이는 명령행 옵션 처리다. 뼈대는 두 덩어리뿐이다. 네트워크 알림을 받아 응답하는 <code>EchoHandler</code> 클래스와, 서버를 만들고 돌리고 멈추는 <code>main</code> 함수다. 아래는 실제 코드에서 옵션 처리, 로그 출력, Ctrl+C 처리를 뺀 축약본이다. 번호는 바로 아래 표의 설명과 짝을 이룬다.</p>
+<pre><code>// samples/echo_server/main.cpp의 축약본이다. 옵션 처리와 로그 출력은 뺐다.
+class EchoHandler final : public rionetlite::EventHandler {
+ public:
+  explicit EchoHandler(std::uint32_t max_message_bytes)
+      : decoder_(max_message_bytes) {}
+  void Attach(rionetlite::Server&amp; server) noexcept { server_ = &amp;server; }  // ⑦
+
+  void OnConnected(rionetlite::SessionId) override {}  // ①
+
+  std::size_t OnData(rionetlite::SessionId session,
+                     std::span&lt;const std::byte&gt; data) override {  // ②
+    const rionetlite::DecodeResult decoded = decoder_.Decode(
+        data, [&amp;](std::span&lt;const std::byte&gt; packet) {  // ③
+          const auto result = server_-&gt;Send(session, packet);  // ④
+          if (result == rionetlite::SendResult::kWouldBlock ||
+              result == rionetlite::SendResult::kUnavailable) {
+            server_-&gt;RequestClose(session,
+                                  rionetlite::CloseReason::kOverloaded);
+          }
+        });
+    if (decoded.error != rionetlite::DecodeError::kNone) {  // ⑤
+      server_-&gt;RequestClose(session, rionetlite::CloseReason::kProtocolError);
+      return data.size();
+    }
+    return decoded.consumed_bytes;  // ⑥
+  }
+
+  void OnClosed(rionetlite::SessionId, rionetlite::CloseReason) override {}
+
+ private:
+  rionetlite::LengthPrefixedDecoder decoder_;
+  rionetlite::Server* server_ = nullptr;
+};
+
+int main() {
+  rionetlite::ServerConfig config;  // ⑧
+  config.port = 32452;
+  EchoHandler handler(config.max_message_bytes);
+  auto server = rionetlite::Server::Create(config, handler);  // ⑨
+  if (!server) return 3;
+  handler.Attach(*server);  // ⑦
+  if (auto started = server-&gt;Start(); !started) return 4;  // ⑩
+  // 실제 코드는 50ms마다 quit 입력, Ctrl+C, 실행 시간, stop 파일을 확인한다.  ⑪
+  if (auto stopped = server-&gt;Stop(rionetlite::StopMode::kGraceful); !stopped) {
+    return 5;  // ⑫
+  }
+  return 0;
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>코드</th><th>하는 일</th></tr></thead><tbody>
+<tr><td>①</td><td><code>OnConnected</code></td><td>새 연결이 생겼다는 알림이다. Echo는 로그만 찍는다. 게임이라면 여기서 플레이어 객체를 만든다.</td></tr>
+<tr><td>②</td><td><code>OnData</code></td><td>이 세션으로 받은 바이트 중 아직 처리하지 않은 부분 전체가 <code>data</code>로 들어온다. 앞에서 남겨 둔 조각과 새로 받은 바이트가 이어진 상태다.</td></tr>
+<tr><td>③</td><td><code>decoder_.Decode</code></td><td>공개 헤더 <code>packet_decoder.h</code>의 길이 헤더 디코더다. <code>data</code>를 앞에서부터 읽어 완성된 패킷을 찾을 때마다 람다를 부른다. 두 패킷이 붙어 왔으면 두 번 부른다.</td></tr>
+<tr><td>④</td><td><code>Send</code></td><td>패킷을 그대로 돌려보낸다. <code>Send</code>는 바이트를 라이브러리 내부 송신 버퍼에 복사한 뒤 바로 돌아온다. 버퍼가 가득 차서 거절되면 Echo는 연결을 닫는 정책을 쓴다.</td></tr>
+<tr><td>⑤</td><td>오류 처리</td><td>길이가 4보다 작거나 최대값보다 크면 프로토콜 오류다. 연결 종료를 요청하고, 닫을 연결이므로 받은 바이트를 모두 소비한 것으로 돌려준다.</td></tr>
+<tr><td>⑥</td><td>소비량 반환</td><td>“앞에서부터 이만큼은 처리했다”는 바이트 수다. 패킷이 아직 덜 왔으면 0이다. 남은 바이트는 라이브러리의 수신 링에 그대로 남아 다음 수신 때 새 데이터와 함께 다시 온다.</td></tr>
+<tr><td>⑦</td><td><code>Attach</code></td><td>라이브러리 API가 아니라 예제의 도우미 함수다. 핸들러가 응답할 때 쓸 서버 주소를 기억한다. 콜백이 시작되는 <code>Start</code>보다 먼저 부른다.</td></tr>
+<tr><td>⑧</td><td><code>ServerConfig</code></td><td>포트만 바꾸고 나머지는 기본값을 쓴다. 실제 코드는 명령행으로 워커 수, 최대 세션 수 등을 바꿀 수 있다.</td></tr>
+<tr><td>⑨</td><td><code>Server::Create</code></td><td>설정을 검사하고 세션 풀과 버퍼를 준비한다. 실패하면 오류를 담은 <code>std::expected</code>가 온다. 핸들러는 서버보다 먼저 만들어 서버보다 오래 살아 있어야 한다.</td></tr>
+<tr><td>⑩</td><td><code>Start</code></td><td>accept 스레드와 I/O 워커를 띄운다. 이때부터 콜백이 다른 스레드에서 불린다.</td></tr>
+<tr><td>⑪</td><td>대기 반복</td><td>주 스레드는 종료 조건만 확인하며 기다린다. 네트워크 처리는 모두 라이브러리 스레드에서 일어난다.</td></tr>
+<tr><td>⑫</td><td><code>Stop</code></td><td>새 연결을 막고, 이미 맡은 송신을 끝낼 기회를 준 뒤 서버를 멈춘다. 콜백 안이 아니라 서버를 소유한 주 스레드에서 부른다.</td></tr>
+</tbody></table></div>
+<p>코드에 소켓, 스레드 생성, RIO 함수가 하나도 없다는 점에 주목한다. 그 일은 모두 라이브러리 안에서 일어난다. 실제 원문은 아래 버튼으로 확인한다.</p>
+<button class="source" data-evidence="echo.main">실제 코드 · main의 생성·시작·정지 순서</button><button class="source" data-evidence="echo.on_data">실제 코드 · EchoHandler::OnData</button>
+</section>
+<section id="echo-ov-flow"><h2>패킷 하나가 왕복하는 길</h2>
+<p>클라이언트가 <code>rio</code> 메시지(7바이트)를 보내고 같은 7바이트를 돌려받기까지를 네 참여자로 나누어 그렸다. 세로선은 각 참여자이고, 위에서 아래로 시간이 흐른다.</p>
+<div class="diagram diagram-scroll"><svg viewBox="0 0 820 590" role="img" aria-label="클라이언트, Windows 커널, RIONetLite I/O 워커, EchoHandler 사이의 메시지 순서도"><g>
+<rect x="20" y="10" width="140" height="44" rx="6"/><text x="90" y="38" text-anchor="middle">클라이언트</text>
+<rect x="225" y="10" width="160" height="44" rx="6"/><text x="305" y="38" text-anchor="middle">Windows 커널·RIO</text>
+<rect x="440" y="10" width="170" height="44" rx="6" class="accent-box"/><text x="525" y="38" text-anchor="middle">RIONetLite I/O 워커</text>
+<rect x="660" y="10" width="140" height="44" rx="6" class="accent-box"/><text x="730" y="38" text-anchor="middle">EchoHandler</text>
+<path class="lifeline" d="M90 54 V580 M305 54 V580 M525 54 V580 M730 54 V580"/>
+<path class="arrow" d="M525 85 H312"/><polygon class="head" points="305,85 315,80 315,90"/><text x="415" y="76" text-anchor="middle" font-size="13">0 수신 요청을 미리 게시</text>
+<path class="arrow" d="M90 130 H298"/><polygon class="head" points="305,130 295,125 295,135"/><text x="197" y="121" text-anchor="middle" font-size="13">1 7바이트 전송</text>
+<text x="315" y="158" font-size="13">2 수신 링에 쓰고</text><text x="315" y="176" font-size="13">CQ에 완료 기록</text>
+<path class="arrow-back" d="M305 195 H518"/><polygon class="head-back" points="525,195 515,190 515,200"/><text x="415" y="215" text-anchor="middle" font-size="13">3 워커가 완료를 꺼낸다</text>
+<text x="535" y="238" font-size="13">링에 7바이트 반영</text><text x="535" y="256" font-size="13">다음 수신 먼저 게시</text>
+<path class="arrow" d="M525 295 H723"/><polygon class="head" points="730,295 720,290 720,300"/><text x="628" y="286" text-anchor="middle" font-size="13">4 OnData(7바이트)</text>
+<text x="740" y="322" font-size="13">5 Decode</text><text x="740" y="340" font-size="13">→ 패킷 1개</text>
+<path class="arrow" d="M730 375 H532"/><polygon class="head" points="525,375 535,370 535,380"/><text x="628" y="366" text-anchor="middle" font-size="13">6 Send(packet)</text>
+<text x="535" y="398" font-size="13">송신 링에 복사</text><text x="535" y="416" font-size="13">RIO 송신 게시</text>
+<path class="arrow" d="M525 432 H312"/><polygon class="head" points="305,432 315,427 315,437"/>
+<path class="arrow-back" d="M525 462 H723"/><polygon class="head-back" points="730,462 720,457 720,467"/><text x="628" y="453" text-anchor="middle" font-size="13">kQueued 반환</text>
+<path class="arrow-back" d="M730 500 H532"/><polygon class="head-back" points="525,500 535,495 535,505"/><text x="628" y="491" text-anchor="middle" font-size="13">7 return 7 (소비량)</text>
+<path class="arrow" d="M305 530 H97"/><polygon class="head" points="90,530 100,525 100,535"/><text x="197" y="521" text-anchor="middle" font-size="13">8 같은 7바이트 응답</text>
+<path class="arrow-back" d="M305 560 H518"/><polygon class="head-back" points="525,560 515,555 515,565"/><text x="415" y="580" text-anchor="middle" font-size="13">9 송신 완료 → 송신 링 정리</text>
+</g></svg></div>
+<ol start="0">
+<li><strong>미리 게시한 수신 요청</strong> — 연결이 생길 때 라이브러리가 “이 세션의 수신 링 빈 칸에 데이터를 받아 달라”는 요청을 이미 맡겨 두었다.</li>
+<li><strong>전송</strong> — 클라이언트가 <code>00 00 00 07 72 69 6F</code>를 보낸다.</li>
+<li><strong>커널이 수신 링에 쓴다</strong> — 등록 버퍼로 만든 수신 링에 바이트를 직접 쓰고, 이 세션 담당 워커의 CQ에 “7바이트 받음” 완료를 남긴다.</li>
+<li><strong>워커가 완료를 꺼낸다</strong> — 완료가 정말 이 세션의 현재 연결 것인지 확인하고, 받은 7바이트를 링에 반영한다. 링에 빈 칸이 있으면 다음 수신 요청을 콜백보다 먼저 게시해 둔다.</li>
+<li><strong><code>OnData</code> 호출</strong> — 워커가 아직 처리하지 않은 바이트 전체(여기서는 7바이트)를 넘긴다.</li>
+<li><strong>Decode</strong> — 디코더가 헤더의 7을 읽고, 7바이트가 다 있으므로 패킷 하나를 람다에 넘긴다.</li>
+<li><strong><code>Send</code></strong> — 패킷이 송신 링에 복사된다. 진행 중인 송신이 없으므로 RIO 송신 요청이 바로 게시되고, <code>Send</code>는 <code>kQueued</code>를 돌려준다. 이 시점은 “라이브러리가 맡았다”는 뜻이지 “상대가 받았다”는 뜻이 아니다.</li>
+<li><strong>소비량 반환</strong> — <code>OnData</code>가 7을 돌려주면 수신 링의 읽기 위치가 7만큼 이동해 그 공간이 다시 빈 칸이 된다.</li>
+<li><strong>응답 전송</strong> — 커널이 송신 링의 7바이트를 클라이언트로 보낸다.</li>
+<li><strong>송신 완료</strong> — CQ에 송신 완료가 오면 워커가 보낸 만큼 송신 링을 비운다. 그 사이 쌓인 데이터가 있으면 다음 송신을 게시한다.</li>
+</ol>
+<div class="analogy"><p><strong>쪼개져 오면?</strong> 1번에서 2바이트만 먼저 도착했다고 하자. <code>OnData</code>는 2바이트를 받고, 디코더는 헤더 4바이트도 다 오지 않았으니 패킷을 찾지 못한다. <code>OnData</code>는 0을 돌려주고 2바이트는 수신 링에 그대로 남는다. 나머지 5바이트가 도착하면 <code>OnData</code>는 이어 붙은 7바이트를 받아 그때 응답한다. 앱이 조각을 모으는 버퍼를 따로 만들 필요가 없다.</p></div>
+<p>정상 흐름에서 수신 요청은 항상 하나가 커널에 맡겨진 상태로 남는다. 그래서 응답 송신이 끝나도 그 세션의 메모리를 바로 해제할 수 없다. 이런 “맡긴 요청의 수명”이 3부와 4부의 핵심 주제다.</p>
+<button class="source" data-evidence="worker.dispatch">실제 코드 · 수신 완료 검사와 다음 수신 선게시</button>
+</section>
+<section id="echo-ov-run"><h2>직접 실행해 본다</h2>
+<p>저장소 루트의 PowerShell에서 실행한다. 첫 명령은 Release 구성을 빌드하고 단위·통합 테스트까지 실행한다. 도구 설치와 오류 해결은 <a href="#chapter=build-and-run">C02</a>에서 자세히 다룬다.</p>
+<pre><code>tools\build.ps1 -Configuration Release
+bin\x64\Release\EchoServer.exe --port 32452
+
+# 다른 터미널에서 부하 클라이언트로 10초 동안 왕복을 확인한다.
+bin\x64\Release\LoadClient.exe --port 32452 --connections 4 --duration 10 --scenario echo --json result.json</code></pre>
+<p>서버 창에 <code>EchoServer listening on port 32452</code>가 보이면 접속을 기다리는 중이다. 클라이언트가 붙을 때마다 <code>connected:</code> 뒤에 세션의 index와 generation이 <code>index:generation</code> 형태로 찍힌다. 클라이언트가 끝나면 <code>result.json</code>에서 받은 패킷 수가 0보다 크고 오류 카운터가 0인지 확인한다. 서버는 콘솔에 <code>quit</code>을 입력하거나 Ctrl+C로 멈춘다.</p>
+</section>
+<section id="echo-ov-next"><h2>여기서 어디로 가는가</h2>
+<p>이제 라이브러리 전체와 Echo의 흐름을 한 번 보았다. 다음 장부터는 이 그림의 한 부분씩을 확대한다. 궁금한 것에 따라 골라 읽어도 되고, 처음이라면 C02부터 순서대로 읽는다.</p>
+<div class="table-wrap"><table><thead><tr><th>궁금한 것</th><th>읽을 장</th></tr></thead><tbody>
+<tr><td>빌드가 안 되거나 포트 오류가 난다.</td><td><a href="#chapter=build-and-run">C02 빌드와 첫 실행</a></td></tr>
+<tr><td><code>Create</code>·<code>Send</code>·<code>RequestClose</code>·<code>Stop</code>의 정확한 규칙</td><td><a href="#chapter=public-api">C03 공개 API</a></td></tr>
+<tr><td>이 장의 순서도를 한 단계씩 직접 실행해 보고 싶다.</td><td><a href="#chapter=echo-walkthrough">C04 Echo 왕복</a></td></tr>
+<tr><td>쪼개지거나 붙어서 온 패킷을 실험하고 싶다.</td><td><a href="#chapter=packet-framing">C13 패킷 경계</a></td></tr>
+<tr><td>Echo에 게임 로직과 DB를 붙이고 싶다.</td><td><a href="#chapter=logic-queue">C18 게임 로직 큐</a>, <a href="#chapter=chat-server">C19 ChatServer</a></td></tr>
+</tbody></table></div>
+<label class="check"><input type="checkbox" data-check="P03-understood"><span>EchoHandler와 main의 역할, 7바이트 패킷이 응답이 되기까지의 단계, 쪼개진 패킷이 처리되는 방식을 설명할 수 있다.</span></label>
+</section></article>

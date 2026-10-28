@@ -1,0 +1,140 @@
+<article class="chapter" id="library-overview" data-title="RIONetLite 한눈에 보기"><div class="eyebrow">0부 · P02</div><h1>RIONetLite 전체를 한 장에 놓고 본다</h1>
+<p class="lead">세부 장으로 들어가기 전에 라이브러리의 바깥 모양(공개 API), 안쪽 부품, 연결 하나가 지나가는 길을 한 번에 훑는다. 이 장의 그림이 이후 모든 장의 지도 역할을 한다.</p>
+<aside class="primer" aria-label="이 장의 목표"><p class="primer-head"><span class="level level-basic">입문</span>이 장을 읽고 나면</p><p>RIONetLite를 쓰는 프로그램의 골격을 직접 적을 수 있고, “연결 → 수신 → 송신 → 종료 → 정지”의 각 장면에서 라이브러리의 어느 부품이 일하는지 말할 수 있다. 각 장면 옆의 장 번호가 이후 세부 설명으로 가는 입구다.</p></aside>
+<section id="overview-division"><h2>라이브러리가 맡는 일과 내가 맡는 일</h2>
+<p>RIONetLite는 Windows RIO로 TCP 서버를 만드는 C++ 정적 라이브러리다. 소켓, RIO 요청, 등록 메모리, 워커 스레드처럼 실수하기 쉬운 부분은 라이브러리가 맡는다. 애플리케이션은 “연결됐다·데이터가 왔다·끊겼다”는 세 가지 알림을 받아 게임 규칙을 처리하고, 보낼 바이트가 있으면 <code>Send</code>를 부른다.</p>
+<div class="table-wrap"><table><thead><tr><th>라이브러리가 하는 일</th><th>애플리케이션이 하는 일</th></tr></thead><tbody>
+<tr><td>포트를 열고 접속을 받는다.</td><td>포트 번호, 최대 접속 수, 버퍼 크기 같은 설정을 정한다.</td></tr>
+<tr><td>세션 슬롯과 세션별 수신·송신 버퍼를 시작할 때 미리 준비한다.</td><td>받은 바이트에서 메시지 경계를 찾는다. 길이 헤더 형식은 앱이 정한다.</td></tr>
+<tr><td>RIO 수신·송신 요청을 게시하고 완료를 처리한다.</td><td>메시지를 해석해 게임 상태를 바꾸고 응답을 만든다.</td></tr>
+<tr><td><code>Send</code>로 받은 바이트를 내부 송신 버퍼에 복사해 순서대로 보낸다.</td><td><code>Send</code>가 거절됐을 때 다시 보낼지, 연결을 끊을지 정한다.</td></tr>
+<tr><td>연결 종료와 서버 정지 때 진행 중인 요청을 안전하게 정리한다.</td><td>DB·파일처럼 오래 걸리는 일을 별도 스레드로 넘긴다.</td></tr>
+</tbody></table></div>
+<p>현재 0.3.x는 Windows x64의 TCP/IPv4 서버만 다루는 preview다. TLS 암호화, 계정 인증, 데이터베이스, UDP, IPv6, 클라이언트용 API는 들어 있지 않다. 이 기능들은 애플리케이션이나 다른 라이브러리가 맡는다.</p>
+</section>
+<section id="overview-api"><h2>기억할 공개 API는 세 가지다</h2>
+<p>애플리케이션이 포함하는 헤더는 저장소의 <code>include/rionetlite/</code>에 있다. 처음에는 다음 세 가지만 알면 서버를 만들 수 있다.</p>
+<div class="table-wrap"><table><thead><tr><th>이름</th><th>헤더</th><th>역할</th><th>주로 쓰는 것</th></tr></thead><tbody>
+<tr><td><code>ServerConfig</code></td><td><code>config.h</code></td><td>서버를 만들기 전에 채우는 설정 구조체</td><td><code>port</code>, <code>io_worker_count</code>, <code>max_sessions</code>, <code>max_message_bytes</code></td></tr>
+<tr><td><code>EventHandler</code></td><td><code>event_handler.h</code></td><td>내가 상속해 구현하는 “알림 받는 쪽”</td><td><code>OnConnected</code>, <code>OnData</code>, <code>OnClosed</code></td></tr>
+<tr><td><code>Server</code></td><td><code>server.h</code></td><td>서버 본체</td><td><code>Create</code> → <code>Start</code> → <code>Send</code>·<code>RequestClose</code> → <code>Stop</code></td></tr>
+</tbody></table></div>
+<p>세 가지를 조합한 가장 작은 골격은 다음과 같다. 오류 출력과 종료 신호 처리는 줄였다. 완전한 예제는 <a href="#chapter=echo-overview">P03</a>의 EchoServer다.</p>
+<pre><code>// 공개 API의 모양을 보여 주는 최소 골격이다. 오류 출력은 줄였다.
+#include "rionetlite/server.h"
+
+class MyHandler final : public rionetlite::EventHandler {
+ public:
+  void OnConnected(rionetlite::SessionId session) override {
+    // 새 플레이어가 들어왔다.
+  }
+  std::size_t OnData(rionetlite::SessionId session,
+                     std::span&lt;const std::byte&gt; data) override {
+    // data 안에서 완성된 메시지를 찾아 처리하고,
+    // 처리가 끝난 앞부분의 바이트 수를 돌려준다.
+    return 0;
+  }
+  void OnClosed(rionetlite::SessionId session,
+                rionetlite::CloseReason reason) override {
+    // 플레이어를 정리한다.
+  }
+};
+
+int main() {
+  rionetlite::ServerConfig config;
+  config.port = 32452;
+  MyHandler handler;  // 서버보다 오래 살아야 한다.
+  auto server = rionetlite::Server::Create(config, handler);  // 설정 검사, 자원 준비
+  if (!server) return 1;
+  if (!server-&gt;Start()) return 1;  // accept 스레드와 I/O 워커 시작
+  // ... 종료 신호를 기다린다 ...
+  return server-&gt;Stop(rionetlite::StopMode::kGraceful) ? 0 : 1;  // 정리하고 멈춘다
+}</code></pre>
+<p>처음 쓰는 사람이 가장 많이 틀리는 규칙 네 가지를 먼저 적어 둔다. 모두 뒤의 장에서 이유를 자세히 설명한다.</p>
+<ol>
+<li><strong><code>OnData</code>의 <code>data</code>는 콜백이 끝나면 사라진다.</strong> 나중에 쓰려면 복사한다. 주소만 저장하면 다른 데이터로 덮인 메모리를 읽게 된다. (<a href="#chapter=public-api">C03</a>)</li>
+<li><strong><code>OnData</code>는 처리한 바이트 수를 돌려준다.</strong> 메시지가 아직 덜 왔으면 0을 돌려주면 된다. 남은 바이트는 다음 수신 때 새 데이터와 붙어서 다시 온다. (<a href="#chapter=packet-framing">C13</a>)</li>
+<li><strong>세션은 <code>SessionId</code> 전체로 가리킨다.</strong> 슬롯 번호만 저장하면 끊긴 플레이어에게 보낼 응답이 같은 슬롯을 받은 새 플레이어에게 갈 수 있다. (<a href="#chapter=session-identity">C11</a>)</li>
+<li><strong>콜백 안에서 오래 걸리는 일을 하지 않는다.</strong> 콜백을 부른 I/O 워커가 멈추면 그 워커가 맡은 다른 세션도 모두 기다린다. (<a href="#chapter=logic-queue">C18</a>)</li>
+</ol>
+<button class="source" data-evidence="api.server_contract">실제 코드 · Server 공개 계약</button><button class="source" data-evidence="api.callback_contract">실제 코드 · EventHandler 콜백 계약</button>
+</section>
+<section id="overview-inside"><h2>안쪽은 다섯 부품으로 움직인다</h2>
+<p>공개 API 아래에는 다음 부품들이 있다. 이름을 외우기보다 “누가 무엇을 소유하고, 누가 무엇을 부르는가”를 본다.</p>
+<div class="diagram"><svg viewBox="0 0 820 420" role="img" aria-label="애플리케이션 아래에 공개 Server가 있고, 그 아래 RIONetLite 내부에 accept 스레드, 세션 풀, I/O 워커가 있으며, 가장 아래 Windows RIO가 있는 구조"><g>
+<rect x="210" y="10" width="400" height="56" rx="6" class="accent-box"/><text x="410" y="36" text-anchor="middle">애플리케이션</text><text x="410" y="56" text-anchor="middle" font-size="13" class="muted-text">EventHandler 구현 · 게임 로직 · main</text>
+<path class="arrow" d="M370 66 V96"/><polygon class="head" points="370,103 365,93 375,93"/><text x="362" y="88" text-anchor="end" font-size="13">Create·Start·Send·Stop</text>
+<path class="arrow-back" d="M450 103 V73"/><polygon class="head-back" points="450,66 445,76 455,76"/><text x="458" y="88" font-size="13">OnConnected·OnData·OnClosed</text>
+<rect x="210" y="103" width="400" height="50" rx="6"/><text x="410" y="126" text-anchor="middle">① 공개 Server</text><text x="410" y="145" text-anchor="middle" font-size="13" class="muted-text">상태 관리 · 인자 검사 · 콜백 전달(브리지)</text>
+<rect x="20" y="180" width="780" height="150" rx="8" fill="none" stroke-dasharray="6 5"/><text x="34" y="200" font-size="13" class="muted-text">RIONetLite 내부</text>
+<rect x="40" y="212" width="190" height="100" rx="6"/><text x="135" y="240" text-anchor="middle">② accept 스레드</text><text x="135" y="264" text-anchor="middle" font-size="13" class="muted-text">새 연결 수락</text><text x="135" y="284" text-anchor="middle" font-size="13" class="muted-text">빈 슬롯 배정</text>
+<rect x="255" y="212" width="310" height="100" rx="6" class="accent-box"/><text x="410" y="236" text-anchor="middle">③ 세션 풀 (max_sessions개)</text><text x="410" y="260" text-anchor="middle" font-size="13">세션 = 소켓 + RQ</text><text x="410" y="282" text-anchor="middle" font-size="13">+ ④ 수신 링 + 송신 링</text><text x="410" y="302" text-anchor="middle" font-size="12" class="muted-text">링은 등록 버퍼로 만든다</text>
+<rect x="590" y="212" width="190" height="100" rx="6"/><text x="685" y="240" text-anchor="middle">⑤ I/O 워커 × N</text><text x="685" y="264" text-anchor="middle" font-size="13" class="muted-text">워커마다 CQ 1개</text><text x="685" y="284" text-anchor="middle" font-size="13" class="muted-text">담당 세션의 완료 처리</text>
+<path class="arrow" d="M230 262 H248"/><polygon class="head" points="255,262 245,257 245,267"/>
+<path class="arrow" d="M565 262 H583"/><polygon class="head" points="590,262 580,257 580,267"/>
+<path class="lifeline" d="M410 153 V212"/>
+<rect x="210" y="355" width="400" height="50" rx="6"/><text x="410" y="378" text-anchor="middle">Windows 소켓 · RIO</text><text x="410" y="397" text-anchor="middle" font-size="13" class="muted-text">accept · RIOReceive · RIOSend · 완료 기록</text>
+<path class="lifeline" d="M135 312 V355 M410 312 V355 M685 312 V355"/>
+</g></svg><figcaption>아래로 가는 화살표는 호출, 위로 가는 점선은 알림(콜백)이다. 상자 하나가 스레드 하나라는 뜻은 아니다.</figcaption></div>
+<div class="table-wrap"><table><thead><tr><th>부품</th><th>하는 일</th><th>자세히</th></tr></thead><tbody>
+<tr><td>① 공개 <code>Server</code></td><td>서버의 상태(Initialized·Running·Stopped 등)를 관리하고, <code>Send</code> 인자를 검사하고, 내부에서 올라온 이벤트를 <code>EventHandler</code>로 전달한다. 콜백에서 던진 예외도 여기서 막는다. 소스는 <code>src/server.cpp</code>다.</td><td><a href="#chapter=public-api">C03</a>, <a href="#chapter=architecture">C06</a></td></tr>
+<tr><td>② accept 스레드</td><td>새 연결을 받고, 빈 세션 슬롯을 빌려 주고, <code>OnConnected</code>를 부르고, 첫 수신 요청을 게시한다. 빈 슬롯이 없으면 연결을 거절한다.</td><td><a href="#chapter=accept-and-session">C10</a></td></tr>
+<tr><td>③ 세션 풀과 세션</td><td>서버를 만들 때 <code>max_sessions</code>개의 세션을 미리 만든다. 연결이 오면 하나를 빌려 주고, 끊기면 진행 중인 요청이 모두 끝난 뒤 돌려받아 다음 연결에 쓴다. 연결 중에 큰 메모리를 새로 할당하지 않는다.</td><td><a href="#chapter=accept-and-session">C10</a>, <a href="#chapter=session-identity">C11</a></td></tr>
+<tr><td>④ 수신 링·송신 링</td><td>세션마다 있는 원형 버퍼다. 등록 버퍼로 만들기 때문에 커널이 직접 읽고 쓴다. 같은 메모리를 가상 주소에 두 번 이어 붙이는 “이중 매핑”으로, 끝에서 처음으로 넘어가는 데이터도 한 덩어리처럼 다룬다.</td><td><a href="#chapter=registered-memory">C08</a>, <a href="#chapter=ring-buffer">C09</a></td></tr>
+<tr><td>⑤ I/O 워커</td><td><code>io_worker_count</code>개의 스레드다. 워커마다 CQ 하나와 담당 세션 묶음이 있다. 완료를 꺼내 수신 데이터를 <code>OnData</code>로 넘기고, 송신 완료를 정리하고, 연결 종료를 마무리한다.</td><td><a href="#chapter=threads-and-callbacks">C07</a>, <a href="#chapter=receive-path">C12</a></td></tr>
+</tbody></table></div>
+<p>내부 구현은 저장소의 <code>RIONetLite/impl/</code>에 있다. 예제와 애플리케이션은 이 내부 헤더를 직접 포함하지 않고 공개 헤더만 사용한다.</p>
+</section>
+<section id="overview-lifecycle"><h2>연결 하나의 일생을 여섯 장면으로 본다</h2>
+<p>서버가 켜지고, 플레이어가 접속해 데이터를 주고받다가 나가고, 서버가 꺼지는 과정을 여섯 장면으로 나누었다. 3부와 4부의 장들은 이 장면 하나하나를 확대해서 보는 것이다.</p>
+<div class="diagram"><svg viewBox="0 0 820 150" role="img" aria-label="서버 준비, 연결, 수신과 송신의 반복, 연결 종료, 서버 정지로 이어지는 흐름"><g>
+<rect x="5" y="40" width="120" height="56" rx="6"/><text x="65" y="74" text-anchor="middle">① 서버 준비</text>
+<rect x="160" y="40" width="110" height="56" rx="6"/><text x="215" y="74" text-anchor="middle">② 연결</text>
+<rect x="305" y="40" width="100" height="56" rx="6" class="accent-box"/><text x="355" y="74" text-anchor="middle">③ 수신</text>
+<rect x="440" y="40" width="100" height="56" rx="6" class="accent-box"/><text x="490" y="74" text-anchor="middle">④ 송신</text>
+<rect x="575" y="40" width="110" height="56" rx="6"/><text x="630" y="74" text-anchor="middle">⑤ 연결 종료</text>
+<rect x="715" y="40" width="100" height="56" rx="6"/><text x="765" y="74" text-anchor="middle">⑥ 서버 정지</text>
+<path class="arrow" d="M125 68 H153"/><polygon class="head" points="160,68 150,63 150,73"/>
+<path class="arrow" d="M270 68 H298"/><polygon class="head" points="305,68 295,63 295,73"/>
+<path class="arrow" d="M405 60 H433"/><polygon class="head" points="440,60 430,55 430,65"/>
+<path class="arrow-back" d="M490 96 V120 H355 V103"/><polygon class="head-back" points="355,96 350,106 360,106"/><text x="422" y="140" text-anchor="middle" font-size="13">연결이 살아 있는 동안 반복</text>
+<path class="arrow" d="M540 68 H568"/><polygon class="head" points="575,68 565,63 565,73"/>
+<path class="arrow" d="M685 68 H708"/><polygon class="head" points="715,68 705,63 705,73"/>
+<path class="arrow-back" d="M630 40 V20 H215 V33"/><polygon class="head-back" points="215,40 210,30 220,30"/><text x="422" y="14" text-anchor="middle" font-size="13">슬롯을 정리해 다음 연결에 재사용</text>
+</g></svg></div>
+<ol class="scenes">
+<li><h3>① 서버 준비</h3><p><code>Create</code>가 설정 범위를 검사하고 세션 풀과 등록 버퍼를 미리 준비한다. <code>Start</code>가 워커별 CQ를 만들고 accept 스레드와 I/O 워커를 띄운다. 이 순간부터 콜백이 불릴 수 있다.</p><a href="#chapter=public-api">C03 공개 API</a> · <a href="#chapter=configuration">C21 설정</a></li>
+<li><h3>② 연결</h3><p>accept 스레드가 접속을 받아 빈 슬롯을 빌리고, 그 세션을 맡을 I/O 워커를 정한다. RQ를 만들고 <code>OnConnected</code>를 부른 뒤 첫 수신 요청을 게시한다. 이 세션의 담당 워커는 연결이 끝날 때까지 바뀌지 않는다.</p><a href="#chapter=accept-and-session">C10 연결 수락</a> · <a href="#chapter=session-identity">C11 세션 식별</a></li>
+<li><h3>③ 수신</h3><p>커널이 수신 링의 빈 칸에 바이트를 쓰고 CQ에 완료를 남긴다. 담당 워커가 완료를 꺼내 링에 반영하고, 다음 수신을 먼저 게시한 뒤 <code>OnData</code>를 부른다. 앱이 돌려준 소비량만큼 링의 읽기 위치가 움직인다.</p><a href="#chapter=receive-path">C12 수신 경로</a> · <a href="#chapter=packet-framing">C13 패킷 경계</a></li>
+<li><h3>④ 송신</h3><p><code>Send</code>는 바이트를 세션의 송신 링에 복사하고 곧바로 <code>kQueued</code>를 돌려준다. 진행 중인 송신이 없으면 RIO 송신을 게시하고, 있으면 링에 쌓아 두었다가 완료 때 한꺼번에 보낸다. 일부만 보내졌으면 나머지를 다시 게시한다. 링이 가득 차면 <code>kWouldBlock</code>이다.</p><a href="#chapter=send-path">C14 송신</a> · <a href="#chapter=partial-send">C15 부분 송신</a></li>
+<li><h3>⑤ 연결 종료</h3><p>상대가 연결을 끊거나(0바이트 수신), 앱이 <code>RequestClose</code>를 부르거나, 오류가 나면 종료가 시작된다. 소켓을 닫고 <code>OnClosed</code>를 한 번 부른다. 아직 끝나지 않은 요청이 있으면 슬롯을 격리해 두었다가 모두 끝난 뒤 재사용한다.</p><a href="#chapter=connection-close">C16 연결 종료</a></li>
+<li><h3>⑥ 서버 정지</h3><p><code>Stop</code>은 새 연결과 새 요청을 막고, graceful 모드라면 이미 맡은 송신에 끝낼 기회를 준다. 남은 완료를 처리한 뒤 워커를 멈추고 자원을 해제한다. 게임 로직 큐는 앱이 따로 비운다.</p><a href="#chapter=server-shutdown">C17 서버 종료</a> · <a href="#chapter=logic-queue">C18 게임 로직 큐</a></li>
+</ol>
+</section>
+<section id="overview-threads"><h2>누가 어떤 스레드에서 일하는가</h2>
+<p>콜백이 어느 스레드에서 불리는지 알아야 공유 데이터를 안전하게 다룰 수 있다.</p>
+<div class="table-wrap"><table><thead><tr><th>스레드</th><th>개수</th><th>하는 일</th><th>이 스레드에서 불리는 콜백</th></tr></thead><tbody>
+<tr><td>주 스레드</td><td>1</td><td><code>Create</code>·<code>Start</code>·<code>Stop</code>을 부르고 종료 신호를 기다린다.</td><td>없음</td></tr>
+<tr><td>accept 스레드</td><td>1</td><td>접속 수락과 세션 배정</td><td><code>OnConnected</code></td></tr>
+<tr><td>I/O 워커</td><td><code>io_worker_count</code></td><td>담당 세션의 수신·송신 완료와 종료 처리</td><td><code>OnData</code>, <code>OnClosed</code></td></tr>
+<tr><td>게임 로직 워커(선택)</td><td>앱이 정한다</td><td>큐에서 이벤트를 꺼내 게임 처리. 여기서도 <code>Send</code>를 부를 수 있다.</td><td>없음. 라이브러리가 아니라 앱이 만든 스레드다.</td></tr>
+</tbody></table></div>
+<p>한 세션의 <code>OnData</code>는 언제나 그 세션의 담당 워커가 순서대로 부른다. 그러나 다른 세션의 콜백은 다른 워커에서 동시에 실행될 수 있다. 여러 세션이 함께 쓰는 자료구조에는 잠금 같은 보호가 필요하다.</p>
+<p>그래서 예제 두 개는 콜백 이후의 길이 다르다. <strong>EchoServer</strong>는 처리가 아주 짧아서 <code>OnData</code> 안에서 바로 응답한다. <strong>ChatServer</strong>는 <code>QueuedEventAdapter</code>로 받은 바이트를 복사해 게임 로직 워커에 넘기고, 로그인·룸 같은 게임 상태는 그 워커가 소유한다.</p>
+<button class="source" data-evidence="architecture.chat_path">실제 코드 · Chat의 큐 경로</button>
+</section>
+<section id="overview-map"><h2>이 책의 지도</h2>
+<p>목차의 장 이름 옆에는 <span class="level level-basic">입문</span> <span class="level level-middle">중급</span> <span class="level level-deep">심화</span> 표시가 있다. 처음 읽을 때는 입문과 중급 장으로 전체 흐름을 잡고, 심화 장은 내부 구현을 고치거나 문제를 추적할 때 돌아와 읽어도 된다.</p>
+<div class="table-wrap"><table><thead><tr><th>장면</th><th>먼저 읽을 장</th><th>더 깊이 볼 장</th></tr></thead><tbody>
+<tr><td>빌드와 첫 실행</td><td><a href="#chapter=echo-overview">P03</a>, <a href="#chapter=build-and-run">C02</a>, <a href="#chapter=echo-walkthrough">C04</a></td><td>-</td></tr>
+<tr><td>API와 구조</td><td><a href="#chapter=public-api">C03</a>, <a href="#chapter=architecture">C06</a>, <a href="#chapter=threads-and-callbacks">C07</a></td><td><a href="#chapter=rio-requests">C05</a>, <a href="#chapter=registered-memory">C08</a>, <a href="#chapter=ring-buffer">C09</a></td></tr>
+<tr><td>② 연결</td><td><a href="#chapter=accept-and-session">C10</a></td><td><a href="#chapter=session-identity">C11</a></td></tr>
+<tr><td>③ 수신</td><td><a href="#chapter=receive-path">C12</a>, <a href="#chapter=packet-framing">C13</a></td><td>-</td></tr>
+<tr><td>④ 송신</td><td><a href="#chapter=send-path">C14</a></td><td><a href="#chapter=partial-send">C15</a></td></tr>
+<tr><td>⑤·⑥ 종료</td><td><a href="#chapter=connection-close">C16</a></td><td><a href="#chapter=server-shutdown">C17</a></td></tr>
+<tr><td>게임 로직 연결</td><td><a href="#chapter=logic-queue">C18</a>, <a href="#chapter=chat-server">C19</a>, <a href="#chapter=application-design">C20</a></td><td>-</td></tr>
+<tr><td>운영과 문제 해결</td><td><a href="#chapter=configuration">C21</a>, <a href="#chapter=logs-and-metrics">C22</a>, <a href="#chapter=troubleshooting">C23</a></td><td><a href="#chapter=testing-and-memory">C24</a>~<a href="#chapter=safe-changes">C28</a></td></tr>
+</tbody></table></div>
+<label class="check"><input type="checkbox" data-check="P02-understood"><span>공개 API 세 가지와 연결의 여섯 장면을 그리고, 각 장면에서 일하는 스레드를 말할 수 있다.</span></label>
+<p>다음 <a href="#chapter=echo-overview">P03</a>에서는 이 그림 위에 실제 EchoServer 코드를 올려 놓고, 패킷 하나가 왕복하는 길을 따라간다.</p>
+</section></article>

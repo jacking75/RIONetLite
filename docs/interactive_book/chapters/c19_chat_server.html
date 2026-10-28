@@ -1,4 +1,5 @@
 <article class="chapter" id="chat-server" data-title="ChatServer"><div class="eyebrow">4부 · C19</div><h1>로직 shard가 플레이어와 룸을 소유한다</h1><p class="lead">네트워크 콜백은 raw 바이트를 복사하고, 게임 워커가 상태를 해석하며, 모든 shard의 같은 룸으로 메시지를 전달한다.</p>
+<aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-middle">중급</span>큰 그림에서의 위치: <a href="#chapter=library-overview&amp;section=overview-threads">P02 Echo와 Chat의 갈림길</a></p><p><strong>쉽게 말하면</strong> 네트워크 스레드와 게임 로직 스레드를 나눈 실제 예제인 ChatServer를 실행하고 읽는다. 8바이트 헤더 프로토콜, 로그인·입장·채팅의 상태 검사, 같은 방의 모든 플레이어에게 보내는 방송을 다룬다.</p><p class="small"><strong>처음 읽는다면</strong> <a href="#chapter=chat-server&amp;section=chat-start">서버와 클라이언트를 실행</a>해 창 세 개로 채팅해 본 뒤 L15 실험을 본다.</p></aside>
 <section id="chat-start"><h2>서버와 .NET 10 클라이언트를 실행한다</h2>
 <pre><code>tools\build.ps1 -Configuration Release -Rebuild
 bin\x64\Release\ChatServer.exe --port 32453 --logic-workers 2 --io-workers 4 --max-sessions 32

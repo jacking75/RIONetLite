@@ -49,7 +49,7 @@ class BookContentTests(unittest.TestCase):
     def test_deterministic_generation_and_explicit_incompleteness(self):
         first = builder.build()
         self.assertEqual(first, builder.build())
-        self.assertTrue(f"집필 완료 {first[1]}/33" in first[0])
+        self.assertTrue(f"집필 완료 {first[1]}/{builder.CHAPTER_COUNT}" in first[0])
         self.change("manifest.json", lambda m: m["chapters"][0].update(status="excerpt", technicalReviewed=False))
         with self.assertRaisesRegex(ValueError, "not complete"):
             builder.build(complete=True)
@@ -68,7 +68,7 @@ class BookContentTests(unittest.TestCase):
 
     def test_missing_chapter_is_rejected(self):
         self.change("manifest.json", lambda m: m["chapters"].pop())
-        with self.assertRaisesRegex(ValueError, "C01-C28"):
+        with self.assertRaisesRegex(ValueError, "C01, P01-P03, C02-C28"):
             builder.build()
 
     def test_duplicate_slug_is_rejected(self):

@@ -1,4 +1,5 @@
 <article class="chapter" id="safe-changes" data-title="안전하게 변경한다"><div class="eyebrow">6부 · C28</div><h1>변경의 영향과 증거를 함께 갱신한다</h1><p class="lead">처리량만 보지 않고 연결 식별·버퍼 수명·순서·오류·종료와 문서의 사용 계약까지 추적한다.</p>
+<aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-deep">심화</span>큰 그림에서의 위치: <a href="#chapter=library-overview&amp;section=overview-map">P02 운영과 문제 해결</a></p><p><strong>쉽게 말하면</strong> 라이브러리 코드를 고칠 때 영향을 받는 곳(세션 정합성, 버퍼 수명, 종료 순서)과 함께 갱신해야 할 테스트·문서를 정리한 점검표다.</p><p class="small"><strong>처음 읽는다면</strong> 라이브러리에 기여하거나 내부를 수정하기 전에 읽는다.</p></aside>
 <section id="change-before"><h2>수정 전에 네 가지 질문에 답한다</h2>
 <p>누가 데이터를 소유하는가, 어느 스레드가 상태를 바꾸는가, 어떤 연결의 작업인가, 무엇을 완료라고 부르는가를 확인한다. span을 소유 payload로 착각하거나 index만 저장한 지연 작업, 게시 성공을 상대 처리 완료로 취급하는 변경은 정상 한 번의 Echo만으로 찾기 어렵다.</p>
 <p>기존 작업 트리와 사용자 변경을 먼저 확인한다. 관련 없는 변경을 포맷하거나 커밋하지 않는다. 라이브러리 공개 API가 바뀌면 예제·README·C# wire·패키지 소비자와 이 책을 함께 확인한다. 외부 코드는 명시적인 필요가 없으면 수정하지 않는다. 빌드 결과와 IDE 설정은 커밋하지 않는다.</p>

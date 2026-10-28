@@ -40,9 +40,10 @@ function makeToc(){
   $('navigation').replaceChildren();
   BOOK.manifest.parts.forEach((part,index)=>{
     const group=document.createElement('details');group.open=true;
-    const heading=document.createElement('summary');heading.textContent=index===6?'부록':`${index+1}부 · ${part}`;group.append(heading);
+    const heading=document.createElement('summary');heading.textContent=index===BOOK.manifest.parts.length-1?'부록':`${index}부 · ${part}`;group.append(heading);
     chapters.filter(c=>c.part===index+1).forEach(c=>{
       const a=document.createElement($(c.slug)?'a':'span');a.textContent=`${c.id} ${c.title}`;
+      if(c.level&&c.level!=='참고'){const level=document.createElement('span');level.className='level level-'+({입문:'basic',중급:'middle',심화:'deep'}[c.level]);level.textContent=c.level;a.append(' ',level);}
       if($(c.slug)){a.href=chapterUrl(c);a.dataset.chapterLink=c.slug;}else{a.className='unwritten';a.textContent+=' · 집필 예정';}
       group.append(a);
       if(c.slug===current.slug){const sections=document.createElement('div');sections.className='sections';

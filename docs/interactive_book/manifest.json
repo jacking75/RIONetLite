@@ -3,6 +3,7 @@
   "edition": "rionetlite-book-1",
   "sourceCommit": "0b605e00766b6ef4cbafa8f578380b23166de43e",
   "parts": [
+    "큰 그림부터 본다",
     "첫 서버를 실행한다",
     "RIO와 메모리의 관계를 이해한다",
     "연결에서 응답까지 따라간다",
@@ -22,19 +23,19 @@
       "sections": [
         {
           "id": "reading-routes",
-          "title": "이번에 해결할 질문으로 시작한다"
+          "title": "처음이라면 0부부터 순서대로 읽는다"
         },
         {
           "id": "reading-prerequisites",
-          "title": "C++과 TCP를 알면 출발할 수 있다"
+          "title": "C++ 문법을 알면 출발할 수 있다"
         },
         {
           "id": "reading-experiments",
-          "title": "그림과 실제 실행은 다른 증거다"
+          "title": "실험은 그림이고 실제 실행은 따로 확인한다"
         },
         {
           "id": "reading-tools",
-          "title": "검색하고, 돌아오고, 내 실험을 남긴다"
+          "title": "검색하고, 돌아오고, 기록을 남긴다"
         },
         {
           "id": "reading-guide-prior-notes",
@@ -43,13 +44,117 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 1
+      "legacyPage": 1,
+      "level": "입문"
+    },
+    {
+      "id": "P01",
+      "slug": "server-basics",
+      "title": "네트워크 서버 기초",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/p01_server_basics.html",
+      "sections": [
+        {
+          "id": "basics-server-job",
+          "title": "게임 서버는 연결을 받고, 읽고, 쓰고, 닫는다"
+        },
+        {
+          "id": "basics-tcp-stream",
+          "title": "TCP는 편지가 아니라 물줄기다"
+        },
+        {
+          "id": "basics-async",
+          "title": "기다리지 않고 주문서를 맡긴다"
+        },
+        {
+          "id": "basics-rio",
+          "title": "RIO는 미리 등록한 그릇으로 주문을 받는다"
+        },
+        {
+          "id": "basics-words",
+          "title": "이 책에서 자주 만나는 말"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "level": "입문"
+    },
+    {
+      "id": "P02",
+      "slug": "library-overview",
+      "title": "RIONetLite 한눈에 보기",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/p02_library_overview.html",
+      "sections": [
+        {
+          "id": "overview-division",
+          "title": "라이브러리가 맡는 일과 내가 맡는 일"
+        },
+        {
+          "id": "overview-api",
+          "title": "기억할 공개 API는 세 가지다"
+        },
+        {
+          "id": "overview-inside",
+          "title": "안쪽은 다섯 부품으로 움직인다"
+        },
+        {
+          "id": "overview-lifecycle",
+          "title": "연결 하나의 일생을 여섯 장면으로 본다"
+        },
+        {
+          "id": "overview-threads",
+          "title": "누가 어떤 스레드에서 일하는가"
+        },
+        {
+          "id": "overview-map",
+          "title": "이 책의 지도"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "level": "입문"
+    },
+    {
+      "id": "P03",
+      "slug": "echo-overview",
+      "title": "EchoServer 한눈에 보기",
+      "part": 1,
+      "status": "complete",
+      "file": "chapters/p03_echo_overview.html",
+      "sections": [
+        {
+          "id": "echo-ov-goal",
+          "title": "받은 패킷을 그대로 돌려준다"
+        },
+        {
+          "id": "echo-ov-code",
+          "title": "전체 코드는 두 덩어리다"
+        },
+        {
+          "id": "echo-ov-flow",
+          "title": "패킷 하나가 왕복하는 길"
+        },
+        {
+          "id": "echo-ov-run",
+          "title": "직접 실행해 본다"
+        },
+        {
+          "id": "echo-ov-next",
+          "title": "여기서 어디로 가는가"
+        }
+      ],
+      "technicalReviewed": true,
+      "editorialReviewed": true,
+      "level": "입문"
     },
     {
       "id": "C02",
       "slug": "build-and-run",
       "title": "빌드하고 첫 서버를 실행한다",
-      "part": 1,
+      "part": 2,
       "status": "complete",
       "file": "chapters/c02_build_and_run.html",
       "sections": [
@@ -79,13 +184,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "입문"
     },
     {
       "id": "C03",
       "slug": "public-api",
       "title": "공개 API와 객체 수명",
-      "part": 1,
+      "part": 2,
       "status": "complete",
       "file": "chapters/c03_public_api.html",
       "sections": [
@@ -116,13 +222,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 2
+      "legacyPage": 2,
+      "level": "중급"
     },
     {
       "id": "C04",
       "slug": "echo-walkthrough",
       "title": "Echo 왕복을 따라간다",
-      "part": 1,
+      "part": 2,
       "status": "complete",
       "file": "chapters/c04_echo_walkthrough.html",
       "sections": [
@@ -165,13 +272,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 3
+      "legacyPage": 3,
+      "level": "입문"
     },
     {
       "id": "C05",
       "slug": "rio-requests",
       "title": "RIO 요청과 완료",
-      "part": 2,
+      "part": 3,
       "status": "complete",
       "file": "chapters/c05_rio_requests.html",
       "sections": [
@@ -201,13 +309,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C06",
       "slug": "architecture",
       "title": "전체 호출 구조",
-      "part": 2,
+      "part": 3,
       "status": "complete",
       "file": "chapters/c06_architecture.html",
       "sections": [
@@ -237,13 +346,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C07",
       "slug": "threads-and-callbacks",
       "title": "스레드와 콜백",
-      "part": 2,
+      "part": 3,
       "status": "complete",
       "file": "chapters/c07_threads_and_callbacks.html",
       "sections": [
@@ -273,13 +383,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C08",
       "slug": "registered-memory",
       "title": "등록 메모리의 수명",
-      "part": 2,
+      "part": 3,
       "status": "complete",
       "file": "chapters/c08_registered_memory.html",
       "sections": [
@@ -309,13 +420,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C09",
       "slug": "ring-buffer",
       "title": "링 버퍼와 이중 매핑",
-      "part": 2,
+      "part": 3,
       "status": "complete",
       "file": "chapters/c09_ring_buffer.html",
       "sections": [
@@ -345,13 +457,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C10",
       "slug": "accept-and-session",
       "title": "연결 수락과 세션 배정",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c10_accept_and_session.html",
       "sections": [
@@ -381,13 +494,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C11",
       "slug": "session-identity",
       "title": "세션 식별과 재사용",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c11_session_identity.html",
       "sections": [
@@ -418,13 +532,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 6
+      "legacyPage": 6,
+      "level": "심화"
     },
     {
       "id": "C12",
       "slug": "receive-path",
       "title": "수신 경로",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c12_receive_path.html",
       "sections": [
@@ -454,13 +569,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C13",
       "slug": "packet-framing",
       "title": "패킷 경계 찾기",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c13_packet_framing.html",
       "sections": [
@@ -499,13 +615,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 4
+      "legacyPage": 4,
+      "level": "입문"
     },
     {
       "id": "C14",
       "slug": "send-path",
       "title": "송신 접수와 게시",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c14_send_path.html",
       "sections": [
@@ -535,13 +652,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C15",
       "slug": "partial-send",
       "title": "부분 송신과 나머지 재게시",
-      "part": 3,
+      "part": 4,
       "status": "complete",
       "file": "chapters/c15_partial_send.html",
       "sections": [
@@ -584,13 +702,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 5
+      "legacyPage": 5,
+      "level": "심화"
     },
     {
       "id": "C16",
       "slug": "connection-close",
       "title": "연결 종료",
-      "part": 4,
+      "part": 5,
       "status": "complete",
       "file": "chapters/c16_connection_close.html",
       "sections": [
@@ -624,13 +743,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C17",
       "slug": "server-shutdown",
       "title": "서버 종료",
-      "part": 4,
+      "part": 5,
       "status": "complete",
       "file": "chapters/c17_server_shutdown.html",
       "sections": [
@@ -669,13 +789,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 7
+      "legacyPage": 7,
+      "level": "심화"
     },
     {
       "id": "C18",
       "slug": "logic-queue",
       "title": "게임 로직 큐",
-      "part": 4,
+      "part": 5,
       "status": "complete",
       "file": "chapters/c18_logic_queue.html",
       "sections": [
@@ -705,13 +826,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C19",
       "slug": "chat-server",
       "title": "ChatServer",
-      "part": 4,
+      "part": 5,
       "status": "complete",
       "file": "chapters/c19_chat_server.html",
       "sections": [
@@ -757,13 +879,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C20",
       "slug": "application-design",
       "title": "게임 애플리케이션 설계",
-      "part": 4,
+      "part": 5,
       "status": "complete",
       "file": "chapters/c20_application_design.html",
       "sections": [
@@ -798,13 +921,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 8
+      "legacyPage": 8,
+      "level": "중급"
     },
     {
       "id": "C21",
       "slug": "configuration",
       "title": "설정과 메모리 예산",
-      "part": 5,
+      "part": 6,
       "status": "complete",
       "file": "chapters/c21_configuration.html",
       "sections": [
@@ -834,13 +958,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C22",
       "slug": "logs-and-metrics",
       "title": "로그와 지표",
-      "part": 5,
+      "part": 6,
       "status": "complete",
       "file": "chapters/c22_logs_and_metrics.html",
       "sections": [
@@ -870,13 +995,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C23",
       "slug": "troubleshooting",
       "title": "문제 해결",
-      "part": 5,
+      "part": 6,
       "status": "complete",
       "file": "chapters/c23_troubleshooting.html",
       "sections": [
@@ -902,13 +1028,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "중급"
     },
     {
       "id": "C24",
       "slug": "testing-and-memory",
       "title": "테스트와 메모리 검사",
-      "part": 5,
+      "part": 6,
       "status": "complete",
       "file": "chapters/c24_testing_and_memory.html",
       "sections": [
@@ -943,13 +1070,14 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 9
+      "legacyPage": 9,
+      "level": "심화"
     },
     {
       "id": "C25",
       "slug": "benchmarking",
       "title": "성능 측정",
-      "part": 6,
+      "part": 7,
       "status": "complete",
       "file": "chapters/c25_benchmarking.html",
       "sections": [
@@ -983,13 +1111,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C26",
       "slug": "performance-tuning",
       "title": "성능 조정",
-      "part": 6,
+      "part": 7,
       "status": "complete",
       "file": "chapters/c26_performance_tuning.html",
       "sections": [
@@ -1023,13 +1152,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C27",
       "slug": "packaging-and-release",
       "title": "패키징과 릴리스",
-      "part": 6,
+      "part": 7,
       "status": "complete",
       "file": "chapters/c27_packaging_and_release.html",
       "sections": [
@@ -1059,13 +1189,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "C28",
       "slug": "safe-changes",
       "title": "안전하게 변경한다",
-      "part": 6,
+      "part": 7,
       "status": "complete",
       "file": "chapters/c28_safe_changes.html",
       "sections": [
@@ -1095,13 +1226,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "심화"
     },
     {
       "id": "A01",
       "slug": "api-reference",
       "title": "공개 API 레퍼런스",
-      "part": 7,
+      "part": 8,
       "status": "complete",
       "file": "chapters/a01_api_reference.html",
       "sections": [
@@ -1131,13 +1263,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "참고"
     },
     {
       "id": "A02",
       "slug": "glossary",
       "title": "용어",
-      "part": 7,
+      "part": 8,
       "status": "complete",
       "file": "chapters/a02_glossary.html",
       "sections": [
@@ -1155,13 +1288,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "참고"
     },
     {
       "id": "A03",
       "slug": "design-decisions",
       "title": "설계 결정",
-      "part": 7,
+      "part": 8,
       "status": "complete",
       "file": "chapters/a03_design_decisions.html",
       "sections": [
@@ -1175,13 +1309,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "참고"
     },
     {
       "id": "A04",
       "slug": "historical-records",
       "title": "과거 기록",
-      "part": 7,
+      "part": 8,
       "status": "complete",
       "file": "chapters/a04_historical_records.html",
       "sections": [
@@ -1199,13 +1334,14 @@
         }
       ],
       "technicalReviewed": true,
-      "editorialReviewed": true
+      "editorialReviewed": true,
+      "level": "참고"
     },
     {
       "id": "A05",
       "slug": "book-maintenance",
       "title": "책 유지관리",
-      "part": 7,
+      "part": 8,
       "status": "complete",
       "file": "chapters/a05_book_maintenance.html",
       "sections": [
@@ -1236,7 +1372,8 @@
       ],
       "technicalReviewed": true,
       "editorialReviewed": true,
-      "legacyPage": 10
+      "legacyPage": 10,
+      "level": "참고"
     }
   ],
   "labs": [
@@ -3194,6 +3331,26 @@
     "samples/package_consumer/PackageConsumer.vcxproj"
   ],
   "readingRoutes": [
+    {
+      "title": "처음 읽는 사람의 순서",
+      "chapters": [
+        "C01",
+        "P01",
+        "P02",
+        "P03",
+        "C02",
+        "C04",
+        "C13",
+        "C03",
+        "C06",
+        "C10",
+        "C12",
+        "C14",
+        "C16",
+        "C18",
+        "C19"
+      ]
+    },
     {
       "title": "서버를 먼저 실행해 보기",
       "chapters": [

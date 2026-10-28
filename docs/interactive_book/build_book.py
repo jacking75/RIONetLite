@@ -10,6 +10,10 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+# C01 opens part 0 with the P chapters; existing C numbers stay stable for links.
+EXPECTED_CHAPTERS = (["C01"] + [f"P{i:02}" for i in range(1, 4)] + [f"C{i:02}" for i in range(2, 29)] +
+                     [f"A{i:02}" for i in range(1, 6)])
+CHAPTER_COUNT = len(EXPECTED_CHAPTERS)
 
 
 def read_json(path):
@@ -173,9 +177,10 @@ def validate_links(links, chapters, ids):
 def build(complete=False):
     manifest = read_json(HERE / "manifest.json")
     chapters = manifest["chapters"]
-    expected = [f"C{i:02}" for i in range(1, 29)] + [f"A{i:02}" for i in range(1, 6)]
-    if [c["id"] for c in chapters] != expected:
-        raise ValueError("Manifest must contain C01-C28 and A01-A05 in order")
+    if [c["id"] for c in chapters] != EXPECTED_CHAPTERS:
+        raise ValueError("Manifest must contain C01, P01-P03, C02-C28 and A01-A05 in order")
+    if any(c.get("level") not in ("입문", "중급", "심화", "참고") for c in chapters):
+        raise ValueError("Every chapter needs a reader level")
     unique([c["slug"] for c in chapters], "chapter slug")
     if [lab["id"] for lab in manifest["labs"]] != [f"L{i:02}" for i in range(1, 21)]:
         raise ValueError("Manifest must contain L01-L20")
@@ -279,7 +284,7 @@ def build(complete=False):
     html = html.replace("<!-- STYLES -->", "<style>" + (HERE / "book.css").read_text(encoding="utf-8") + "</style>")
     html = html.replace("<!-- SCRIPTS -->", "<script>" + script + "</script>")
     html = html.replace("{{COMMIT}}", manifest["sourceCommit"][:12])
-    html = html.replace("{{PROGRESS}}", f"집필 완료 {progress}/33")
+    html = html.replace("{{PROGRESS}}", f"집필 완료 {progress}/{len(chapters)}")
     html = html.replace("{{EXCERPTS}}", str(len(fragments)))
     html = html.replace("{{SOURCE_COUNT}}", str(len(sources)))
     if re.search(r"\{\{[A-Z_]+\}\}|<!-- (STYLES|SCRIPTS|CHAPTERS) -->", html):
@@ -299,7 +304,7 @@ def main():
             if not args.output.is_file() or args.output.read_bytes() != html.encode("utf-8"):
                 raise ValueError("Generated HTML is stale; run python docs/interactive_book/build_book.py")
             mode = "manuscript/lab/migration completion enforced" if args.require_complete else "consistency check"
-            print(f"Book verified (read-only): {progress}/33 complete chapters, {evidence_count} reviewed source selections; {mode}. Native and browser execution are separate checks.")
+            print(f"Book verified (read-only): {progress}/{CHAPTER_COUNT} complete chapters, {evidence_count} reviewed source selections; {mode}. Native and browser execution are separate checks.")
         else:
             output = args.output.resolve()
             if output.suffix != ".html" or (output.is_relative_to(ROOT) and output != HERE / "index.html" and
@@ -307,7 +312,7 @@ def main():
                 raise ValueError("Use index.html, an artifacts HTML path, or an external validation path for --output")
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_bytes(html.encode("utf-8"))
-            print(f"Built {output}: {progress}/33 complete chapters, {evidence_count} reviewed source selections.")
+            print(f"Built {output}: {progress}/{CHAPTER_COUNT} complete chapters, {evidence_count} reviewed source selections.")
     except (ValueError, KeyError, OSError, TypeError) as error:
         print(f"Book validation failed: {error}", file=sys.stderr)
         return 1

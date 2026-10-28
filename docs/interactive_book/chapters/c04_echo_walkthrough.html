@@ -1,6 +1,7 @@
 <article class="chapter" id="echo-walkthrough" data-title="Echo 왕복을 따라간다">
 <div class="eyebrow">1부 · C04</div><h1>받은 패킷이 응답이 되기까지</h1>
 <p class="lead">네트워크 호출의 성공, 패킷의 완성, 응답의 송신 완료는 서로 다른 순간이다. EchoServer 한 연결을 따라가며 그 사이에 누가 데이터를 소유하는지 확인한다.</p>
+<aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-basic">입문</span>큰 그림에서의 위치: <a href="#chapter=echo-overview&amp;section=echo-ov-flow">P03 패킷 하나가 왕복하는 길</a></p><p><strong>쉽게 말하면</strong> P03의 순서도를 실험으로 한 단계씩 실행해 보는 장이다. 수신 완료, <code>OnData</code>, <code>Send</code>, 송신 완료가 서로 다른 순간이라는 것을 직접 확인한다.</p><p class="small"><strong>처음 읽는다면</strong> L01 실험의 “단계별 재생”을 먼저 눌러 본 뒤 본문을 읽는다.</p></aside>
 <section id="echo-question"><h2>수신 콜백 한 번이면 응답도 한 번인가?</h2>
 <p>클라이언트가 문자열 <code>rio</code>를 보냈다고 가정한다. 서버가 받은 범위는 문자열 세 글자만으로 이루어지지 않는다. Echo 예제는 먼저 전체 패킷 크기를 나타내는 4바이트 헤더를 읽는다. 클라이언트가 보내야 할 바이트는 <code>00 00 00 07 72 69 6F</code>다. 맨 앞의 7에는 헤더 자체도 포함된다.</p>
 <p>TCP는 이 일곱 바이트를 2바이트, 3바이트, 2바이트로 나누어 전달할 수 있다. 반대로 두 패킷이 한 수신 완료에 함께 들어올 수도 있다. 따라서 <code>OnData</code> 횟수와 응답 횟수를 같다고 가정하면 안 된다. 이번 장에서는 이미 연결된 세션에서 패킷 하나가 모두 모인 경우의 왕복을 먼저 따라간다. 조각을 모아 읽는 과정은 <a href="#chapter=packet-framing&amp;section=framing-fragments">C13의 수신 조각</a>에서 다시 실험한다.</p>

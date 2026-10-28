@@ -1,4 +1,5 @@
 <article class="chapter" id="send-path" data-title="송신 접수와 게시"><div class="eyebrow">3부 · C14</div><h1>애플리케이션 메시지를 유계 송신 링에 넣는다</h1><p class="lead">수락하지 않은 메시지를 알아야 재시도와 종료를 올바르게 선택할 수 있다. 수락한 메시지 수와 실제 RIO 요청 수는 같지 않다.</p>
+<aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-middle">중급</span>큰 그림에서의 위치: <a href="#chapter=library-overview&amp;section=overview-lifecycle">P02 ④ 송신</a></p><p><strong>쉽게 말하면</strong> <code>Send</code>를 부르면 바이트가 세션의 송신 링에 복사되고, 진행 중인 송신이 없을 때만 RIO 송신이 게시된다. 링에 자리가 없으면 메시지 전체를 거절(<code>kWouldBlock</code>)하며, 그때 다시 보낼지 끊을지는 앱이 정한다.</p><p class="small"><strong>처음 읽는다면</strong> <a href="#chapter=send-path&amp;section=send-admission">메시지 전체가 들어갈 공간을 먼저 확인한다</a> 절과 마지막 절의 앱 정책이 핵심이다.</p></aside>
 <section id="send-overloads"><h2>헤더와 본문을 함께 받지만 자동으로 만들지는 않는다</h2>
 <p>한 span Send는 같은 내부 함수에 빈 두 번째 span을 넘긴다. 두 span Send는 앱이 이미 만든 헤더와 본문을 한 메시지로 이어 복사한다. 헤더를 자동 생성하거나 길이를 고쳐 주지 않는다. 전체 길이·버전·타입을 애플리케이션이 프로토콜에 맞게 만들어야 한다.</p>
 <p>Echo의 헤더는 4바이트이고 Chat의 헤더는 8바이트다. 두 span 오버로드를 쓴다는 이유로 이 두 프로토콜이 호환되지는 않는다. 이미 헤더가 들어 있는 전체 packet을 첫 span으로 주면서 같은 헤더를 다시 더하면 중복 헤더가 된다. C13과 C19의 wire 예를 기준으로 바이트를 확인한다.</p>

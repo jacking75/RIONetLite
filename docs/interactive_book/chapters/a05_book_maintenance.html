@@ -12,8 +12,9 @@ npm.cmd --prefix tools/book run test:content
 npm.cmd --prefix tools/book run test:models
 npm.cmd --prefix tools/book run test:browser
 tools\book\update_config_fixture.ps1 -Check</code></pre>
-<p>생성은 API JSON을 먼저 만든 뒤 HTML을 조립한다. API의 -Check와 책의 --check는 파일을 바꾸지 않고 오래된 결과에 실패한다. --require-complete는 33개 원고의 기술·문장 검토, 20개 실험과 모든 이관 항목의 완료를 추가 요구한다. 일반 생성 성공만으로 실제 RIO나 운영 인수에 통과한 것으로 판단하지 않는다.</p>
+<p>생성은 API JSON을 먼저 만든 뒤 HTML을 조립한다. API의 -Check와 책의 --check는 파일을 바꾸지 않고 오래된 결과에 실패한다. --require-complete는 36개 원고의 기술·문장 검토, 20개 실험과 모든 이관 항목의 완료를 추가 요구한다. 일반 생성 성공만으로 실제 RIO나 운영 인수에 통과한 것으로 판단하지 않는다.</p>
 <p>manifest.json은 순서·고정 slug·절·실험·출처 파일 allowlist를, evidence.json은 함수 구간·코드 해시·실제 GTest 선언과 검토 해시를 기록한다. glossary.json은 정의·검색 별칭·관련 장을, migration.json은 원본 개정본과 내용별 목적지를 기록한다. chapters의 HTML은 저작 소스이며 독립 문서로 배포하지 않는다.</p>
+<p>장 번호는 링크 안정성을 위해 바꾸지 않는다. 0부의 입문 장은 C01 뒤에 P01~P03으로 끼워 넣었고 기존 C02~C28의 번호와 slug는 그대로 두었다. 모든 장은 manifest의 <code>level</code>(입문·중급·심화·참고)을 가져야 하며 목차의 난이도 표시로 쓰인다. C02~C28 첫머리의 “쉽게 말하면” 상자는 그 장이 <a href="#chapter=library-overview&amp;section=overview-lifecycle">P02의 연결 일생</a> 중 어디에 해당하는지 연결한다. 장을 새로 추가하거나 장면이 바뀌면 이 상자와 P02의 지도를 함께 고친다.</p>
 </section><section id="maintenance-review"><h2>코드 변경은 해시만 바꾸고 끝내지 않는다</h2>
 <ol><li>해당 공개 계약·실제 함수·관련 테스트를 읽고 변경 의미와 실패 경로를 정한다.</li><li>원고의 상태 전이·예산·예제와 실험의 생략 조건을 함께 고친다. source selector의 시작·끝은 파일 안에서 각각 유일해야 한다.</li><li>관련 native 검사와 순수 모델 사례를 실행한다. 테스트 이름 존재는 실행 통과와 구분한다.</li><li>검토를 마친 출처에 한해 reviewedSourceSha256과 reviewedTestSha256을 명시적으로 갱신한다. 생성기가 바뀐 해시를 자동 승인하지 않는다.</li><li>API JSON·책을 다시 생성하고 내용·모델·오프라인 브라우저·문서 링크를 검사한다. 공유할 HTML이 새 코드 snapshot을 포함하는지 확인한다.</li></ol>
 <p>코드 탐험의 기준 commit은 <code>{{COMMIT}}</code>이며 파일별 SHA-256이 정확한 snapshot을 식별한다. 기준 commit 뒤 이 책 작업으로 바뀐 문서 도구는 해당 파일 해시를 함께 본다. 줄 끝도 raw byte 해시에 포함되므로 .gitattributes는 포함 소스의 LF/CRLF 정책을 명시한다. 기존 build.ps1의 혼합 줄 끝은 CRLF로 맞추고 원래 raw SHA와 LF 정규화 비교 SHA를 별도로 보존했다. 실행문 내용은 바꾸지 않았다. 과거 원문과 최신 소스가 달라졌으면 근거와 차이를 기록하고 최신 hash로 과거 실행 사실까지 바꾸지 않는다.</p>

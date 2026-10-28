@@ -1,4 +1,5 @@
 <article class="chapter" id="packet-framing" data-title="패킷 경계 찾기"><div class="eyebrow">3부 · C13</div><h1>수신한 바이트에서 패킷 경계를 찾는다</h1><p class="lead">TCP가 전달한 범위와 애플리케이션 메시지의 범위를 분리하면, 조각을 어디에 남기고 언제 소비해야 하는지 명확해진다.</p>
+<aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-basic">입문</span>큰 그림에서의 위치: <a href="#chapter=library-overview&amp;section=overview-lifecycle">P02 ③ 수신</a></p><p><strong>쉽게 말하면</strong> TCP로 받은 바이트 덩어리에서 길이 헤더로 메시지를 하나씩 잘라 내는 방법이다. 쪼개져 오면 기다리고, 붙어서 오면 여러 번 처리하고, 처리한 만큼만 소비량으로 돌려준다.</p><p class="small"><strong>처음 읽는다면</strong> <a href="#chapter=packet-framing&amp;section=framing-fragments">2+3+2로 들어올 때</a> 절의 L09 실험을 재생해 본다.</p></aside>
 <section id="framing-stream"><h2>보낸 횟수는 받은 횟수가 아니다</h2>
 <p>클라이언트가 메시지 두 개를 두 번의 송신 호출로 보냈더라도 서버가 같은 횟수로 수신하지는 않는다. TCP는 순서가 있는 바이트 스트림을 제공한다. 애플리케이션이 만든 메시지의 경계는 별도 규칙으로 찾는다. “첫 네 바이트가 도착했으니 본문도 왔다”거나 “이번 수신의 끝이 패킷의 끝이다”라는 가정을 코드에 넣지 않는다.</p>
 <p>RIONetLite의 <code>OnData</code>는 현재 읽을 수 있는 연속 범위를 빌려 준다. 그 안에는 이전에 남긴 조각과 새로 받은 바이트가 함께 있을 수 있다. 받은 범위를 곧바로 C++ 구조체 포인터로 캐스팅하면 길이 부족, 정렬, 바이트 순서 문제를 동시에 만들 수 있다. 디코더는 필요한 바이트가 있는지 먼저 확인하고 정수 값을 바이트 단위로 조합한다.</p>
