@@ -1,6 +1,7 @@
 <article class="chapter" id="accept-and-session" data-title="연결 수락과 세션 배정"><div class="eyebrow">3부 · C10</div><h1>연결 하나에 슬롯과 소유 워커를 배정한다</h1><p class="lead">accept가 성공한 뒤에도 RQ 생성, 소켓 설정, 콜백과 첫 수신이 남는다. 어느 단계에서 실패해도 슬롯을 한 번만 반환해야 한다.</p>
 <aside class="primer" aria-label="쉽게 말하면"><p class="primer-head"><span class="level level-middle">중급</span>큰 그림에서의 위치: <a href="#chapter=library-overview&amp;section=overview-lifecycle">P02 ② 연결</a></p><p><strong>쉽게 말하면</strong> 연결이 들어올 때 accept 스레드가 하는 일을 따라간다. 미리 만든 세션 풀에서 빈 슬롯을 빌리고, 담당 I/O 워커를 정하고, <code>OnConnected</code> 뒤에 첫 수신을 게시한다. 중간에 실패하면 슬롯을 정확히 한 번만 돌려준다.</p><p class="small"><strong>처음 읽는다면</strong> <a href="#chapter=accept-and-session&amp;section=accept-pool">세션 풀은 기동 시 준비하고 연결 때 빌린다</a>와 <a href="#chapter=accept-and-session&amp;section=accept-first-receive">연결 콜백을 끝내고 첫 수신을 게시한다</a>를 먼저 읽는다.</p></aside>
 <section id="accept-pool"><h2>세션 풀은 기동 시 준비하고 연결 때 빌린다</h2>
+<p>그림으로 보기 · 메모리·소유권·종료 순서를 실제 코드와 대조한다.</p><figure data-figure="F-C10-2"><p class="no-script">정적 구조와 각 단계의 조건은 아래 본문을 따른다.</p></figure>
 <p>SessionManager는 최대 세션 수에 맞춰 TcpSession과 수신·송신 등록 버퍼를 준비한다. 새 연결마다 큰 등록 메모리를 자유롭게 늘리는 구조가 아니다. 메모리 예산이 최대 세션 수에 선형으로 영향을 받는 이유다. accept된 소켓은 빈 세션 슬롯을 빌리고, 슬롯이 없으면 소켓을 닫아 연결을 거절한다.</p>
 <p>풀의 Free·Leased·Quarantined와 연결 생명주기의 Free·Accepting·Active·Draining·Closing·Quarantined는 별도 상태다. 풀은 슬롯이 어디에 들어 있는지 관리하고 생명주기는 한 연결의 진행을 관리한다. 목록에서 꺼냈다는 사실만으로 네트워크 연결이 Active인 것은 아니다.</p><button class="source" data-evidence="accept.allocation">실제 코드 · 슬롯 대여와 반환</button>
 </section>

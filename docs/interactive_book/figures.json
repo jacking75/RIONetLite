@@ -296,6 +296,581 @@
         }
       ],
       "caption": "정상 경로를 읽는 지도다. 실패·재시작·quarantine에서 free로의 반환은 관련 본문과 실제 코드에서 확인한다."
+    },
+    {
+      "id": "F-C09-1",
+      "kind": "ring",
+      "title": "8칸 링과 두 주소 뷰",
+      "capacity": 8,
+      "read": 6,
+      "write": 2,
+      "used": 4,
+      "posted": 0,
+      "steps": [
+        {
+          "title": "처음에는 빈 링이다",
+          "text": "read와 write가 0이고 used도 0이다. 아직 읽을 바이트가 없다.",
+          "evidence": "ring.operations",
+          "spec": {
+            "read": 0,
+            "write": 0,
+            "used": 0
+          }
+        },
+        {
+          "title": "끝에서 시작으로 이어지는 4바이트",
+          "text": "6·7·0·1번 칸이 읽기 구간이다. 두 주소 뷰에서는 주소가 연속으로 이어지지만 물리 저장소는 8칸 그대로다.",
+          "evidence": "memory.mapping"
+        },
+        {
+          "title": "가득 찼을 때는 used를 본다",
+          "text": "read와 write가 같아도 used=8이면 빈 공간이 없다. 빈 링과 다른 조건으로 게시를 보류한다.",
+          "evidence": "ring.operations",
+          "spec": {
+            "read": 2,
+            "write": 2,
+            "used": 8
+          }
+        }
+      ],
+      "caption": "두 뷰는 복사본 두 벌이 아니다. 같은 물리 메모리의 별칭 주소를 보여 준다."
+    },
+    {
+      "id": "F-C10-2",
+      "kind": "slots",
+      "title": "워커별 슬롯과 interleaved free list",
+      "workers": 2,
+      "slots": [
+        {
+          "index": 0,
+          "owner": 0,
+          "generation": 1,
+          "state": "free"
+        },
+        {
+          "index": 1,
+          "owner": 1,
+          "generation": 1,
+          "state": "active"
+        },
+        {
+          "index": 2,
+          "owner": 0,
+          "generation": 2,
+          "state": "active"
+        },
+        {
+          "index": 3,
+          "owner": 1,
+          "generation": 1,
+          "state": "free"
+        },
+        {
+          "index": 4,
+          "owner": 0,
+          "generation": 1,
+          "state": "free"
+        },
+        {
+          "index": 5,
+          "owner": 1,
+          "generation": 1,
+          "state": "free"
+        }
+      ],
+      "free": [
+        0,
+        4,
+        3,
+        5
+      ],
+      "steps": [
+        {
+          "title": "워커 소유권과 세대를 함께 읽는다",
+          "text": "짝수 슬롯은 워커 0, 홀수 슬롯은 워커 1의 열에 놓았다. 실제 선택은 파티션과 남은 슬롯에 따른다. free 순서는 각 파티션의 예시이며 세대는 연결을 바꿀 때 갱신한다.",
+          "evidence": "accept.partition"
+        }
+      ],
+      "caption": "6슬롯·2워커의 축소 예다. 실제 최대 세션 수와 워커 수는 설정에 따른다."
+    },
+    {
+      "id": "F-C17-1",
+      "kind": "graph",
+      "title": "완료를 처리할 주체를 마지막까지 남긴다",
+      "nodes": [
+        {
+          "id": "stop-0",
+          "label": "신규 앱 진입 차단",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-1",
+          "label": "accept 중지·join",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-2",
+          "label": "접수 송신 배출",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-3",
+          "label": "소켓 닫기",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-4",
+          "label": "수신 취소 완료 회수",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-5",
+          "label": "I/O 워커 join",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-6",
+          "label": "등록 버퍼 해제",
+          "state": "waiting"
+        },
+        {
+          "id": "stop-7",
+          "label": "CQ·알림 해제",
+          "state": "waiting"
+        }
+      ],
+      "edges": [
+        {
+          "to": "stop-1",
+          "label": "선행 완료",
+          "from": "stop-0"
+        },
+        {
+          "to": "stop-2",
+          "label": "선행 완료",
+          "from": "stop-1"
+        },
+        {
+          "to": "stop-3",
+          "label": "선행 완료",
+          "from": "stop-2"
+        },
+        {
+          "to": "stop-4",
+          "label": "선행 완료",
+          "from": "stop-3"
+        },
+        {
+          "to": "stop-5",
+          "label": "선행 완료",
+          "from": "stop-4"
+        },
+        {
+          "to": "stop-6",
+          "label": "선행 완료",
+          "from": "stop-5"
+        },
+        {
+          "to": "stop-7",
+          "label": "선행 완료",
+          "from": "stop-6"
+        }
+      ],
+      "steps": [
+        {
+          "title": "신규 앱 진입 차단",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "accept 중지·join",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "접수 송신 배출",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "소켓 닫기",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "done"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "수신 취소 완료 회수",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "done"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "done"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "I/O 워커 join",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "done"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "done"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "done"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "waiting"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "등록 버퍼 해제",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "done"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "done"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "done"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "done"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "waiting"
+              }
+            ]
+          }
+        },
+        {
+          "title": "CQ·알림 해제",
+          "text": "앞 단계의 조건을 만족한 뒤 이 단계를 진행한다. 기한 초과 시 미완료 참조를 확인하고 안전하게 해제할 수 없는 자원은 보존한다.",
+          "evidence": "shutdown.end",
+          "spec": {
+            "nodes": [
+              {
+                "id": "stop-0",
+                "label": "신규 앱 진입 차단",
+                "state": "done"
+              },
+              {
+                "id": "stop-1",
+                "label": "accept 중지·join",
+                "state": "done"
+              },
+              {
+                "id": "stop-2",
+                "label": "접수 송신 배출",
+                "state": "done"
+              },
+              {
+                "id": "stop-3",
+                "label": "소켓 닫기",
+                "state": "done"
+              },
+              {
+                "id": "stop-4",
+                "label": "수신 취소 완료 회수",
+                "state": "done"
+              },
+              {
+                "id": "stop-5",
+                "label": "I/O 워커 join",
+                "state": "done"
+              },
+              {
+                "id": "stop-6",
+                "label": "등록 버퍼 해제",
+                "state": "done"
+              },
+              {
+                "id": "stop-7",
+                "label": "CQ·알림 해제",
+                "state": "done"
+              }
+            ]
+          }
+        }
+      ],
+      "caption": "공개 Stop의 앱 진입 차단은 accept 중지보다 먼저다. 내부 송신 재게시는 graceful 배출 동안 살아 있어야 한다. 모델은 정상 의존 관계를 단순화했다."
     }
   ]
 }

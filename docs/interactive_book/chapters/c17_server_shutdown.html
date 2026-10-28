@@ -5,6 +5,7 @@
 <p>같은 서버의 이벤트·로거 콜백 안에서는 Stop을 거절한다. 그 스레드를 기다리는 join을 자기 호출 스택 안에서 시작할 수 있기 때문이다. 서버 객체를 소유한 주 스레드에 종료 플래그를 전달한다. 다른 스레드가 Send를 호출하는 동안 서버 객체를 옮기거나 파괴해도 된다는 계약은 없으므로 모든 애플리케이션 호출자를 정리한다.</p><button class="source" data-evidence="api.stop">실제 코드 · Stop의 소유자와 공유 결과</button><button class="source" data-evidence="shutdown.coordinator">실제 코드 · ShutdownCoordinator</button>
 </section>
 <section id="shutdown-order"><h2>공유 deadline을 전달하며 순서대로 배출한다</h2>
+<p>그림으로 보기 · 메모리·소유권·종료 순서를 실제 코드와 대조한다.</p><figure data-figure="F-C17-1"><p class="no-script">정적 구조와 각 단계의 조건은 아래 본문을 따른다.</p></figure>
 <div class="table-wrap"><table><thead><tr><th>단계</th><th>실제 경로</th><th>남겨야 할 것</th></tr></thead><tbody><tr><td>앱 진입 차단</td><td>상태를 Stopping으로 바꾸고 진입 중인 Send/Close를 배출한다.</td><td>브리지·핸들러·로그 수명</td></tr><tr><td>accept 중지</td><td>listen 소켓을 닫아 accept를 깨우고 join한다.</td><td>기존 세션과 I/O 워커</td></tr><tr><td>graceful 송신 대기</td><td>접수한 송신의 outstanding이 끝날 때까지 공유 기한 안에서 기다린다.</td><td>송신 완료와 내부 재게시 경로</td></tr><tr><td>연결 종료</td><td>열린 세션에 전체 UID로 종료를 요청한다.</td><td>취소 완료를 처리할 워커와 CQ</td></tr><tr><td>I/O 배출·합류</td><td>남은 예산으로 워커 Stop과 join을 진행한다.</td><td>요청 컨텍스트와 등록 버퍼</td></tr><tr><td>자원 해제</td><td>세션 자원, CQ, notification, Winsock을 정리한다.</td><td>실패 시 참조 중 자원의 별도 보존</td></tr></tbody></table></div>
 <p>공개 Stop은 transport API의 shared lock 호출이 빠져나오도록 exclusive lock을 잠시 잡고 놓는다. 이 lock을 잡은 채 콜백을 join하면 콜백의 Send와 교착할 수 있으므로 실제 End와 join 전에 해제한다. 단순히 mutex 하나를 추가하는 것보다 무엇을 기다리는 동안 그 mutex를 보유하는지 확인해야 한다.</p>
 <button class="source" data-evidence="shutdown.end">실제 코드 · ServerNetManagerImpl::End</button>
