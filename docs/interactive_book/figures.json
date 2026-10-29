@@ -1064,21 +1064,72 @@
     },
     {
       "id": "F-P01-3",
-      "kind": "ring",
-      "title": "미리 등록한 그릇의 일부만 맡긴다",
-      "capacity": 8,
-      "read": 0,
-      "write": 0,
-      "used": 0,
-      "posted": 4,
-      "steps": [
+      "kind": "sequence",
+      "title": "메모리 등록부터 수신 데이터 읽기까지",
+      "lanes": [
         {
-          "title": "등록 버퍼의 빈 네 칸으로 수신을 맡긴다",
-          "text": "바이트는 아직 없고 커널이 쓸 구간만 예약되어 있다. 완료가 올 때까지 이 저장소를 유지한다.",
-          "evidence": "memory.registration"
+          "id": "library",
+          "label": "RIONetLite",
+          "role": "요청하고 완료를 확인한다"
+        },
+        {
+          "id": "windows",
+          "label": "Windows RIO",
+          "role": "메모리에 데이터를 쓴다"
         }
       ],
-      "caption": "그릇 비유를 8칸 저장소로 단순화했다. 실제 페이지 단위 크기와 RIO_BUF 범위는 C08·C09를 따른다."
+      "steps": [
+        {
+          "title": "8바이트 메모리를 등록한다",
+          "text": "RIORegisterBuffer로 메모리를 등록하고 ID B를 받는다. 아직 수신 요청도, 도착한 데이터도 없다.",
+          "evidence": "memory.registration",
+          "messages": [
+            {
+              "from": "library",
+              "to": "windows",
+              "label": "메모리 등록 → ID B"
+            }
+          ]
+        },
+        {
+          "title": "앞 4바이트로 수신을 요청한다",
+          "text": "RIO_BUF는 B의 0번 위치부터 최대 4바이트를 가리킨다. RIOReceive가 성공해도 완료 전에는 메모리를 유지하고 이 범위를 읽거나 덮어쓰지 않는다.",
+          "evidence": "receive.post",
+          "messages": [
+            {
+              "from": "library",
+              "to": "windows",
+              "label": "B의 0번부터 최대 4바이트 요청"
+            }
+          ]
+        },
+        {
+          "title": "3바이트 수신 완료를 확인한다",
+          "text": "이 예에서는 Windows가 0~2번 위치에 3바이트를 쓰고 완료를 남겼다. 워커가 CQ에서 성공 결과와 실제 완료 길이 3을 확인한다.",
+          "evidence": "receive.complete",
+          "messages": [
+            {
+              "from": "windows",
+              "to": "library",
+              "label": "성공 완료: 3바이트",
+              "kind": "completion"
+            }
+          ]
+        },
+        {
+          "title": "완료된 3바이트를 읽는다",
+          "text": "라이브러리는 받은 3바이트를 수신 처리로 전달한다. 요청 길이 4와 완료 길이 3을 구분한다. 처리 후 사용할 수 있는 구간을 다음 수신에 재사용한다.",
+          "evidence": "receive.callback",
+          "messages": [
+            {
+              "from": "library",
+              "to": "library",
+              "label": "3바이트 읽기"
+            }
+          ]
+        }
+      ],
+      "caption": "위에서 아래로 시간 순서다. 화살표는 함수 호출과 완료 통지를 나타낸다. 8바이트 중 최대 4바이트를 요청해 3바이트를 받은 성공 예이며, 실제 크기와 처리 시간은 단순화했다."
     },
     {
       "id": "F-P02-2",

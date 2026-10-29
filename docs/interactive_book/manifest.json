@@ -78,7 +78,7 @@
         },
         {
           "id": "basics-rio",
-          "title": "RIO는 미리 등록한 그릇으로 주문을 받는다"
+          "title": "RIO는 받을 메모리를 미리 등록하고, 완료될 때까지 유지한다"
         },
         {
           "id": "basics-words",

@@ -26,28 +26,31 @@
 <div class="analogy"><p><strong>비유</strong> 블로킹 방식은 손님 한 명마다 직원 한 명이 붙어 음식이 나올 때까지 주방 앞에서 기다리는 식당이다. 비동기 방식은 주문서를 주방에 넣고 진동벨을 받는 식당이다. 직원 몇 명이 진동벨이 울린 주문만 골라 손님에게 가져다준다.</p></div>
 <p>여기서 꼭 구분할 두 순간이 있다. 요청을 <strong>맡긴(게시한) 순간</strong>과 요청이 <strong>끝난(완료된) 순간</strong>이다. 맡긴 뒤 완료되기 전까지 운영체제는 우리가 넘긴 메모리를 계속 사용한다. 그 사이에 메모리를 지우거나 옮기면 운영체제가 엉뚱한 곳을 읽거나 쓰게 된다. 이 책의 중급·심화 장 대부분은 결국 “맡긴 요청이 끝나기 전에 무엇을 건드리면 안 되는가”를 다룬다.</p>
 </section>
-<section id="basics-rio"><h2>RIO는 미리 등록한 그릇으로 주문을 받는다</h2><div class="analogy"><p><strong>비유</strong> 주방에 미리 맡긴 그릇에 이름표를 붙이고 필요한 칸만 주문에 적는 것과 같다. 음식을 담는 동안 그릇을 치우거나 다른 창고로 옮기지 않는다. 실제 RIO는 주소·길이·등록 ID의 수명으로 이 조건을 지킨다.</p></div><p>그림으로 보기 · 미리 등록한 그릇의 일부만 맡긴다에서 먼저 상태를 바꾸어 본다. 아래 코드와 표는 이 그림의 조건을 세부로 읽는다.</p><figure data-figure="F-P01-3"><p class="no-script">그릇 비유를 8칸 저장소로 단순화했다. 실제 페이지 단위 크기와 RIO_BUF 범위는 C08·C09를 따른다.</p></figure>
-<p>Windows의 대표적인 비동기 소켓 방식은 IOCP(I/O Completion Port)다. <strong>RIO(Registered I/O)</strong>는 Windows 8과 Windows Server 2012부터 제공되는 더 가벼운 방식이다. 이름처럼 데이터를 담을 메모리를 미리 <em>등록</em>해 두고, 요청할 때는 그 메모리의 한 구간을 가리키기만 한다. 요청마다 메모리를 준비하던 비용을 줄여 처리량과 지연 시간을 개선한다.</p>
-<div class="diagram"><svg viewBox="0 0 820 300" role="img" aria-label="I/O 워커가 RQ에 요청을 게시하고, 커널이 등록 버퍼에 읽고 쓴 뒤 CQ에 완료를 남기며, 워커가 CQ에서 완료를 꺼내는 흐름"><g>
-<rect x="10" y="40" width="160" height="70" rx="6" class="accent-box"/><text x="90" y="70" text-anchor="middle">I/O 워커 스레드</text><text x="90" y="94" text-anchor="middle" font-size="13" class="muted-text">라이브러리 안</text>
-<rect x="225" y="40" width="160" height="70" rx="6"/><text x="305" y="70" text-anchor="middle">RQ 요청 큐</text><text x="305" y="94" text-anchor="middle" font-size="13" class="muted-text">소켓마다 1개</text>
-<rect x="440" y="40" width="160" height="70" rx="6"/><text x="520" y="70" text-anchor="middle">Windows 커널</text><text x="520" y="94" text-anchor="middle" font-size="13" class="muted-text">네트워크 송수신</text>
-<rect x="650" y="40" width="160" height="70" rx="6"/><text x="730" y="70" text-anchor="middle">CQ 완료 큐</text><text x="730" y="94" text-anchor="middle" font-size="13" class="muted-text">이 책에서는 워커마다 1개</text>
-<path class="arrow" d="M170 75 H218"/><polygon class="head" points="225,75 215,70 215,80"/>
-<path class="arrow" d="M385 75 H433"/><polygon class="head" points="440,75 430,70 430,80"/>
-<path class="arrow" d="M600 75 H643"/><polygon class="head" points="650,75 640,70 640,80"/>
-<text x="197" y="30" text-anchor="middle" font-size="13">① 게시</text><text x="625" y="30" text-anchor="middle" font-size="13">② 완료 기록</text>
-<path class="arrow-back" d="M730 110 V150 H90 V117"/><polygon class="head-back" points="90,110 85,120 95,120"/><text x="410" y="142" text-anchor="middle" font-size="13">③ 워커가 완료를 꺼내 처리한다</text>
-<rect x="300" y="200" width="300" height="70" rx="6" class="accent-box"/><text x="450" y="230" text-anchor="middle">등록 버퍼</text><text x="450" y="254" text-anchor="middle" font-size="13" class="muted-text">미리 등록한 메모리 · 요청은 이 안의 구간을 가리킨다</text>
-<path class="lifeline" d="M520 110 V200"/><text x="532" y="185" font-size="13" class="muted-text">커널이 직접 읽고 쓴다</text>
-</g></svg><figcaption>요청은 등록 버퍼의 구간을 가리킨다. 완료가 오기 전까지 그 구간은 커널이 쓰는 중이다.</figcaption></div>
-<div class="table-wrap"><table><thead><tr><th>RIO 부품</th><th>쉬운 설명</th><th>식당 비유</th></tr></thead><tbody>
-<tr><td>등록 버퍼</td><td><code>RIORegisterBuffer</code>로 미리 등록한 메모리. 등록하면 번호(버퍼 ID)를 받는다.</td><td>주방에 미리 맡겨 둔 그릇 묶음</td></tr>
-<tr><td><code>RIO_BUF</code></td><td>“몇 번 등록 버퍼의 몇 번째 바이트부터 몇 바이트”라는 구간 표시</td><td>“3번 그릇 묶음의 둘째 칸”</td></tr>
-<tr><td>RQ(<dfn data-term="rq">요청 큐</dfn>)</td><td>소켓 하나에 붙는 요청 투입구. <code>RIOReceive</code>·<code>RIOSend</code>로 요청을 넣는다.</td><td>테이블마다 있는 주문 투입구</td></tr>
-<tr><td>CQ(<dfn data-term="cq">완료 큐</dfn>)</td><td>끝난 요청의 결과가 쌓이는 곳. <code>RIODequeueCompletion</code>으로 꺼낸다.</td><td>음식이 나왔다고 알려 주는 알림판</td></tr>
+<section id="basics-rio"><h2>RIO는 받을 메모리를 미리 등록하고, 완료될 때까지 유지한다</h2>
+<p><strong>이 절의 목표는 “수신 요청을 보낸 뒤에도 왜 메모리를 그대로 두어야 하는가”를 이해하는 것이다.</strong> 클라이언트가 보낸 바이트는 서버의 메모리에 담겨야 한다. RIO에서는 라이브러리가 그 메모리를 Windows에 미리 등록하고, 수신할 때마다 사용할 범위를 지정한다.</p>
+<p><strong>RIO</strong>는 Registered I/O, 즉 “등록한 메모리를 사용하는 입출력”이라는 뜻이다. 메모리를 미리 등록해 반복 사용하면 매 요청마다 메모리를 등록하는 비용을 줄일 수 있다. 대신 등록한 메모리와 그 메모리를 사용하는 요청의 수명을 라이브러리가 관리해야 한다.</p>
+<h3>8바이트 메모리의 앞 4바이트로 수신을 요청해 본다</h3>
+<p>아래는 동작을 이해하기 위한 작은 예다. 메모리 전체 크기는 <strong>8바이트</strong>이고, 이번 수신에 사용할 범위는 <strong>0번 위치부터 최대 4바이트</strong>다. 실제로는 그보다 적은 <strong>3바이트</strong>만 도착했다고 가정한다. 메모리 크기, 요청 길이, 완료 길이는 서로 다른 값이다.</p>
+<div class="bytes" role="img" aria-label="8바이트 저장소에서 0번부터 3번까지 네 바이트만 이번 수신에 사용한다. 4번부터 7번까지는 이번 요청 범위 밖이다."><span class="byte header">0<small>수신 범위</small></span><span class="byte header">1<small>수신 범위</small></span><span class="byte header">2<small>수신 범위</small></span><span class="byte header">3<small>수신 범위</small></span><span class="byte">4<small>범위 밖</small></span><span class="byte">5<small>범위 밖</small></span><span class="byte">6<small>범위 밖</small></span><span class="byte">7<small>범위 밖</small></span></div>
+<p>숫자는 메모리 안의 바이트 위치다. 위쪽에 색 선이 있는 네 칸이 이번 요청의 범위다. <strong>아직 데이터가 들어왔다는 표시가 아니다.</strong> 그림의 1~4단계를 차례로 선택하면 등록, 요청, 완료, 읽기를 구분할 수 있다. 좁은 화면에서는 그림을 좌우로 스크롤해 양쪽을 확인한다.</p>
+<figure data-figure="F-P01-3"><p class="no-script">① 8바이트 메모리를 등록해 ID B를 받는다. ② B의 0번 위치부터 최대 4바이트의 수신을 요청한다. ③ 3바이트를 받았다는 성공 완료를 확인한다. ④ 라이브러리가 완료된 3바이트를 읽는다. 요청 후 완료 확인 전에는 해당 메모리를 해제하거나 수신 범위를 덮어쓰지 않는다.</p></figure>
+<h3>각 단계에서 메모리에 무슨 일이 일어나는가</h3>
+<div class="table-wrap"><table><thead><tr><th>단계</th><th>라이브러리와 Windows가 하는 일</th><th>메모리 상태</th></tr></thead><tbody>
+<tr><td>① 등록</td><td>라이브러리가 <code>RIORegisterBuffer</code>로 8바이트를 등록하고 버퍼 ID를 받는다. 여기서는 그 ID를 <code>B</code>라고 부른다.</td><td>등록은 메모리를 사용할 준비다. 수신을 요청한 것은 아니다.</td></tr>
+<tr><td>② 수신 요청</td><td><code>RIO_BUF</code>에 <code>BufferId=B</code>, <code>Offset=0</code>, <code>Length=4</code>를 적어 <code>RIOReceive</code>에 넘긴다.</td><td>Windows가 0~3번 위치에 쓸 수 있다. 요청이 성공해도 데이터 수신이 끝났다는 뜻은 아니다.</td></tr>
+<tr><td>③ 완료 확인</td><td>Windows가 0~2번 위치에 3바이트를 쓰고 완료 큐에 결과를 남긴다. I/O 워커가 그 결과의 성공 여부와 완료 길이 3을 확인한다.</td><td>이 요청으로 새로 받은 데이터는 0~2번의 3바이트다. 요청 길이 4 전체가 채워진 것으로 보면 안 된다.</td></tr>
+<tr><td>④ 데이터 읽기</td><td>라이브러리가 완료된 3바이트를 애플리케이션의 수신 처리로 전달한다.</td><td>데이터 처리가 끝난 구간은 다음 수신에 다시 사용할 수 있다. 등록 메모리 전체의 해제는 이를 참조하는 모든 요청이 끝난 뒤 별도로 진행한다.</td></tr>
 </tbody></table></div>
-<p>RIONetLite는 이 부품들을 모두 내부에 숨긴다. 애플리케이션 코드에서 <code>RIOReceive</code>를 직접 부를 일은 없다. 다만 라이브러리가 왜 “완료 전에는 버퍼를 건드리지 않는다”를 그토록 지키는지 이해하려면 이 그림을 기억해 두는 것이 좋다. 실제 함수 표 초기화와 요청 수명은 심화 장인 <a href="#chapter=rio-requests">C05</a>에서 다룬다.</p>
+<p><strong>완료 전에는 왜 해제하면 안 되는가?</strong> Windows가 나중에 그 주소에 데이터를 쓸 수 있기 때문이다. 먼저 해제하면 이미 반환한 메모리에 쓰게 될 수 있다. 수신 중인 범위를 애플리케이션이 동시에 읽거나 덮어써도 아직 완성되지 않은 데이터를 읽거나 데이터를 손상시킬 수 있다.</p>
+<h3>RIO 코드에서 만나는 네 가지 이름</h3>
+<div class="table-wrap"><table><thead><tr><th>이름</th><th>위 예에서의 역할</th></tr></thead><tbody>
+<tr><td><dfn data-term="registered-buffer">등록 버퍼</dfn></td><td>실제 바이트가 담기는 메모리다. 예에서는 ID B로 등록한 8바이트다.</td></tr>
+<tr><td><code>RIO_BUF</code></td><td>메모리 자체가 아니라 사용할 범위를 적은 설명이다. 예에서는 “B의 0번부터 최대 4바이트”다.</td></tr>
+<tr><td>RQ(<dfn data-term="rq">요청 큐</dfn>)</td><td>소켓에 연결된 요청 큐다. <code>RIOReceive</code>는 이 큐를 통해 수신을 요청한다. 송신 요청에는 <code>RIOSend</code>를 사용한다.</td></tr>
+<tr><td>CQ(<dfn data-term="cq">완료 큐</dfn>)</td><td>끝난 요청의 결과가 쌓이는 곳이다. 워커는 <code>RIODequeueCompletion</code>으로 결과를 꺼내 성공 여부와 실제 처리 길이를 확인한다.</td></tr>
+</tbody></table></div>
+<p>RIONetLite 사용자는 이 등록과 RIO 요청을 직접 처리하지 않는다. 라이브러리가 내부에서 관리하고, 애플리케이션은 <code>OnData</code>로 받은 데이터를 처리한다. 여기서 기억할 규칙은 <strong>“등록 → 범위를 지정해 요청 → 완료 확인 → 받은 길이만큼 읽기”</strong>다.</p>
+<p>등록 메모리의 실제 생성과 해제는 <a href="#chapter=registered-memory">C08</a>, 원형 버퍼와 이중 매핑은 <a href="#chapter=ring-buffer">C09</a>, RQ·CQ와 요청 수명은 <a href="#chapter=rio-requests">C05</a>에서 자세히 다룬다.</p>
 </section>
 <section id="basics-words"><h2>이 책에서 자주 만나는 말</h2><div class="table-wrap"><table><thead><tr><th>자주 하는 오해</th><th>정확한 관계</th><th>확인할 곳</th></tr></thead><tbody><tr><td>스레드 하나가 세션 하나다</td><td>한 I/O 워커가 여러 세션의 CQ 결과를 처리한다.</td><td>C07·L03</td></tr><tr><td>한 번 Send하면 한 번 OnData가 온다</td><td>TCP 조각과 앱 프레임 경계는 다르다.</td><td>C13·L09</td></tr></tbody></table></div>
 <p>다음 단어들은 거의 모든 장에 나온다. 지금 모두 외울 필요는 없고, 낯선 단어가 나오면 이 표나 <a href="#chapter=glossary">A02 용어</a>로 돌아온다.</p>
