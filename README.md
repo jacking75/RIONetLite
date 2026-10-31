@@ -1,5 +1,5 @@
-# RIONetLite
-
+# RIONetLite 
+**[한국어](./README_kr.md)**  
 RIONetLite is a C++ game-server networking library using Windows Registered I/O.
 It prioritizes session identity, asynchronous buffer lifetime and safe shutdown.
 
